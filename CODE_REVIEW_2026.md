@@ -19,15 +19,15 @@ Validated locally:
 - `cargo test --all-targets` (root) passed.
   - Included `database::schema::tests::test_legacy_alerts_schema_migrates_dedupe_key_before_index`.
   - Included `tests::test_alert_generation_and_dedupe_across_two_consecutive_scans`.
-- `cargo check --all-targets` (`ui/src-tauri`) passed.
-- `cargo clippy --all-targets` (`ui/src-tauri`) passed.
-- `cargo test --all-targets` (`ui/src-tauri`) passed (0 tests, compile/runtime harness healthy).
-- `npm --prefix ui run build` passed.
-- `npm --prefix ui run tauri info` passed (toolchain/runtime environment healthy).
+- `cargo check --all-targets` (`apps/nexus-desktop/src-tauri`) passed.
+- `cargo clippy --all-targets` (`apps/nexus-desktop/src-tauri`) passed.
+- `cargo test --all-targets` (`apps/nexus-desktop/src-tauri`) passed (0 tests, compile/runtime harness healthy).
+- `npm --prefix apps/nexus-desktop run build` passed.
+- `npm --prefix apps/nexus-desktop run tauri info` passed (toolchain/runtime environment healthy).
 
 Integration contract spot-check:
-- Tauri invoke commands exposed in `ui/src-tauri/src/main.rs`: 29.
-- Commands mapped in `ui/src/lib/api/tauri-client.ts`: 29.
+- Tauri invoke commands exposed in `apps/nexus-desktop/src-tauri/src/main.rs`: 29.
+- Commands mapped in `apps/nexus-desktop/src/lib/api/tauri-client.ts`: 29.
 - Parity check result: no missing command mappings.
 
 ## Findings (Current)
@@ -43,7 +43,7 @@ No blocking/high-severity defects were reproduced in the final validation pass.
 - Recommendation: add Playwright (or equivalent) desktop E2E smoke tests for start/stop scan, alerts workflow, exports, and settings persistence.
 
 2. Frontend command access is mostly centralized, but there are still two command-call paths.
-- `tauriClient` is now the main integration layer, but `ui/src/hooks/useMonitoring.tsx` still uses direct `invoke`/`listen`.
+- `tauriClient` is now the main integration layer, but `apps/nexus-desktop/src/hooks/useMonitoring.tsx` still uses direct `invoke`/`listen`.
 - Impact: increases maintenance overhead and risk of drift in error handling patterns.
 - Recommendation: migrate monitoring invokes/listeners behind a single typed service facade.
 
@@ -83,7 +83,7 @@ No blocking/high-severity defects were reproduced in the final validation pass.
 - Move remaining direct `invoke` usage into the same typed client/service.
 
 3. Enforce strict release gates.
-- Include `cargo fmt --check`, `cargo clippy -- -D warnings`, root+tauri checks/tests, and `npm --prefix ui run build`.
+- Include `cargo fmt --check`, `cargo clippy -- -D warnings`, root+tauri checks/tests, and `npm --prefix apps/nexus-desktop run build`.
 
 4. Harden desktop security defaults.
 - Revisit CSP/capabilities and key-management approach for production profile.

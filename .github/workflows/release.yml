@@ -45,7 +45,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './ui/src-tauri -> target'
+          workspaces: './apps/nexus-desktop/src-tauri -> target'
 
       # Linux dependencies
       - name: Install dependencies (Ubuntu only)
@@ -64,12 +64,12 @@ jobs:
         shell: pwsh
 
       - name: Install frontend dependencies
-        working-directory: ui
+        working-directory: apps/nexus-desktop
         run: npm install
 
       # Build WITHOUT creating release (just build)
       - name: Build the app
-        working-directory: ui
+        working-directory: apps/nexus-desktop
         run: npm run tauri build -- ${{ matrix.args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

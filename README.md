@@ -209,7 +209,7 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 └─────────────────────┼────────────────────────────────────┘
                       │
 ┌─────────────────────┴────────────────────────────────────┐
-│              Rust Core Library (host-discovery)           │
+│                Rust Core Library (nexus-core)             │
 │  ┌─────────┬──────────┬──────────┬──────────┬─────────┐  │
 │  │Scanner  │ Network  │ Database │ Monitor  │ Insights│  │
 │  │ARP/ICMP │ Device   │ SQLite   │ Watcher  │ Health  │  │
@@ -230,7 +230,7 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 
 | Layer             | Technology                   | Details                                                                     |
 | ----------------- | ---------------------------- | --------------------------------------------------------------------------- |
-| **Backend Core**  | Rust                         | `host-discovery` crate — network scanning, data processing, insights engine |
+| **Backend Core**  | Rust                         | `nexus-core` crate — network scanning, data processing, insights engine      |
 | **Desktop Shell** | Tauri v2                     | Native desktop wrapper with IPC bridge, 29 typed commands                   |
 | **Frontend**      | React 19 + TypeScript        | Vite-powered SPA with Tailwind CSS 4, Framer Motion, Recharts               |
 | **Topology**      | @xyflow/react + dagre        | Interactive graph visualization with hierarchical layout                    |
@@ -250,9 +250,10 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 
 ```text
 .
-├── src/                        # Rust core library
-│   ├── main.rs                 # CLI entry point
+├── crate/nexus-core/src/       # Rust core engine source
+│   ├── app.rs                  # App command dispatch & execution context
 │   ├── lib.rs                  # Library exports
+│   ├── cli.rs                  # CLI argument parsing & usage text
 │   ├── models.rs               # Data models (ScanResult, HostInfo, etc.)
 │   ├── config.rs               # Configuration
 │   ├── scanner/                # Network scanning engines
@@ -295,8 +296,8 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 │   │   └── pdf.rs              #   PDF report generator
 │   └── logging/                # Structured logging
 │       └── mod.rs              #   Tracing setup & file appender
-├── tests/                      # Rust integration tests
-├── ui/                         # Frontend application
+├── crate/nexus-core/tests/     # Rust integration tests
+├── apps/nexus-desktop/         # Frontend application
 │   ├── src/                    # React source
 │   │   ├── App.tsx             #   App shell & routing
 │   │   ├── main.tsx            #   Entry point
@@ -336,7 +337,7 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 │   │   │   └── main.rs         #   Tauri app entry
 │   │   └── tauri.conf.json     #   Tauri configuration
 │   └── package.json
-├── Cargo.toml                  # Root Rust crate
+├── Cargo.toml                  # Workspace manifest
 ├── CHANGELOG.md
 └── CODE_REVIEW_2026.md
 ```
@@ -375,24 +376,24 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 
 ```bash
 # Install frontend dependencies
-npm --prefix ui ci
+npm --prefix apps/nexus-desktop ci
 
 # Launch Tauri dev mode (backend + frontend hot-reload)
-npm --prefix ui run tauri dev
+npm --prefix apps/nexus-desktop run tauri dev
 ```
 
 ### Frontend Only (No Backend)
 
 ```bash
-npm --prefix ui run dev
+npm --prefix apps/nexus-desktop run dev
 # Opens at http://localhost:1420
 ```
 
-### CLI Scanner (Standalone)
+### Core Engine Checks
 
 ```bash
-cargo run
-# Outputs scan results as JSON to stdout
+cargo test -p nexus-core --all-targets
+# Runs core engine unit/integration coverage
 ```
 
 ---
@@ -402,7 +403,7 @@ cargo run
 ### Production Desktop Build
 
 ```bash
-cd ui
+cd apps/nexus-desktop
 npm run tauri build
 ```
 
@@ -415,7 +416,7 @@ This produces platform-specific installers:
 ### Frontend Only Build
 
 ```bash
-npm --prefix ui run build
+npm --prefix apps/nexus-desktop run build
 ```
 
 ---
@@ -432,10 +433,10 @@ cargo test --all-targets           # Unit tests
 cargo test --test alerts_dedupe_integration  # Integration test
 
 # Frontend build
-npm --prefix ui run build
+npm --prefix apps/nexus-desktop run build
 
 # Tauri environment check
-npm --prefix ui run tauri info
+npm --prefix apps/nexus-desktop run tauri info
 ```
 
 ---
@@ -721,16 +722,16 @@ No `LICENSE` file is currently included in this repository.
 
 ```bash
 # Frontend Dependencies Install
-npm --prefix ui ci
+npm --prefix apps/nexus-desktop ci
 
 # Desktop App Development Mode
-npm --prefix ui run tauri dev
+npm --prefix apps/nexus-desktop run tauri dev
 
 # Frontend Only Mode
-npm --prefix ui run dev
+npm --prefix apps/nexus-desktop run dev
 
-# CLI Scanner Mode
-cargo run
+# Core Engine Check
+cargo test -p nexus-core --all-targets
 ```
 
 ---
@@ -738,7 +739,7 @@ cargo run
 ## 🏗️ Build (Production Build)
 
 ```bash
-cd ui
+cd apps/nexus-desktop
 npm run tauri build
 ```
 
