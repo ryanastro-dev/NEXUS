@@ -1,101 +1,29 @@
-import { useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { motion } from 'framer-motion';
-import {
-  Router,
-  Wifi,
-  Server,
-  Laptop,
-  Smartphone,
-  Printer,
-  HardDrive,
-  Shield,
-  Activity,
-  HelpCircle,
-} from 'lucide-react';
+import { Activity } from 'lucide-react';
+
 import { useTheme } from '../../hooks/useTheme';
+import {
+  CPU_THRESHOLD,
+  DISK_THRESHOLD,
+  MEMORY_THRESHOLD,
+  MetricCell,
+  buildCyberNodeColors,
+  resolveDeviceIcon,
+  resolveMetricColor,
+  useNodeMetrics,
+  type CyberNodeData,
+} from './cyber-device-node';
 
-// Simulate real-time metrics (in production, fetch from actual system)
-function useNodeMetrics(ip: string) {
-  const [metrics, setMetrics] = useState(() => ({
-    cpu: Math.floor(Math.random() * 60) + 15,  // 15-75%
-    mem: Math.floor(Math.random() * 60) + 20,  // 20-80%
-    disk: Math.floor(Math.random() * 50) + 10, // 10-60%
-    proc: Math.floor(Math.random() * 150) + 50, // 50-200
-  }));
-
-  useEffect(() => {
-    // Update metrics every 5 seconds
-    const interval = setInterval(() => {
-      setMetrics({
-        cpu: Math.floor(Math.random() * 60) + 15,
-        mem: Math.floor(Math.random() * 60) + 20,
-        disk: Math.floor(Math.random() * 50) + 10,
-        proc: Math.floor(Math.random() * 150) + 50,
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [ip]);
-
-  return metrics;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CyberDeviceNode({ data, selected }: NodeProps<any>) {
+function CyberDeviceNode({ data, selected }: NodeProps) {
+  const nodeData = data as unknown as CyberNodeData;
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const metrics = useNodeMetrics(data.ip);
-
-  // Theme-aware colors
-  const colors = {
-    cardBg: isDark ? 'rgba(10, 14, 39, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-    cardBorder: isDark ? 'rgba(0, 217, 255, 0.4)' : 'rgba(37, 99, 235, 0.4)',
-    cardBorderSelected: isDark ? '#00D9FF' : '#2563EB',
-    cardShadow: isDark 
-      ? '0 0 20px rgba(0, 217, 255, 0.3)'
-      : '0 4px 12px rgba(0, 0, 0, 0.1)',
-    cardShadowSelected: isDark
-      ? '0 0 30px rgba(0, 217, 255, 0.5), 0 4px 20px rgba(0, 0, 0, 0.3)'
-      : '0 0 20px rgba(37, 99, 235, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
-    iconBg: isDark ? 'rgba(0, 217, 255, 0.15)' : 'rgba(37, 99, 235, 0.1)',
-    iconColor: isDark ? '#00D9FF' : '#2563EB',
-    textPrimary: isDark ? '#E0F2FE' : '#0F172A',
-    textSecondary: isDark ? '#7DD3FC' : '#64748B',
-    textMuted: isDark ? '#38BDF8' : '#94A3B8',
-    metricBg: isDark ? 'rgba(30, 27, 75, 0.6)' : 'rgba(241, 245, 249, 0.8)',
-    metricBorder: isDark ? 'rgba(0, 217, 255, 0.2)' : 'rgba(203, 213, 225, 0.5)',
-    statusGreen: '#10B981',
-    barBg: isDark ? 'rgba(30, 27, 75, 0.8)' : 'rgba(226, 232, 240, 0.8)',
-    barFill: isDark ? '#00D9FF' : '#2563EB',
-  };
-
-  // Get device icon
-  const getDeviceIcon = () => {
-    const type = data.deviceType?.toUpperCase() || 'UNKNOWN';
-    const iconClass = 'w-5 h-5';
-
-    if (type.includes('ROUTER') || type.includes('GATEWAY')) return <Router className={iconClass} />;
-    if (type.includes('ACCESS_POINT') || type.includes('WIFI')) return <Wifi className={iconClass} />;
-    if (type.includes('SERVER') || type.includes('NAS')) return <Server className={iconClass} />;
-    if (type.includes('LAPTOP') || type.includes('PC')) return <Laptop className={iconClass} />;
-    if (type.includes('MOBILE') || type.includes('PHONE')) return <Smartphone className={iconClass} />;
-    if (type.includes('PRINTER')) return <Printer className={iconClass} />;
-    if (type.includes('STORAGE')) return <HardDrive className={iconClass} />;
-    if (type.includes('FIREWALL')) return <Shield className={iconClass} />;
-    return <HelpCircle className={iconClass} />;
-  };
-
-  // Get metric color based on value
-  const getMetricColor = (value: number, threshold: { warning: number; danger: number }) => {
-    if (value >= threshold.danger) return '#EF4444'; // Red
-    if (value >= threshold.warning) return '#F59E0B'; // Yellow
-    return '#10B981'; // Green
-  };
+  const metrics = useNodeMetrics(nodeData.ip);
+  const colors = buildCyberNodeColors(isDark);
 
   return (
     <>
-      {/* Connection handles */}
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
 
@@ -118,60 +46,58 @@ function CyberDeviceNode({ data, selected }: NodeProps<any>) {
           transition: 'all 0.3s ease',
         }}
       >
-        {/* Header Section */}
-        <div
-          style={{
-            padding: '12px',
-            borderBottom: `1px solid ${colors.metricBorder}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 6,
-              background: colors.iconBg,
-              border: `1px solid ${colors.cardBorder}`,
+              padding: '12px',
+              borderBottom: `1px solid ${colors.metricBorder}`,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: colors.iconColor,
+              gap: '8px',
             }}
           >
-            {getDeviceIcon()}
-          </div>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
             <div
               style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: colors.textPrimary,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                width: 36,
+                height: 36,
+                borderRadius: 6,
+                background: colors.iconBg,
+                border: `1px solid ${colors.cardBorder}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: colors.iconColor,
               }}
             >
-              {data.label || 'Unknown Device'}
+              {resolveDeviceIcon(nodeData.deviceType)}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: colors.textMuted,
-                fontFamily: 'monospace',
-                marginTop: 2,
-              }}
-            >
-              {data.ip}
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: colors.textPrimary,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {nodeData.label || 'Unknown Device'}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: colors.textMuted,
+                  fontFamily: 'monospace',
+                  marginTop: 2,
+                }}
+              >
+                {nodeData.ip}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Metrics Section */}
         <div
           style={{
             padding: '12px',
@@ -180,77 +106,33 @@ function CyberDeviceNode({ data, selected }: NodeProps<any>) {
             gap: '8px',
           }}
         >
-          {/* CPU */}
-          <div>
-            <div style={{ fontSize: 10, color: colors.textSecondary, marginBottom: 4 }}>
-              CPU
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: getMetricColor(metrics.cpu, { warning: 60, danger: 80 }),
-                fontFamily: 'monospace',
-              }}
-            >
-              {metrics.cpu}%
-            </div>
-          </div>
-
-          {/* MEM */}
-          <div>
-            <div style={{ fontSize: 10, color: '#64748B', marginBottom: 4 }}>
-              MEM
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: getMetricColor(metrics.mem, { warning: 70, danger: 85 }),
-                fontFamily: 'monospace',
-              }}
-            >
-              {metrics.mem}%
-            </div>
-          </div>
-
-          {/* DISK */}
-          <div>
-            <div style={{ fontSize: 10, color: '#64748B', marginBottom: 4 }}>
-              DISK
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: getMetricColor(metrics.disk, { warning: 70, danger: 90 }),
-                fontFamily: 'monospace',
-              }}
-            >
-              {metrics.disk}%
-            </div>
-          </div>
-
-          {/* PROC */}
-          <div>
-            <div style={{ fontSize: 10, color: '#64748B', marginBottom: 4 }}>
-              PROC
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#00D9FF',
-                fontFamily: 'monospace',
-              }}
-            >
-              {metrics.proc}
-            </div>
-          </div>
+          <MetricCell
+            label="CPU"
+            value={`${metrics.cpu}%`}
+            color={resolveMetricColor(metrics.cpu, CPU_THRESHOLD)}
+            labelColor={colors.textSecondary}
+          />
+          <MetricCell
+            label="MEM"
+            value={`${metrics.mem}%`}
+            color={resolveMetricColor(metrics.mem, MEMORY_THRESHOLD)}
+            labelColor="#64748B"
+          />
+          <MetricCell
+            label="DISK"
+            value={`${metrics.disk}%`}
+            color={resolveMetricColor(metrics.disk, DISK_THRESHOLD)}
+            labelColor="#64748B"
+          />
+          <MetricCell
+            label="PROC"
+            value={`${metrics.proc}`}
+            color="#00D9FF"
+            labelColor="#64748B"
+          />
         </div>
 
-        {/* Footer - Response Time */}
-        {data.responseTime !== undefined && (
+        {nodeData.responseTime !== undefined && (
           <div
             style={{
               padding: '8px 12px',
@@ -263,7 +145,7 @@ function CyberDeviceNode({ data, selected }: NodeProps<any>) {
             }}
           >
             <Activity className="w-3 h-3" />
-            <span>{data.responseTime}ms</span>
+            <span>{nodeData.responseTime}ms</span>
           </div>
         )}
       </motion.div>

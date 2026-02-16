@@ -98,6 +98,15 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             recommendation TEXT
         );
 
+        -- Telemetry samples: historical time-series metrics for dashboard charts
+        CREATE TABLE IF NOT EXISTS telemetry_samples (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            captured_at TEXT NOT NULL DEFAULT (datetime('now')),
+            metric_key TEXT NOT NULL,
+            metric_value REAL NOT NULL,
+            label TEXT
+        );
+
         -- Indexes for performance
         CREATE INDEX IF NOT EXISTS idx_scans_time ON scans(scan_time);
         CREATE INDEX IF NOT EXISTS idx_devices_mac ON devices(mac);
@@ -108,6 +117,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_alerts_unread ON alerts(is_read) WHERE is_read = 0;
         CREATE INDEX IF NOT EXISTS idx_cve_vendor ON cve_cache(vendor);
         CREATE INDEX IF NOT EXISTS idx_cve_severity ON cve_cache(severity);
+        CREATE INDEX IF NOT EXISTS idx_telemetry_metric_time ON telemetry_samples(metric_key, captured_at);
         "#,
     )
     .context("Failed to create database tables")?;
@@ -216,6 +226,7 @@ pub fn drop_tables(conn: &Connection) -> Result<()> {
         DROP TABLE IF EXISTS device_history;
         DROP TABLE IF EXISTS devices;
         DROP TABLE IF EXISTS scans;
+        DROP TABLE IF EXISTS telemetry_samples;
         "#,
     )
     .context("Failed to drop tables")?;
@@ -245,6 +256,7 @@ mod tests {
         assert!(tables.contains(&"devices".to_string()));
         assert!(tables.contains(&"device_history".to_string()));
         assert!(tables.contains(&"alerts".to_string()));
+        assert!(tables.contains(&"telemetry_samples".to_string()));
     }
 
     #[test]

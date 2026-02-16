@@ -158,3 +158,13 @@ pub struct NetworkStats {
     pub total_scans: i64,
     pub last_scan_time: Option<DateTime<Utc>>,
 }
+
+/// Time-series telemetry sample stored for dashboard analytics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetrySample {
+    pub id: i64,
+    pub captured_at: DateTime<Utc>,
+    pub metric_key: String,
+    pub metric_value: f64,
+    pub label: Option<String>,
+}

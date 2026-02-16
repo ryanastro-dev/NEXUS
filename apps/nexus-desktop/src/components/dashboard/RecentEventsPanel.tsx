@@ -13,28 +13,6 @@ interface RecentEventsPanelProps {
   maxEvents?: number;
 }
 
-// Mock events for demonstration
-const mockEvents: Event[] = [
-  {
-    id: '1',
-    type: 'warning',
-    message: 'High bandwidth utilization detected on interface eth0',
-    timestamp: '2 min ago',
-  },
-  {
-    id: '2',
-    type: 'info',
-    message: '3 new devices connected to network',
-    timestamp: '5 min ago',
-  },
-  {
-    id: '3',
-    type: 'success',
-    message: 'Network health check completed successfully',
-    timestamp: '10 min ago',
-  },
-];
-
 const eventConfig = {
   warning: {
     icon: AlertTriangle,
@@ -62,7 +40,7 @@ const eventConfig = {
   },
 };
 
-export default function RecentEventsPanel({ events = mockEvents, maxEvents = 5 }: RecentEventsPanelProps) {
+export default function RecentEventsPanel({ events = [], maxEvents = 5 }: RecentEventsPanelProps) {
   const displayEvents = events.slice(0, maxEvents);
 
   return (

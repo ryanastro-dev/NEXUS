@@ -9,7 +9,6 @@
 mod commands;
 mod demo_data;
 
-
 use commands::{AppState, MonitorState};
 
 fn main() {
@@ -18,9 +17,9 @@ fn main() {
         eprintln!("Warning: Failed to initialize logging: {}", e);
         eprintln!("Continuing without file logging...");
     }
-    
+
     tracing::info!("Network Topology Mapper starting...");
-    
+
     // Initialize application state with database
     let app_state = match AppState::new() {
         Ok(state) => state,
@@ -29,12 +28,12 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     tracing::info!("Database initialized successfully");
 
     // Initialize monitoring state
     let monitor_state = MonitorState::new();
-    
+
     tracing::info!("Monitoring state initialized");
 
     tauri::Builder::default()
@@ -45,50 +44,58 @@ fn main() {
         .manage(monitor_state)
         .invoke_handler(tauri::generate_handler![
             // Scanner commands
-            commands::scan_network,
-            commands::scan_network_with_ai,
-            commands::run_load_test,
-            commands::get_interfaces,
+            commands::scan::scan_network,
+            commands::scan::cancel_active_scan,
+            commands::scan::scan_network_with_ai,
+            commands::scan::run_load_test,
+            commands::scan::get_interfaces,
             // Database commands - History
-            commands::get_scan_history,
+            commands::database::get_scan_history,
             // Database commands - Devices
-            commands::get_all_devices,
-            commands::get_device_by_mac,
-            commands::update_device_name,
+            commands::database::get_all_devices,
+            commands::database::get_device_by_mac,
+            commands::database::update_device_name,
             // Database commands - Stats
-            commands::get_network_stats,
+            commands::database::get_network_stats,
+            commands::database::get_telemetry_series,
             // Database commands - Alerts
-            commands::get_unread_alerts,
-            commands::mark_alert_read,
-            commands::mark_all_alerts_read,
-            commands::clear_all_alerts,
+            commands::database::get_unread_alerts,
+            commands::database::mark_alert_read,
+            commands::database::mark_all_alerts_read,
+            commands::database::clear_all_alerts,
             // Monitoring commands
-            commands::start_monitoring,
-            commands::stop_monitoring,
-            commands::get_monitoring_status,
+            commands::monitoring::start_monitoring,
+            commands::monitoring::stop_monitoring,
+            commands::monitoring::get_monitoring_status,
+            commands::monitoring::get_runtime_diagnostics,
             // AI Insights commands
-            commands::get_ai_settings,
-            commands::ai_check,
-            commands::ai_insights,
-            commands::get_network_health,
-            commands::get_device_distribution,
+            commands::insights::get_ai_settings,
+            commands::insights::ai_check,
+            commands::insights::ai_insights,
+            commands::insights::get_network_health,
+            commands::insights::get_device_distribution,
             // Export commands
-            commands::export_devices_to_csv,
-            commands::export_scan_to_csv,
-            commands::export_topology_to_json,
-            commands::export_scan_to_json,
-            commands::export_scan_report,
-            commands::export_security_report,
+            commands::exports::export_devices_to_csv,
+            commands::exports::export_scan_to_csv,
+            commands::exports::export_topology_to_json,
+            commands::exports::export_scan_to_json,
+            commands::exports::export_scan_report,
+            commands::exports::export_security_report,
             // Network Tools commands
-            commands::ping_host,
-            commands::scan_ports,
-            commands::lookup_mac_vendor,
+            commands::tools::ping_host,
+            commands::tools::scan_ports,
+            commands::tools::lookup_mac_vendor,
             // Demo Mode commands
-            commands::mock_scan_network,
-            commands::get_demo_alerts,
+            commands::demo::mock_scan_network,
+            commands::demo::get_demo_alerts,
             // Debug
-            commands::get_database_path,
-            commands::get_scan_result_schema,
+            commands::database::get_database_path,
+            commands::scan::get_scan_result_schema,
+            commands::settings::apply_runtime_settings,
+            commands::settings::get_vulnerability_db_status,
+            commands::settings::sync_vulnerability_db,
+            commands::settings::sync_vulnerability_feed,
+            commands::exports::export_scan_with_ai_to_json,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

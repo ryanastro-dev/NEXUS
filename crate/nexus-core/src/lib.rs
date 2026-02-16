@@ -43,6 +43,7 @@ pub use command::AppCommand;
 pub use config::*;
 pub use database::{
     AlertRecord, AlertSeverity, AlertType, Database, DeviceRecord, NetworkStats, ScanRecord,
+    TelemetrySample,
 };
 pub use exports::{
     export_devices_csv, export_hosts_csv, export_scan_result_json, export_scan_result_with_ai_json,

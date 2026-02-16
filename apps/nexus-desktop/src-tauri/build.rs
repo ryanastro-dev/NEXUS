@@ -1,5 +1,5 @@
 //! Build script for the Tauri application
-//! 
+//!
 //! Configures library paths for Npcap SDK on Windows
 
 fn main() {
@@ -31,7 +31,7 @@ fn main() {
             // Print warning but still try to link
             println!("cargo:warning=Npcap SDK not found. Please install Npcap SDK and set NPCAP_SDK environment variable.");
             println!("cargo:warning=Download from: https://npcap.com/#download");
-            
+
             // Try the user's path as fallback
             println!("cargo:rustc-link-search=native=C:\\npcap-sdk\\Lib\\x64");
         }

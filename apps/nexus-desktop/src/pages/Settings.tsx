@@ -1,83 +1,50 @@
-import { useState, useEffect } from 'react';
-import { Save, RefreshCw, Activity, Network, Zap, Shield, Clock, Hash, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { UseMonitoringReturn } from '../hooks/useMonitoring';
 import { tauriClient } from '../lib/api/tauri-client';
-import type { AiCheckReport, AiSettings } from '../lib/api/types';
-
-// Default settings
-const DEFAULT_SETTINGS = {
-  snmpEnabled: false,
-  snmpCommunity: 'public',
-  scanInterval: 60,
-  tcpPorts: '22, 80, 443, 445, 8080, 3389',
-  monitoringEnabled: false,
-  monitoringInterval: 60,
-};
-
-const SETTINGS_KEY = 'netmapper-settings';
-const PANEL =
-  'rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65';
-
-function loadSettings() {
-  try {
-    const saved = localStorage.getItem(SETTINGS_KEY);
-    if (saved) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
-    }
-  } catch (e) {
-    console.error('Failed to load settings:', e);
-  }
-  return DEFAULT_SETTINGS;
-}
-
-function saveSettingsToStorage(settings: typeof DEFAULT_SETTINGS) {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    return true;
-  } catch (e) {
-    console.error('Failed to save settings:', e);
-    return false;
-  }
-}
-
-// Toggle Switch Component
-function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      className={`relative w-12 h-6 rounded-full transition-colors ${
-        enabled ? 'bg-accent-blue' : 'bg-gray-300 dark:bg-gray-600'
-      }`}
-    >
-      <div
-        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-          enabled ? 'translate-x-6' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
-  );
-}
+import type {
+  AiCheckReport,
+  AiSettings,
+  RuntimeDiagnostics,
+  VulnerabilityDbStatus,
+} from '../lib/api/types';
+import { toast } from '../components/common/Toast';
+import {
+  AiEngineSection,
+  ConfigurationSection,
+  DEFAULT_SETTINGS,
+  DemoModeSection,
+  loadSettings,
+  MonitoringSection,
+  PANEL,
+  parseTcpPorts,
+  saveSettingsToStorage,
+  SettingsActions,
+  SettingsHero,
+  SnmpSection,
+  VULN_DB_SYNC_KEY,
+  VulnerabilityDbSection,
+} from './settings-page';
 
 interface SettingsProps {
   monitor: UseMonitoringReturn;
 }
 
 export default function Settings({ monitor: monitoring }: SettingsProps) {
-  
   const [snmpEnabled, setSnmpEnabled] = useState(DEFAULT_SETTINGS.snmpEnabled);
   const [snmpCommunity, setSnmpCommunity] = useState(DEFAULT_SETTINGS.snmpCommunity);
   const [scanInterval, setScanInterval] = useState(DEFAULT_SETTINGS.scanInterval);
   const [tcpPorts, setTcpPorts] = useState(DEFAULT_SETTINGS.tcpPorts);
+  const [preferredInterface, setPreferredInterface] = useState(DEFAULT_SETTINGS.preferredInterface);
   const [monitoringEnabled, setMonitoringEnabled] = useState(DEFAULT_SETTINGS.monitoringEnabled);
   const [monitoringInterval, setMonitoringInterval] = useState(DEFAULT_SETTINGS.monitoringInterval);
-  
+
   const [demoMode, setDemoMode] = useState(localStorage.getItem('demo-mode-enabled') === 'true');
   const [autoUpdateVulnDB, setAutoUpdateVulnDB] = useState(false);
   const [syncRange, setSyncRange] = useState('latest_1000');
   const [vulnDBExpanded, setVulnDBExpanded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
-  
+
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [hasChanges, setHasChanges] = useState(false);
   const [interfaces, setInterfaces] = useState<string[]>([]);
@@ -87,18 +54,27 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
   const [aiCheckReport, setAiCheckReport] = useState<AiCheckReport | null>(null);
   const [aiCheckLoading, setAiCheckLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [vulnDbStatus, setVulnDbStatus] = useState<VulnerabilityDbStatus | null>(null);
+  const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<RuntimeDiagnostics | null>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+  const [vulnDbLastSync, setVulnDbLastSync] = useState<string | null>(
+    localStorage.getItem(VULN_DB_SYNC_KEY),
+  );
 
-  const embeddedCVEs = 150;
-  const downloadedCVEs = 0;
-  const lastUpdate = null;
+  const embeddedCVEs = vulnDbStatus?.embedded_cve_total ?? 0;
+  const downloadedCVEs = Math.max(
+    (vulnDbStatus?.cve_total ?? 0) - (vulnDbStatus?.embedded_cve_total ?? 0),
+    0,
+  );
+  const lastUpdate = vulnDbLastSync ?? vulnDbStatus?.last_published_date ?? null;
 
-  // Load settings on mount
   useEffect(() => {
     const settings = loadSettings();
     setSnmpEnabled(settings.snmpEnabled);
     setSnmpCommunity(settings.snmpCommunity);
     setScanInterval(settings.scanInterval);
     setTcpPorts(settings.tcpPorts);
+    setPreferredInterface(settings.preferredInterface || '');
     setMonitoringEnabled(settings.monitoringEnabled || false);
     setMonitoringInterval(settings.monitoringInterval || 60);
 
@@ -112,55 +88,130 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       })
       .catch(() => setScanSchemaVersion(null));
     tauriClient.getAiSettings().then(setAiSettings).catch(() => setAiSettings(null));
+    tauriClient
+      .getVulnerabilityDbStatus()
+      .then(setVulnDbStatus)
+      .catch(() => setVulnDbStatus(null));
+    tauriClient
+      .getRuntimeDiagnostics()
+      .then(setRuntimeDiagnostics)
+      .catch(() => setRuntimeDiagnostics(null));
   }, []);
 
-  // Track changes
   useEffect(() => {
-    const current = { snmpEnabled, snmpCommunity, scanInterval, tcpPorts, monitoringEnabled, monitoringInterval };
+    const current = {
+      snmpEnabled,
+      snmpCommunity,
+      scanInterval,
+      tcpPorts,
+      preferredInterface,
+      monitoringEnabled,
+      monitoringInterval,
+    };
     const saved = loadSettings();
     const changed = JSON.stringify(current) !== JSON.stringify(saved);
     setHasChanges(changed);
-  }, [snmpEnabled, snmpCommunity, scanInterval, tcpPorts, monitoringEnabled, monitoringInterval]);
+  }, [
+    snmpEnabled,
+    snmpCommunity,
+    scanInterval,
+    tcpPorts,
+    preferredInterface,
+    monitoringEnabled,
+    monitoringInterval,
+  ]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaveStatus('saving');
-    const settings = { snmpEnabled, snmpCommunity, scanInterval, tcpPorts, monitoringEnabled, monitoringInterval };
-    
-    setTimeout(() => {
+    const settings = {
+      snmpEnabled,
+      snmpCommunity,
+      scanInterval,
+      tcpPorts,
+      preferredInterface,
+      monitoringEnabled,
+      monitoringInterval,
+    };
+
+    try {
+      const parsedPorts = parseTcpPorts(tcpPorts);
+      const fallbackPorts = parseTcpPorts(DEFAULT_SETTINGS.tcpPorts);
+      await tauriClient.applyRuntimeSettings(
+        snmpEnabled,
+        snmpCommunity,
+        parsedPorts.length > 0 ? parsedPorts : fallbackPorts,
+        monitoringInterval,
+      );
+
       if (saveSettingsToStorage(settings)) {
         setSaveStatus('saved');
         setHasChanges(false);
+        toast.success('Settings applied');
         setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        setSaveStatus('idle');
       }
-    }, 300);
+    } catch (error) {
+      setSaveStatus('idle');
+      toast.error('Failed to apply settings');
+      setSyncNotice(
+        `Failed to apply runtime settings: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setSnmpEnabled(DEFAULT_SETTINGS.snmpEnabled);
     setSnmpCommunity(DEFAULT_SETTINGS.snmpCommunity);
     setScanInterval(DEFAULT_SETTINGS.scanInterval);
     setTcpPorts(DEFAULT_SETTINGS.tcpPorts);
+    setPreferredInterface(DEFAULT_SETTINGS.preferredInterface);
     setMonitoringEnabled(DEFAULT_SETTINGS.monitoringEnabled);
     setMonitoringInterval(DEFAULT_SETTINGS.monitoringInterval);
+
+    try {
+      await tauriClient.applyRuntimeSettings(
+        DEFAULT_SETTINGS.snmpEnabled,
+        DEFAULT_SETTINGS.snmpCommunity,
+        parseTcpPorts(DEFAULT_SETTINGS.tcpPorts),
+        DEFAULT_SETTINGS.monitoringInterval,
+      );
+    } catch {
+      // Keep reset flow resilient if runtime bridge fails.
+    }
+
     saveSettingsToStorage(DEFAULT_SETTINGS);
     setSaveStatus('saved');
     setHasChanges(false);
+    toast.success('Settings reset to defaults');
     setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
-  const handleSyncDatabase = () => {
+  const handleSyncDatabase = async () => {
+    setSyncNotice(null);
     setIsSyncing(true);
-    setTimeout(() => {
+    try {
+      const report = await tauriClient.syncVulnerabilityFeed(syncRange);
+      setVulnDbStatus(report.status);
+      const syncTimestamp = new Date().toISOString();
+      setVulnDbLastSync(syncTimestamp);
+      localStorage.setItem(VULN_DB_SYNC_KEY, syncTimestamp);
+      setSyncNotice(
+        `Online sync complete (${report.range}): fetched ${report.fetched_records}, upserted ${report.upserted_records}.`,
+      );
+      toast.success('Vulnerability feed synced');
+    } catch (error) {
+      toast.error('Vulnerability sync failed');
+      setSyncNotice(`Database sync failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
       setIsSyncing(false);
-      setSyncNotice('Database sync simulation complete. Backend integration pending.');
-    }, 2000);
+    }
   };
 
   const handleDemoModeToggle = () => {
     const newValue = !demoMode;
     setDemoMode(newValue);
     localStorage.setItem('demo-mode-enabled', newValue.toString());
-    // Reload to apply demo mode change
     setTimeout(() => window.location.reload(), 300);
   };
 
@@ -177,6 +228,24 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     }
   };
 
+  const handleRunDiagnostics = async () => {
+    setDiagnosticsLoading(true);
+    try {
+      const result = await tauriClient.getRuntimeDiagnostics();
+      setRuntimeDiagnostics(result);
+      if (result.warnings.length > 0) {
+        toast.warning(`Diagnostics completed with ${result.warnings.length} warning(s)`);
+      } else {
+        toast.success('Diagnostics passed');
+      }
+    } catch (error) {
+      toast.error('Diagnostics failed');
+      setSyncNotice(`Diagnostics failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  };
+
   return (
     <div className="relative flex-1 overflow-y-auto bg-bg-primary p-4 sm:p-6 lg:p-8">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -185,368 +254,72 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col space-y-4">
-      <div className={`${PANEL} p-5 sm:p-6`}>
-        <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-          System Configuration
-        </p>
-        <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-4xl">Settings</h1>
-        <p className="mt-2 text-sm text-text-secondary sm:text-base">
-          Manage scan behavior, monitoring runtime, and local data policy for production use.
-        </p>
-      </div>
+        <SettingsHero panelClassName={PANEL} />
 
-      {/* Configuration Section */}
-      <div className={`${PANEL} p-6`}>
-        <div className="flex items-center gap-3 mb-6">
-          <Activity className="w-5 h-5 text-accent-blue" />
-          <h2 className="text-lg font-bold text-text-primary">Configuration</h2>
-        </div>
-        <p className="text-sm text-text-muted mb-6">Manage scanner behavior and application preferences.</p>
+        <ConfigurationSection
+          panelClassName={PANEL}
+          scanInterval={scanInterval}
+          onScanIntervalChange={setScanInterval}
+          preferredInterface={preferredInterface}
+          onPreferredInterfaceChange={setPreferredInterface}
+          interfaces={interfaces}
+          tcpPorts={tcpPorts}
+          onTcpPortsChange={setTcpPorts}
+          dbPath={dbPath}
+          scanSchemaVersion={scanSchemaVersion}
+          runtimeDiagnostics={runtimeDiagnostics}
+          diagnosticsLoading={diagnosticsLoading}
+          onRunDiagnostics={() => void handleRunDiagnostics()}
+        />
 
-        <div className="space-y-6">
-          {/* Scan Settings Card */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-4 h-4 text-accent-blue" />
-              <h3 className="text-base font-semibold text-text-primary">Scan Settings</h3>
-            </div>
+        <SnmpSection
+          panelClassName={PANEL}
+          snmpEnabled={snmpEnabled}
+          onToggle={() => setSnmpEnabled(!snmpEnabled)}
+        />
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-text-secondary mb-2 uppercase">
-                  Auto-Scan Interval
-                </label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-                  <select
-                    value={scanInterval}
-                    onChange={(e) => setScanInterval(Number(e.target.value))}
-                    className="w-full pl-10 pr-3 py-2.5 bg-bg-tertiary border border-theme rounded-lg text-text-primary focus:outline-none focus:border-accent-blue transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value={10}>10 seconds</option>
-                    <option value={30}>30 seconds</option>
-                    <option value={60}>1 minute</option>
-                    <option value={300}>5 minutes</option>
-                    <option value={600}>10 minutes</option>
-                    <option value={1800}>30 minutes</option>
-                    <option value={3600}>1 hour</option>
-                  </select>
-                </div>
-                <p className="text-xs text-text-muted mt-1.5">How often to automatically scan the network.</p>
-              </div>
+        <MonitoringSection
+          panelClassName={PANEL}
+          monitoringEnabled={monitoringEnabled}
+          monitoringInterval={monitoringInterval}
+          monitoring={monitoring}
+          onToggle={() => setMonitoringEnabled(!monitoringEnabled)}
+          onMonitoringIntervalChange={setMonitoringInterval}
+        />
 
-              <div>
-                <label className="block text-xs font-bold text-text-secondary mb-2 uppercase">
-                  TCP Ports to Probe
-                </label>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-3 w-4 h-4 text-text-muted" />
-                  <textarea
-                    value={tcpPorts}
-                    onChange={(e) => setTcpPorts(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2.5 bg-bg-tertiary border border-theme rounded-lg text-text-primary font-mono text-sm focus:outline-none focus:border-accent-blue transition-colors resize-none"
-                    rows={2}
-                    placeholder="22, 80, 443, 8080"
-                  />
-                </div>
-                <p className="text-xs text-text-muted mt-1.5">Comma-separated list of ports.</p>
-              </div>
-            </div>
+        <AiEngineSection
+          panelClassName={PANEL}
+          aiSettings={aiSettings}
+          aiCheckReport={aiCheckReport}
+          aiCheckLoading={aiCheckLoading}
+          aiError={aiError}
+          onRunAiCheck={() => void handleAiCheck()}
+        />
 
-            <div className="rounded-lg border border-theme bg-bg-tertiary/40 p-3 text-xs text-text-secondary">
-              <p><span className="font-semibold text-text-primary">Detected interfaces:</span> {interfaces.length > 0 ? interfaces.join(', ') : 'Not available'}</p>
-              <p className="mt-1"><span className="font-semibold text-text-primary">DB path:</span> {dbPath ?? 'Unavailable'}</p>
-              <p className="mt-1"><span className="font-semibold text-text-primary">Scan schema:</span> {scanSchemaVersion ?? 'Unavailable'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        <DemoModeSection panelClassName={PANEL} demoMode={demoMode} onToggle={handleDemoModeToggle} />
 
-      {/* SNMP Settings */}
-      <div className={`${PANEL} p-5`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="p-2 bg-accent-blue/10 rounded-lg">
-              <Network className="w-5 h-5 text-accent-blue" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-text-primary">SNMP Settings</h3>
-              <p className="text-xs text-text-muted mt-0.5">Enable SNMP to gather detailed device information like system description and uptime.</p>
-            </div>
-          </div>
-          <Toggle enabled={snmpEnabled} onToggle={() => setSnmpEnabled(!snmpEnabled)} />
-        </div>
-      </div>
+        <VulnerabilityDbSection
+          panelClassName={PANEL}
+          autoUpdateVulnDB={autoUpdateVulnDB}
+          onAutoUpdateToggle={() => setAutoUpdateVulnDB(!autoUpdateVulnDB)}
+          vulnDBExpanded={vulnDBExpanded}
+          onExpandToggle={() => setVulnDBExpanded(!vulnDBExpanded)}
+          syncRange={syncRange}
+          onSyncRangeChange={setSyncRange}
+          embeddedCVEs={embeddedCVEs}
+          downloadedCVEs={downloadedCVEs}
+          lastUpdate={lastUpdate}
+          isSyncing={isSyncing}
+          syncNotice={syncNotice}
+          onSyncDatabase={() => void handleSyncDatabase()}
+        />
 
-      {/* Network Monitoring */}
-      <div className={`${PANEL} p-5`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="p-2 bg-accent-teal/10 rounded-lg">
-              <Radio className="w-5 h-5 text-accent-teal" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-text-primary">Network Monitoring</h3>
-              <p className="text-xs text-text-muted mt-0.5">Auto-start real-time network monitoring on app launch.</p>
-            </div>
-          </div>
-          <Toggle enabled={monitoringEnabled} onToggle={() => setMonitoringEnabled(!monitoringEnabled)} />
-        </div>
-
-        {monitoringEnabled && (
-          <div className="pt-4 border-t border-theme space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-text-secondary mb-2 uppercase">
-                Monitoring Interval
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-                <select
-                  value={monitoringInterval}
-                  onChange={(e) => setMonitoringInterval(Number(e.target.value))}
-                  className="w-full pl-10 pr-3 py-2.5 bg-bg-tertiary border border-theme rounded-lg text-text-primary focus:outline-none focus:border-accent-blue transition-colors appearance-none cursor-pointer"
-                >
-                  <option value={10}>10 seconds</option>
-                  <option value={30}>30 seconds</option>
-                  <option value={60}>1 minute</option>
-                  <option value={300}>5 minutes</option>
-                  <option value={600}>10 minutes</option>
-                  <option value={1800}>30 minutes</option>
-                  <option value={3600}>1 hour</option>
-                </select>
-              </div>
-              <p className="text-xs text-text-muted mt-1.5">How often to scan the network.</p>
-            </div>
-
-            {/* Current Status from Hook */}
-            <div className="p-4 bg-bg-tertiary rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-text-secondary">Current Status:</span>
-                <span className={`text-xs font-bold px-2 py-1 rounded ${
-                  monitoring.status.is_running
-                    ? 'bg-accent-green/20 text-accent-green'
-                    : 'bg-gray-500/20 text-gray-500'
-                }`}>
-                  {monitoring.status.is_running ? 'ACTIVE' : 'IDLE'}
-                </span>
-              </div>
-              {monitoring.status.is_running && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-text-muted">Scans Completed:</span>
-                    <span className="text-text-primary font-medium">{monitoring.status.scan_count}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-text-muted">Devices Online:</span>
-                    <span className="text-text-primary font-medium">
-                      {monitoring.status.devices_online} / {monitoring.status.devices_total}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* AI Engine */}
-      <div className={`${PANEL} p-5`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="p-2 bg-accent-sapphire/10 rounded-lg">
-              <Activity className="w-5 h-5 text-accent-sapphire" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-text-primary">AI Engine</h3>
-              <p className="text-xs text-text-muted mt-0.5">
-                Validate local/cloud AI provider health and runtime configuration.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => void handleAiCheck()}
-            disabled={aiCheckLoading}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:hover:bg-slate-800"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${aiCheckLoading ? 'animate-spin' : ''}`} />
-            {aiCheckLoading ? 'Checking...' : 'Run AI Check'}
-          </button>
-        </div>
-
-        <div className="rounded-lg border border-theme bg-bg-tertiary/40 p-3 text-xs text-text-secondary">
-          <p>
-            <span className="font-semibold text-text-primary">Enabled:</span>{' '}
-            {aiSettings?.enabled ? 'Yes' : 'No'}
-          </p>
-          <p className="mt-1">
-            <span className="font-semibold text-text-primary">Mode:</span>{' '}
-            {aiSettings?.mode ?? 'Unavailable'}
-          </p>
-          <p className="mt-1">
-            <span className="font-semibold text-text-primary">Timeout:</span>{' '}
-            {aiSettings?.timeout_ms ?? 'N/A'} ms
-          </p>
-        </div>
-
-        {aiCheckReport && (
-          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-            {aiCheckReport.local && (
-              <div className="rounded-lg border border-theme bg-bg-tertiary/40 p-3 text-xs">
-                <p className="font-semibold text-text-primary">Local Provider</p>
-                <p className="mt-1 text-text-secondary">configured: {String(aiCheckReport.local.configured)}</p>
-                <p className="text-text-secondary">reachable: {String(aiCheckReport.local.reachable)}</p>
-                <p className="text-text-secondary">model: {aiCheckReport.local.model ?? 'N/A'}</p>
-              </div>
-            )}
-            {aiCheckReport.cloud && (
-              <div className="rounded-lg border border-theme bg-bg-tertiary/40 p-3 text-xs">
-                <p className="font-semibold text-text-primary">Cloud Provider</p>
-                <p className="mt-1 text-text-secondary">configured: {String(aiCheckReport.cloud.configured)}</p>
-                <p className="text-text-secondary">reachable: {String(aiCheckReport.cloud.reachable)}</p>
-                <p className="text-text-secondary">model: {aiCheckReport.cloud.model ?? 'N/A'}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {aiError && (
-          <p className="mt-3 rounded-lg border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-xs text-accent-red">
-            {aiError}
-          </p>
-        )}
-      </div>
-
-      {/* Demo Mode */}
-      <div className={`${PANEL} p-5`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="p-2 bg-accent-red/10 rounded-lg">
-              <Zap className="w-5 h-5 text-accent-red" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-text-primary">Demo Mode</h3>
-              <p className="text-xs text-text-muted mt-0.5">Use mock data for demonstration.</p>
-            </div>
-          </div>
-          <Toggle enabled={demoMode} onToggle={handleDemoModeToggle} />
-        </div>
-      </div>
-
-      {/* Vulnerability Database */}
-      <div className={`${PANEL} p-5`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="p-2 bg-accent-red/10 rounded-lg">
-              <Shield className="w-5 h-5 text-accent-red" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-text-primary">Vulnerability Database</h3>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-accent-blue px-2 py-1 bg-accent-blue/10 rounded">
-              Auto-update
-            </span>
-            <Toggle enabled={autoUpdateVulnDB} onToggle={() => setAutoUpdateVulnDB(!autoUpdateVulnDB)} />
-          </div>
-        </div>
-
-        {/* Expandable Section */}
-        <button
-          onClick={() => setVulnDBExpanded(!vulnDBExpanded)}
-          className="w-full flex items-center justify-between text-sm text-text-secondary hover:text-text-primary transition-colors"
-        >
-          <span className="text-xs uppercase font-semibold">Database Details</span>
-          {vulnDBExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
-
-        {vulnDBExpanded && (
-          <div className="mt-4 space-y-4 pt-4 border-t border-theme">
-            {/* Sync Range */}
-            <div>
-              <label className="block text-xs font-bold text-text-secondary mb-2 uppercase">Sync Range</label>
-              <select
-                value={syncRange}
-                onChange={(e) => setSyncRange(e.target.value)}
-                className="w-full px-3 py-2.5 bg-bg-tertiary border border-theme rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-blue"
-              >
-                <option value="latest_1000">Latest 1,000 CVEs (~500 KB)</option>
-                <option value="latest_5000">Latest 5,000 CVEs (~2.5 MB)</option>
-                <option value="last_30_days">Last 30 Days (~200 KB)</option>
-                <option value="last_90_days">Last 90 Days (~600 KB)</option>
-              </select>
-              <p className="text-xs text-text-muted mt-1.5">Larger ranges provide better coverage but take longer to sync.</p>
-            </div>
-
-            {/* CVE Statistics */}
-            <div className="bg-bg-tertiary rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-text-muted">Embedded CVEs:</span>
-                <span className="font-bold text-text-primary">{embeddedCVEs}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-text-muted">Downloaded CVEs:</span>
-                <span className="font-bold text-text-primary">{downloadedCVEs}</span>
-              </div>
-              <div className="flex justify-between text-sm pt-2 border-t border-theme">
-                <span className="text-accent-blue font-semibold">Total CVEs:</span>
-                <span className="font-bold text-accent-blue">{embeddedCVEs + downloadedCVEs}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-text-muted">Last Updated:</span>
-                <span className="text-text-muted">{lastUpdate ? new Date(lastUpdate).toLocaleDateString() : 'Never'}</span>
-              </div>
-            </div>
-
-            {/* Update Button */}
-            <button
-              onClick={handleSyncDatabase}
-              disabled={isSyncing}
-              className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-sm shadow-lg transition-all ${
-                isSyncing
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-accent-blue to-accent-sapphire hover:brightness-110 text-white shadow-accent-blue/30'
-              }`}
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Updating...' : 'Update Database Now'}
-            </button>
-
-            <p className="text-xs text-text-muted text-center">
-              💡 Vulnerability database works offline by default.
-            </p>
-            {syncNotice && (
-              <p className="text-xs text-accent-blue text-center">{syncNotice}</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between mt-6">
-        <button
-          onClick={handleReset}
-          className="flex items-center gap-2 px-4 py-2 border-2 border-theme hover:border-accent-blue rounded-lg text-text-secondary hover:text-text-primary transition-all"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span className="text-sm font-medium">Reset to Defaults</span>
-        </button>
-
-        <button
-          onClick={handleSave}
-          disabled={!hasChanges && saveStatus === 'idle'}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg transition-all ${
-            saveStatus === 'saved'
-              ? 'bg-accent-green text-white'
-              : hasChanges
-              ? 'bg-slate-800 dark:bg-slate-900 hover:bg-slate-700 dark:hover:bg-slate-800 text-white'
-              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-          }`}
-        >
-          <Save className="w-4 h-4" />
-          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Settings'}
-        </button>
-      </div>
+        <SettingsActions
+          hasChanges={hasChanges}
+          saveStatus={saveStatus}
+          onReset={() => void handleReset()}
+          onSave={() => void handleSave()}
+        />
       </div>
     </div>
   );

@@ -22,22 +22,24 @@ async fn monitor_sequence_emits_started_stream_and_stopped() {
 
     tokio::time::timeout(Duration::from_secs(12), async {
         loop {
-            let captured = events.lock().expect("monitor event lock");
-            let has_started = captured
-                .iter()
-                .any(|event| matches!(event, NetworkEvent::MonitoringStarted { .. }));
-            let has_stream = captured.iter().any(|event| {
-                matches!(
-                    event,
-                    NetworkEvent::ScanStarted { .. } | NetworkEvent::ScanProgress { .. }
-                )
-            });
+            let (has_started, has_stream) = {
+                let captured = events.lock().expect("monitor event lock");
+                let has_started = captured
+                    .iter()
+                    .any(|event| matches!(event, NetworkEvent::MonitoringStarted { .. }));
+                let has_stream = captured.iter().any(|event| {
+                    matches!(
+                        event,
+                        NetworkEvent::ScanStarted { .. } | NetworkEvent::ScanProgress { .. }
+                    )
+                });
+                (has_started, has_stream)
+            };
 
             if has_started && has_stream {
                 break;
             }
 
-            drop(captured);
             tokio::time::sleep(Duration::from_millis(150)).await;
         }
     })
@@ -48,16 +50,17 @@ async fn monitor_sequence_emits_started_stream_and_stopped() {
 
     tokio::time::timeout(Duration::from_secs(12), async {
         loop {
-            let captured = events.lock().expect("monitor event lock");
-            let has_stopped = captured
-                .iter()
-                .any(|event| matches!(event, NetworkEvent::MonitoringStopped));
+            let has_stopped = {
+                let captured = events.lock().expect("monitor event lock");
+                captured
+                    .iter()
+                    .any(|event| matches!(event, NetworkEvent::MonitoringStopped))
+            };
 
             if has_stopped {
                 break;
             }
 
-            drop(captured);
             tokio::time::sleep(Duration::from_millis(150)).await;
         }
     })

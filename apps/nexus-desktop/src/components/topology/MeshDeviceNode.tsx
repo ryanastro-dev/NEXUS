@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function MeshDeviceNode({ data, selected }: NodeProps<any>) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';

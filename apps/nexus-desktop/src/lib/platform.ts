@@ -20,7 +20,7 @@ export async function getPlatform(): Promise<Platform> {
       if (platformType === "windows") return "windows";
       if (platformType === "macos") return "macos";
       if (platformType === "linux") return "linux";
-    } catch (error) {
+    } catch {
       // Silent fallback - this is expected in browser preview
       // Tauri API not available, will use user agent detection below
     }

@@ -6,20 +6,16 @@ interface BandwidthChartProps {
   data?: Array<{ time: string; value: number }>;
 }
 
-// Mock data for demonstration
-const mockData = [
-  { time: '00:00', value: 45 },
-  { time: '04:00', value: 52 },
-  { time: '08:00', value: 78 },
-  { time: '12:00', value: 85 },
-  { time: '16:00', value: 92 },
-  { time: '20:00', value: 68 },
-  { time: '24:00', value: 48 },
-];
-
-export default function BandwidthChart({ data = mockData }: BandwidthChartProps) {
+export default function BandwidthChart({ data = [] }: BandwidthChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const hasData = data.length > 0;
+  const values = data.map((entry) => entry.value);
+  const peakMbps = hasData ? Math.max(...values) : null;
+  const avgMbps = hasData
+    ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+    : null;
+  const currentMbps = hasData ? values[values.length - 1] : null;
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
@@ -57,52 +53,64 @@ export default function BandwidthChart({ data = mockData }: BandwidthChartProps)
 
       {/* Chart */}
       <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-            <defs>
-              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.6} />
-              </linearGradient>
-            </defs>
-            <XAxis 
-              dataKey="time" 
-              stroke={isDark ? '#64748B' : '#94A3B8'}
-              tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis 
-              stroke={isDark ? '#64748B' : '#94A3B8'}
-              tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              label={{ value: 'Mbps', angle: -90, position: 'insideLeft', fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
-            />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
-            <Bar 
-              dataKey="value" 
-              fill="url(#barGradient)" 
-              radius={[6, 6, 0, 0]}
-              animationDuration={1000}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+              <defs>
+                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.6} />
+                </linearGradient>
+              </defs>
+              <XAxis 
+                dataKey="time" 
+                stroke={isDark ? '#64748B' : '#94A3B8'}
+                tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis 
+                stroke={isDark ? '#64748B' : '#94A3B8'}
+                tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                label={{ value: 'Mbps', angle: -90, position: 'insideLeft', fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
+              <Bar 
+                dataKey="value" 
+                fill="url(#barGradient)" 
+                radius={[6, 6, 0, 0]}
+                animationDuration={1000}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs text-text-muted">
+            No bandwidth telemetry available
+          </div>
+        )}
       </div>
 
       {/* Footer Stats */}
       <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-theme">
         <div>
           <p className="text-xs text-text-muted mb-1">Peak</p>
-          <p className="text-lg font-bold text-text-primary">92 <span className="text-xs font-normal text-text-muted">Mbps</span></p>
+          <p className="text-lg font-bold text-text-primary">
+            {peakMbps ?? '--'} <span className="text-xs font-normal text-text-muted">Mbps</span>
+          </p>
         </div>
         <div>
           <p className="text-xs text-text-muted mb-1">Avg</p>
-          <p className="text-lg font-bold text-text-primary">68 <span className="text-xs font-normal text-text-muted">Mbps</span></p>
+          <p className="text-lg font-bold text-text-primary">
+            {avgMbps ?? '--'} <span className="text-xs font-normal text-text-muted">Mbps</span>
+          </p>
         </div>
         <div>
           <p className="text-xs text-text-muted mb-1">Current</p>
-          <p className="text-lg font-bold text-accent-blue">48 <span className="text-xs font-normal text-text-muted">Mbps</span></p>
+          <p className="text-lg font-bold text-accent-blue">
+            {currentMbps ?? '--'} <span className="text-xs font-normal text-text-muted">Mbps</span>
+          </p>
         </div>
       </div>
     </motion.div>

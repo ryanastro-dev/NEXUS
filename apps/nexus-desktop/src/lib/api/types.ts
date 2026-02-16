@@ -13,6 +13,13 @@ export interface PortWarning {
   recommendation?: string;
 }
 
+export interface NeighborInfo {
+  local_port: string;
+  remote_device: string;
+  remote_port: string;
+  remote_ip?: string;
+}
+
 export interface HostInfo {
   ip: string;
   mac: string;
@@ -28,6 +35,7 @@ export interface HostInfo {
   hostname?: string;
   system_description?: string;
   uptime_seconds?: number;
+  neighbors?: NeighborInfo[];
   vulnerabilities?: VulnerabilityInfo[];
   port_warnings?: PortWarning[];
   security_grade?: string;
@@ -217,6 +225,48 @@ export interface MonitoringStatus {
   devices_total: number;
 }
 
+export interface VulnerabilityDbStatus {
+  cve_total: number;
+  embedded_cve_total: number;
+  port_warning_total: number;
+  last_published_date?: string | null;
+}
+
+export interface VulnerabilitySyncReport {
+  source: string;
+  range: string;
+  fetched_records: number;
+  upserted_records: number;
+  status: VulnerabilityDbStatus;
+}
+
+export interface RuntimeDiagnostics {
+  interface_count: number;
+  interfaces: string[];
+  icmp_client_available: boolean;
+  monitor_running: boolean;
+  warnings: string[];
+}
+
+export interface TelemetrySample {
+  id: number;
+  captured_at: string;
+  metric_key: string;
+  metric_value: number;
+  label?: string | null;
+}
+
+export interface TelemetrySeries {
+  metric_key: string;
+  points: TelemetrySample[];
+}
+
+export interface TelemetryEvent {
+  metric_key: string;
+  metric_value: number;
+  label?: string | null;
+}
+
 export type NetworkEventType =
   | { type: "MonitoringStarted"; data: { interval_seconds: number } }
   | { type: "MonitoringStopped" }
@@ -246,6 +296,14 @@ export type NetworkEventType =
       data: { mac: string; old_ip: string; new_ip: string };
     }
   | { type: "MonitoringError"; data: { message: string } };
+
+export type EngineEventType =
+  | { kind: "info"; message: string }
+  | { kind: "warn"; message: string }
+  | { kind: "error"; message: string }
+  | { kind: "scan_phase"; phase: string; progress_pct: number }
+  | { kind: "scan_persisted"; scan_id: number; path: string }
+  | { kind: "cancelled"; stage: string };
 
 export interface PingResult {
   success: boolean;

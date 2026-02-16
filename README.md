@@ -85,7 +85,8 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Background Monitor Loop** | Configurable interval-based scanning (default: every 60 seconds) that runs in the background via an async Tokio task.                         |
 | **Device Lifecycle Events** | Detects and emits events for: **New Device**, **Device Offline**, **Device Back Online**, **IP Address Changed**, and **Open Port Detected**. |
-| **Live Event Emission**     | Pushes monitor events to the frontend in real time via Tauri's event system (`monitor-event` channel).                                        |
+| **Live Event Emission**     | Pushes monitor and scan events to the frontend in real time via Tauri's `network-event` channel.                                               |
+| **Core Engine Telemetry**   | Emits typed engine workflow events (`info`, `scan_phase`, `cancelled`, etc.) through the `engine-event` channel for Tools/diagnostics UI.     |
 | **Alert Persistence**       | All alerts are saved to the SQLite database with timestamps, severity levels, and device associations.                                        |
 | **Alert Deduplication**     | Smart dedupe logic prevents repeated alerts for the same event within a configurable time window using composite dedupe keys.                 |
 | **Unread/Read Workflow**    | Alerts have read/unread status. Users can mark individual alerts as read, mark all as read, or clear all alerts.                              |
@@ -204,7 +205,7 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 │                     │ Tauri IPC (invoke / events)         │
 │  ┌──────────────────┴─────────────────────────────────┐  │
 │  │         Tauri Bridge (commands.rs)                  │  │
-│  │  29 Commands: scan, monitor, alerts, export, ...   │  │
+│  │  30+ Commands: scan, monitor, alerts, export, ...  │  │
 │  └──────────────────┬─────────────────────────────────┘  │
 └─────────────────────┼────────────────────────────────────┘
                       │
@@ -297,6 +298,8 @@ The application performs Layer-2 (ARP) and Layer-3 (ICMP) host discovery, probes
 │   └── logging/                # Structured logging
 │       └── mod.rs              #   Tracing setup & file appender
 ├── crate/nexus-core/tests/     # Rust integration tests
+├── scripts/
+│   └── desktop-smoke.ps1       # Runtime smoke automation
 ├── apps/nexus-desktop/         # Frontend application
 │   ├── src/                    # React source
 │   │   ├── App.tsx             #   App shell & routing
@@ -396,6 +399,13 @@ cargo test -p nexus-core --all-targets
 # Runs core engine unit/integration coverage
 ```
 
+### Runtime Smoke Pass
+
+```bash
+npm --prefix apps/nexus-desktop run smoke:runtime
+# Runs monitor lifecycle smoke + alert/core integration checks + desktop build
+```
+
 ---
 
 ## Build
@@ -434,6 +444,9 @@ cargo test --test alerts_dedupe_integration  # Integration test
 
 # Frontend build
 npm --prefix apps/nexus-desktop run build
+
+# Runtime smoke bundle
+npm --prefix apps/nexus-desktop run smoke:runtime
 
 # Tauri environment check
 npm --prefix apps/nexus-desktop run tauri info

@@ -123,6 +123,38 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
+    try {
+      const rawSettings = localStorage.getItem("netmapper-settings");
+      if (!rawSettings) {
+        return;
+      }
+
+      const parsed = JSON.parse(rawSettings);
+      const snmpEnabled = parsed?.snmpEnabled === true;
+      const snmpCommunity =
+        typeof parsed?.snmpCommunity === "string" && parsed.snmpCommunity.trim().length > 0
+          ? parsed.snmpCommunity.trim()
+          : "public";
+      const monitoringInterval = Number(parsed?.monitoringInterval);
+      const tcpPorts = String(parsed?.tcpPorts ?? "")
+        .split(",")
+        .map((port) => Number.parseInt(port.trim(), 10))
+        .filter((port) => Number.isFinite(port) && port > 0 && port <= 65535);
+
+      void tauriClient.applyRuntimeSettings(
+        snmpEnabled,
+        snmpCommunity,
+        tcpPorts,
+        Number.isFinite(monitoringInterval) && monitoringInterval > 0
+          ? monitoringInterval
+          : undefined,
+      );
+    } catch {
+      // Keep startup resilient when local settings payload is malformed.
+    }
+  }, []);
+
+  useEffect(() => {
     let shouldStopOnUnmount = false;
 
     if (autoStartedMonitorRef.current) {
@@ -140,11 +172,16 @@ function AppContent() {
       const interval = Number(parsed?.monitoringInterval);
       const monitoringInterval =
         Number.isFinite(interval) && interval > 0 ? interval : undefined;
+      const preferredInterface =
+        typeof parsed?.preferredInterface === "string" &&
+        parsed.preferredInterface.trim().length > 0
+          ? parsed.preferredInterface.trim()
+          : undefined;
 
       if (monitoringEnabled) {
         autoStartedMonitorRef.current = true;
         shouldStopOnUnmount = true;
-        void monitoring.startMonitoring(monitoringInterval);
+        void monitoring.startMonitoring(monitoringInterval, preferredInterface);
       }
     } catch {
       // Ignore malformed settings and keep default behavior.

@@ -11,16 +11,15 @@ import {
   useRef,
   useEffect,
 } from "react";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { tauriClient } from "../lib/api/tauri-client";
 import type {
   HostInfo,
-  NetworkEventType,
   PortWarning,
   ScanResult,
   VulnerabilityInfo,
 } from "../lib/api/types";
 import { isTauri } from "../lib/runtime/is-tauri";
+import { eventClient } from "../lib/api/event-client";
 
 export type { HostInfo, PortWarning, ScanResult, VulnerabilityInfo };
 
@@ -35,6 +34,8 @@ export interface ScanState {
   scanProgress: number;
   scanPhase: string | null;
 }
+
+type UnlistenFn = () => void;
 
 /**
  * Hook for managing network scan state
@@ -62,10 +63,7 @@ export function useScan() {
 
     const setupListener = async () => {
       try {
-        const unsubscribe = await listen<NetworkEventType>(
-          "network-event",
-          (event) => {
-            const payload = event.payload;
+        const unsubscribe = await eventClient.listenNetworkEvents((payload) => {
 
             setState((prev) => {
               if (!prev.isScanning) {
@@ -104,8 +102,7 @@ export function useScan() {
                 scanPhase: phase || prev.scanPhase,
               };
             });
-          },
-        );
+          });
 
         if (disposed) {
           unsubscribe();
@@ -138,6 +135,19 @@ export function useScan() {
 
     // Check if demo mode is enabled
     const isDemoMode = localStorage.getItem("demo-mode-enabled") === "true";
+    let preferredInterface: string | undefined;
+    try {
+      const rawSettings = localStorage.getItem("netmapper-settings");
+      if (rawSettings) {
+        const parsed = JSON.parse(rawSettings);
+        const selected = parsed?.preferredInterface;
+        if (typeof selected === "string" && selected.trim().length > 0) {
+          preferredInterface = selected.trim();
+        }
+      }
+    } catch {
+      preferredInterface = undefined;
+    }
 
     setState((prev) => ({
       ...prev,
@@ -151,7 +161,7 @@ export function useScan() {
     try {
       const result = isDemoMode
         ? await tauriClient.mockScanNetwork()
-        : await tauriClient.scanNetwork();
+        : await tauriClient.scanNetwork(preferredInterface);
 
       if (currentScanId !== activeScanIdRef.current) {
         return;
@@ -203,9 +213,11 @@ export function useScan() {
       return;
     }
 
-    // Backend scan command is currently non-cancellable.
-    // We cancel the active UI request and ignore stale results.
+    // Cancel backend scan context and ignore stale UI results.
     activeScanIdRef.current += 1;
+    void tauriClient.cancelActiveScan().catch(() => {
+      // Keep UI cancellation resilient if backend command is unavailable.
+    });
     setState((prev) => ({
       ...prev,
       isScanning: false,

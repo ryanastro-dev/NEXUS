@@ -6,20 +6,16 @@ interface LatencyChartProps {
   data?: Array<{ time: string; value: number }>;
 }
 
-// Mock data for demonstration
-const mockData = [
-  { time: '00:00', value: 12 },
-  { time: '04:00', value: 14 },
-  { time: '08:00', value: 18 },
-  { time: '12:00', value: 22 },
-  { time: '16:00', value: 24 },
-  { time: '20:00', value: 20 },
-  { time: '24:00', value: 15 },
-];
-
-export default function LatencyChart({ data = mockData }: LatencyChartProps) {
+export default function LatencyChart({ data = [] }: LatencyChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const hasData = data.length > 0;
+  const values = data.map((entry) => entry.value);
+  const minLatency = hasData ? Math.min(...values) : null;
+  const maxLatency = hasData ? Math.max(...values) : null;
+  const avgLatency = hasData
+    ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+    : null;
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
@@ -51,54 +47,66 @@ export default function LatencyChart({ data = mockData }: LatencyChartProps) {
 
       {/* Chart */}
       <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-            <defs>
-              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis 
-              dataKey="time" 
-              stroke={isDark ? '#64748B' : '#94A3B8'}
-              tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis 
-              stroke={isDark ? '#64748B' : '#94A3B8'}
-              tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              label={{ value: 'ms', angle: -90, position: 'insideLeft', fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke="#3B82F6"
-              strokeWidth={2}
-              fill="url(#areaGradient)"
-              animationDuration={1500}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+              <defs>
+                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis 
+                dataKey="time" 
+                stroke={isDark ? '#64748B' : '#94A3B8'}
+                tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis 
+                stroke={isDark ? '#64748B' : '#94A3B8'}
+                tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                label={{ value: 'ms', angle: -90, position: 'insideLeft', fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="#3B82F6"
+                strokeWidth={2}
+                fill="url(#areaGradient)"
+                animationDuration={1500}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs text-text-muted">
+            No latency telemetry available
+          </div>
+        )}
       </div>
 
       {/* Footer Stats */}
       <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-theme">
         <div>
           <p className="text-xs text-text-muted mb-1">Min</p>
-          <p className="text-lg font-bold text-accent-green">12 <span className="text-xs font-normal text-text-muted">ms</span></p>
+          <p className="text-lg font-bold text-accent-green">
+            {minLatency ?? '--'} <span className="text-xs font-normal text-text-muted">ms</span>
+          </p>
         </div>
         <div>
           <p className="text-xs text-text-muted mb-1">Avg</p>
-          <p className="text-lg font-bold text-text-primary">18 <span className="text-xs font-normal text-text-muted">ms</span></p>
+          <p className="text-lg font-bold text-text-primary">
+            {avgLatency ?? '--'} <span className="text-xs font-normal text-text-muted">ms</span>
+          </p>
         </div>
         <div>
           <p className="text-xs text-text-muted mb-1">Max</p>
-          <p className="text-lg font-bold text-accent-amber">24 <span className="text-xs font-normal text-text-muted">ms</span></p>
+          <p className="text-lg font-bold text-accent-amber">
+            {maxLatency ?? '--'} <span className="text-xs font-normal text-text-muted">ms</span>
+          </p>
         </div>
       </div>
     </motion.div>

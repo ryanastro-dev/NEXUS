@@ -1,14 +1,13 @@
 //! Demo Mode - Pre-loaded sample data for offline demonstrations
-//! 
+//!
 //! Provides realistic network topology with sample devices, vulnerabilities, and alerts
 
-use nexus_core::{HostInfo, ScanResult, VulnerabilityInfo, AlertRecord, AlertType, AlertSeverity};
-
+use nexus_core::{AlertRecord, AlertSeverity, AlertType, HostInfo, ScanResult, VulnerabilityInfo};
 
 /// Generate demo scan result with realistic sample data
 pub fn generate_demo_scan() -> ScanResult {
     let hosts = generate_demo_hosts();
-    
+
     ScanResult {
         interface_name: "eth0".to_string(),
         local_ip: "192.168.1.100".to_string(),
@@ -47,7 +46,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "B".to_string(),
         },
-        
         // 2. Windows PC - HIGH RISK
         HostInfo {
             ip: "192.168.1.10".to_string(),
@@ -82,7 +80,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "F".to_string(),
         },
-        
         // 3. Android Phone (Randomized MAC)
         HostInfo {
             ip: "192.168.1.25".to_string(),
@@ -104,7 +101,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "A".to_string(),
         },
-        
         // 4. Network Printer
         HostInfo {
             ip: "192.168.1.30".to_string(),
@@ -126,7 +122,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "C".to_string(),
         },
-        
         // 5. IP Camera - HIGH RISK
         HostInfo {
             ip: "192.168.1.70".to_string(),
@@ -144,18 +139,15 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             uptime_seconds: None,
             is_randomized: false,
             neighbors: vec![],
-            vulnerabilities: vec![
-                VulnerabilityInfo {
-                    cve_id: "CVE-2021-36260".to_string(),
-                    severity: "Critical".to_string(),
-                    description: "Hikvision IP Camera Command Injection".to_string(),
-                    cvss_score: Some(9.8),
-                },
-            ],
+            vulnerabilities: vec![VulnerabilityInfo {
+                cve_id: "CVE-2021-36260".to_string(),
+                severity: "Critical".to_string(),
+                description: "Hikvision IP Camera Command Injection".to_string(),
+                cvss_score: Some(9.8),
+            }],
             port_warnings: vec![],
             security_grade: "D".to_string(),
         },
-        
         // 6. Managed Switch (Cisco)
         HostInfo {
             ip: "192.168.1.2".to_string(),
@@ -177,7 +169,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "B".to_string(),
         },
-        
         // 7. MacBook Pro
         HostInfo {
             ip: "192.168.1.15".to_string(),
@@ -199,7 +190,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "A".to_string(),
         },
-        
         // 8. iPhone (Randomized MAC)
         HostInfo {
             ip: "192.168.1.26".to_string(),
@@ -221,7 +211,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "A".to_string(),
         },
-        
         // 9. Smart TV (Samsung)
         HostInfo {
             ip: "192.168.1.40".to_string(),
@@ -243,7 +232,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "C".to_string(),
         },
-        
         // 10. Raspberry Pi Server
         HostInfo {
             ip: "192.168.1.50".to_string(),
@@ -261,18 +249,15 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             uptime_seconds: None,
             is_randomized: false,
             neighbors: vec![],
-            vulnerabilities: vec![
-                VulnerabilityInfo {
-                    cve_id: "CVE-2023-4911".to_string(),
-                    severity: "High".to_string(),
-                    description: "Looney Tunables - glibc buffer overflow".to_string(),
-                    cvss_score: Some(7.8),
-                },
-            ],
+            vulnerabilities: vec![VulnerabilityInfo {
+                cve_id: "CVE-2023-4911".to_string(),
+                severity: "High".to_string(),
+                description: "Looney Tunables - glibc buffer overflow".to_string(),
+                cvss_score: Some(7.8),
+            }],
             port_warnings: vec![],
             security_grade: "D".to_string(),
         },
-        
         // 11. NAS Storage (Synology)
         HostInfo {
             ip: "192.168.1.60".to_string(),
@@ -294,7 +279,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "B".to_string(),
         },
-        
         // 12. Wireless Access Point
         HostInfo {
             ip: "192.168.1.3".to_string(),
@@ -316,7 +300,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "A".to_string(),
         },
-        
         // 13. Xbox Gaming Console
         HostInfo {
             ip: "192.168.1.45".to_string(),
@@ -338,7 +321,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "A".to_string(),
         },
-        
         // 14. Canon Printer
         HostInfo {
             ip: "192.168.1.31".to_string(),
@@ -360,7 +342,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "C".to_string(),
         },
-        
         // 15. Amazon Echo Dot
         HostInfo {
             ip: "192.168.1.41".to_string(),
@@ -382,7 +363,6 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
             port_warnings: vec![],
             security_grade: "B".to_string(),
         },
-        
         // 16. Linux Workstation (HP)
         HostInfo {
             ip: "192.168.1.20".to_string(),
@@ -410,7 +390,7 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
 /// Generate sample alert records
 pub fn generate_demo_alerts() -> Vec<AlertRecord> {
     let now = chrono::Utc::now();
-    
+
     vec![
         AlertRecord {
             id: 1,
@@ -431,7 +411,9 @@ pub fn generate_demo_alerts() -> Vec<AlertRecord> {
             device_id: Some(2),
             device_mac: Some("00:0c:29:5a:8f:1d".to_string()),
             device_ip: Some("192.168.1.10".to_string()),
-            message: "High risk device: WIN-PC-001 has critical vulnerabilities (EternalBlue, BlueKeep)".to_string(),
+            message:
+                "High risk device: WIN-PC-001 has critical vulnerabilities (EternalBlue, BlueKeep)"
+                    .to_string(),
             severity: AlertSeverity::Critical,
             is_read: false,
         },

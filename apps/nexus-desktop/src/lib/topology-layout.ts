@@ -143,5 +143,38 @@ export function generateTopologyLayout(hosts: HostInfo[]): TopologyResult {
     });
   }
 
+  // Merge SNMP neighbor-derived edges when remote IP endpoints exist in the graph.
+  const knownNodeIds = new Set(nodes.map((node) => node.id));
+  const existingLinks = new Set(
+    edges.map((edge) => [edge.source, edge.target].sort().join("<->")),
+  );
+
+  hosts.forEach((host, hostIdx) => {
+    const neighbors = host.neighbors ?? [];
+    neighbors.forEach((neighbor, neighborIdx) => {
+      const remoteIp = neighbor.remote_ip;
+      if (!remoteIp || remoteIp === host.ip) {
+        return;
+      }
+      if (!knownNodeIds.has(host.ip) || !knownNodeIds.has(remoteIp)) {
+        return;
+      }
+
+      const linkKey = [host.ip, remoteIp].sort().join("<->");
+      if (existingLinks.has(linkKey)) {
+        return;
+      }
+
+      existingLinks.add(linkKey);
+      edges.push({
+        id: `neighbor-${hostIdx}-${neighborIdx}-${host.ip}-${remoteIp}`,
+        source: host.ip,
+        target: remoteIp,
+        type: 'smoothstep',
+        animated: true,
+      });
+    });
+  });
+
   return { nodes, edges };
 }
