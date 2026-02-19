@@ -1,22 +1,37 @@
-name: CI
+name: CI Release Gates
 
 on:
-  pull_request:
   push:
     branches:
       - main
       - master
       - work
+    paths-ignore:
+      - "**/*.md"
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  rust:
-    name: Rust checks
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
+  quality-linux:
+    name: Rust quality (Linux)
+    runs-on: ubuntu-24.04
 
-      - name: Install Rust stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -32,25 +47,30 @@ jobs:
             libpcap-dev \
             patchelf
 
-      - name: Clippy (workspace)
+      - name: Cargo fmt (check)
+        run: cargo fmt --all -- --check
+
+      - name: Cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Unit tests (workspace)
+      - name: Cargo test
         run: cargo test --workspace
 
-  frontend:
+  frontend-gates:
     name: Frontend quality gates
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/nexus-desktop
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: apps/nexus-desktop/package-lock.json
 
@@ -66,20 +86,46 @@ jobs:
       - name: Build
         run: npm run build
 
-  smoke:
+  windows-link-check:
+    name: Windows build/link check (Npcap SDK)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Npcap SDK (Packet.lib)
+        shell: pwsh
+        run: ./scripts/install-npcap-sdk.ps1
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Cargo check
+        run: cargo check --workspace --all-targets
+
+      - name: Cargo test (build only)
+        run: cargo test --workspace --all-targets --no-run
+
+  runtime-smoke-windows:
     name: Runtime smoke (Windows)
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: apps/nexus-desktop/package-lock.json
 
-      - name: Install Rust stable
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Rust cache
@@ -88,5 +134,5 @@ jobs:
       - name: Install frontend dependencies
         run: npm --prefix apps/nexus-desktop ci
 
-      - name: Smoke bundle
+      - name: Smoke runtime bundle
         run: npm --prefix apps/nexus-desktop run smoke:runtime

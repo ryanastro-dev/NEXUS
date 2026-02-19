@@ -1,143 +1,144 @@
-name: Build & Release
+name: Desktop Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  # ==========================================
-  # Build job - runs on all platforms in parallel
-  # ==========================================
   build:
+    name: Build desktop (${{ matrix.platform_id }})
+    runs-on: ${{ matrix.os }}
     permissions:
-      contents: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: windows-latest
-            args: ""
-            name: Windows-x64
-          - platform: macos-latest
-            args: "--target aarch64-apple-darwin"
-            name: macOS-ARM64
-          - platform: ubuntu-22.04
-            args: ""
-            name: Linux-x64
-
-    runs-on: ${{ matrix.platform }}
+          - os: ubuntu-24.04
+            platform_id: linux-x64
+            tauri_args: ""
+            needs_npcap: false
+          - os: windows-latest
+            platform_id: windows-x64
+            tauri_args: ""
+            needs_npcap: true
+          - os: macos-latest
+            platform_id: macos-arm64
+            tauri_args: "--target aarch64-apple-darwin"
+            needs_npcap: false
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/nexus-desktop/package-lock.json
 
-      - name: Install Rust stable
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
+
+      - name: Add Rust target (macOS ARM)
+        if: matrix.os == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './apps/nexus-desktop/src-tauri -> target'
+          workspaces: |
+            ./ -> target
+            ./apps/nexus-desktop/src-tauri -> target
 
-      # Linux dependencies
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Install Linux desktop dependencies
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcap-dev
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libpcap-dev \
+            patchelf
 
-      # Windows - Npcap SDK
-      - name: Install Npcap SDK (Windows)
-        if: matrix.platform == 'windows-latest'
-        run: |
-          Invoke-WebRequest -Uri "https://npcap.com/dist/npcap-sdk-1.13.zip" -OutFile "npcap-sdk.zip"
-          Expand-Archive -Path "npcap-sdk.zip" -DestinationPath "C:\npcap-sdk"
-          echo "LIB=C:\npcap-sdk\Lib\x64" >> $env:GITHUB_ENV
+      - name: Install Npcap SDK (Packet.lib)
+        if: matrix.needs_npcap
         shell: pwsh
+        run: ./scripts/install-npcap-sdk.ps1
 
       - name: Install frontend dependencies
         working-directory: apps/nexus-desktop
-        run: npm install
+        run: npm ci
 
-      # Build WITHOUT creating release (just build)
-      - name: Build the app
+      - name: Build Tauri app
         working-directory: apps/nexus-desktop
-        run: npm run tauri build -- ${{ matrix.args }}
+        run: npm run tauri build -- ${{ matrix.tauri_args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload artifacts for release job
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.name }}
+          name: release-${{ matrix.platform_id }}
           path: |
-            **/target/**/release/bundle/**/*.deb
-            **/target/**/release/bundle/**/*.rpm
-            **/target/**/release/bundle/**/*.AppImage
-            **/target/**/release/bundle/**/*.exe
-            **/target/**/release/bundle/**/*.msi
-            **/target/**/release/bundle/**/*.dmg
-            **/target/**/release/bundle/**/*.app
-            **/target/**/release/bundle/**/*.tar.gz
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.deb
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.rpm
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.AppImage
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.exe
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.msi
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.dmg
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.app.tar.gz
+            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.tar.gz
           if-no-files-found: warn
           retention-days: 7
 
-  # ==========================================
-  # Release job - runs AFTER all builds complete
-  # ==========================================
-  release:
+  publish:
+    name: Publish GitHub Release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
-    
+
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
         with:
-          path: artifacts
+          path: dist
 
-      - name: Display artifacts
+      - name: Flatten artifact directories
+        shell: bash
         run: |
-          echo "All downloaded artifacts:"
-          find artifacts -type f -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.tar.gz" 2>/dev/null || echo "Listing files..."
-          ls -la artifacts/ || true
-          ls -laR artifacts/ || true
+          set -euo pipefail
+          mkdir -p dist/flat
+          find dist -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.tar.gz" \) -print0 \
+            | while IFS= read -r -d '' f; do cp "$f" dist/flat/; done
+          ls -la dist/flat
 
-      - name: Create Release
+      - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: 'Network Topology Mapper ${{ github.ref_name }}'
-          body: |
-            ## Network Topology Mapper ${{ github.ref_name }}
-            
-            ### Downloads
-            - **Windows**: `.msi` or `.exe` installer (Npcap required)
-            - **macOS ARM64**: `.dmg` for Apple Silicon Macs
-            - **Linux**: `.deb`, `.rpm`, or `.AppImage`
-            
-            ### Requirements
-            - **Windows**: Install [Npcap](https://npcap.com/#download) for network scanning
-            - **macOS/Linux**: Run with sudo for ARP scanning
+          name: NEXUS Desktop ${{ github.ref_name }}
           draft: true
-          prerelease: false
+          generate_release_notes: true
           files: |
-            artifacts/**/*.exe
-            artifacts/**/*.msi
-            artifacts/**/*.dmg
-            artifacts/**/*.deb
-            artifacts/**/*.rpm
-            artifacts/**/*.AppImage
-            artifacts/**/*.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            dist/flat/*.exe
+            dist/flat/*.msi
+            dist/flat/*.dmg
+            dist/flat/*.deb
+            dist/flat/*.rpm
+            dist/flat/*.AppImage
+            dist/flat/*.tar.gz
