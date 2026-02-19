@@ -36,7 +36,7 @@ jobs:
             experimental: false
           - os: macos-15-intel
             platform_id: macos15-intel
-            tauri_args: "--target x86_64-apple-darwin"
+            tauri_args: "--target x86_64-apple-darwin --bundles app"
             needs_npcap: false
             mac_target: x86_64-apple-darwin
             experimental: false
