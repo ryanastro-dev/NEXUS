@@ -1,4 +1,5 @@
 import {
+  useCallback,
   lazy,
   Suspense,
   useEffect,
@@ -21,6 +22,10 @@ import ErrorBoundary from "./components/common/ErrorBoundary";
 import { ToastProvider } from "./components/common/Toast";
 import DemoBanner from "./components/common/DemoBanner";
 import { tauriClient } from "./lib/api/tauri-client";
+import {
+  ALERTS_UNREAD_COUNT_EVENT,
+  type AlertsUnreadCountDetail,
+} from "./lib/events/alerts-sync";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const TopologyView = lazy(() => import("./pages/TopologyView"));
@@ -90,23 +95,49 @@ function AppContent() {
   const { toggleTheme } = useTheme();
   const { shouldShow: showWelcome, markAsShown } = useWelcomeScreen();
 
-  const fetchUnreadAlertsCount = async () => {
+  const fetchUnreadAlertsCount = useCallback(async () => {
     try {
       const alerts = await tauriClient.getUnreadAlerts();
       setUnreadAlertsCount(alerts.filter((a) => !a.is_read).length);
     } catch {
       setUnreadAlertsCount(0);
     }
-  };
-
-  useEffect(() => {
-    fetchUnreadAlertsCount();
-  }, [currentPage]);
-
-  useEffect(() => {
-    const interval = setInterval(fetchUnreadAlertsCount, 30000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const onAlertsUnreadCountChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<AlertsUnreadCountDetail>;
+      const unreadCount = customEvent.detail?.unreadCount;
+      if (typeof unreadCount === "number" && Number.isFinite(unreadCount)) {
+        setUnreadAlertsCount(Math.max(0, Math.trunc(unreadCount)));
+        return;
+      }
+
+      void fetchUnreadAlertsCount();
+    };
+
+    window.addEventListener(
+      ALERTS_UNREAD_COUNT_EVENT,
+      onAlertsUnreadCountChanged as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        ALERTS_UNREAD_COUNT_EVENT,
+        onAlertsUnreadCountChanged as EventListener,
+      );
+    };
+  }, [fetchUnreadAlertsCount]);
+
+  useEffect(() => {
+    void fetchUnreadAlertsCount();
+  }, [currentPage, fetchUnreadAlertsCount]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void fetchUnreadAlertsCount();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadAlertsCount]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -140,15 +171,66 @@ function AppContent() {
         .split(",")
         .map((port) => Number.parseInt(port.trim(), 10))
         .filter((port) => Number.isFinite(port) && port > 0 && port <= 65535);
+      const aiModeRaw = typeof parsed?.aiMode === "string" ? parsed.aiMode : "disabled";
+      const aiMode =
+        aiModeRaw === "local" ||
+        aiModeRaw === "cloud" ||
+        aiModeRaw === "hybrid_auto" ||
+        aiModeRaw === "disabled"
+          ? aiModeRaw
+          : "disabled";
+      const aiTimeout = Number(parsed?.aiTimeoutMs);
+      const aiEnabled = parsed?.aiEnabled === true;
+      const ollamaEndpoint =
+        typeof parsed?.ollamaEndpoint === "string" && parsed.ollamaEndpoint.trim().length > 0
+          ? parsed.ollamaEndpoint.trim()
+          : "http://127.0.0.1:11434";
+      const ollamaModel =
+        typeof parsed?.ollamaModel === "string" && parsed.ollamaModel.trim().length > 0
+          ? parsed.ollamaModel.trim()
+          : "qwen3:8b";
+      const geminiEndpoint =
+        typeof parsed?.geminiEndpoint === "string" && parsed.geminiEndpoint.trim().length > 0
+          ? parsed.geminiEndpoint.trim()
+          : "https://generativelanguage.googleapis.com";
+      const geminiModel =
+        typeof parsed?.geminiModel === "string" && parsed.geminiModel.trim().length > 0
+          ? parsed.geminiModel.trim()
+          : "gemini-2.5-flash";
+      const geminiApiKey =
+        typeof parsed?.geminiApiKey === "string" && parsed.geminiApiKey.trim().length > 0
+          ? parsed.geminiApiKey.trim()
+          : null;
+      const cloudAllowSensitive = parsed?.cloudAllowSensitive === true;
 
-      void tauriClient.applyRuntimeSettings(
-        snmpEnabled,
-        snmpCommunity,
-        tcpPorts,
-        Number.isFinite(monitoringInterval) && monitoringInterval > 0
-          ? monitoringInterval
-          : undefined,
-      );
+      void tauriClient
+        .applyRuntimeSettings(
+          snmpEnabled,
+          snmpCommunity,
+          tcpPorts,
+          Number.isFinite(monitoringInterval) && monitoringInterval > 0
+            ? monitoringInterval
+            : undefined,
+        )
+        .catch(() => {
+          // Keep startup resilient if runtime bridge is unavailable.
+        });
+
+      void tauriClient
+        .applyAiRuntimeSettings({
+          enabled: aiEnabled,
+          mode: aiEnabled ? aiMode : "disabled",
+          timeout_ms: Number.isFinite(aiTimeout) ? aiTimeout : 8000,
+          ollama_endpoint: ollamaEndpoint,
+          ollama_model: ollamaModel,
+          gemini_endpoint: geminiEndpoint,
+          gemini_model: geminiModel,
+          gemini_api_key: geminiApiKey,
+          cloud_allow_sensitive: cloudAllowSensitive,
+        })
+        .catch(() => {
+          // Keep startup resilient if AI runtime bridge is unavailable.
+        });
     } catch {
       // Keep startup resilient when local settings payload is malformed.
     }
@@ -194,6 +276,33 @@ function AppContent() {
       }
     };
   }, [monitoring.startMonitoring, monitoring.stopMonitoring]);
+
+  useEffect(() => {
+    const handleRefreshHotkeys = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const isModifierRefresh = (event.ctrlKey || event.metaKey) && key === "r";
+      const isFunctionRefresh = key === "f5";
+
+      if (isModifierRefresh || isFunctionRefresh) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const handleZoomWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("keydown", handleRefreshHotkeys, true);
+    window.addEventListener("wheel", handleZoomWheel, { passive: false });
+
+    return () => {
+      window.removeEventListener("keydown", handleRefreshHotkeys, true);
+      window.removeEventListener("wheel", handleZoomWheel);
+    };
+  }, []);
 
   useKeyboardShortcuts([
     { ...SHORTCUTS.DASHBOARD, handler: () => handlePageChange("dashboard") },
@@ -252,7 +361,7 @@ function AppContent() {
       <Sidebar currentPage={currentPage} onNavigate={handlePageChange} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <DemoBanner />
+        {import.meta.env.DEV && <DemoBanner />}
         <TopHeader
           currentPage={currentPage}
           isScanning={isScanning}

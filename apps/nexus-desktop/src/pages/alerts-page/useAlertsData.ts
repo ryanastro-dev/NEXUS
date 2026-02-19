@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { tauriClient } from '../../lib/api/tauri-client';
+import { emitAlertsUnreadCount } from '../../lib/events/alerts-sync';
 import type { AlertRecord } from '../../lib/api/types';
 import type { AlertFilter } from './constants';
 import { buildAlertStats, filterAlerts } from './utils';
@@ -12,8 +13,10 @@ export function useAlertsData() {
   const isDemoMode = localStorage.getItem('demo-mode-enabled') === 'true';
   const demoAlertsRef = useRef<AlertRecord[] | null>(null);
 
-  const loadAlerts = useCallback(async () => {
-    setLoading(true);
+  const loadAlerts = useCallback(async (withLoading = true) => {
+    if (withLoading) {
+      setLoading(true);
+    }
     try {
       if (isDemoMode) {
         if (!demoAlertsRef.current) {
@@ -28,7 +31,9 @@ export function useAlertsData() {
     } catch (error) {
       console.error('Failed to load alerts:', error);
     } finally {
-      setLoading(false);
+      if (withLoading) {
+        setLoading(false);
+      }
     }
   }, [isDemoMode]);
 
@@ -36,42 +41,54 @@ export function useAlertsData() {
     void loadAlerts();
   }, [loadAlerts]);
 
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    emitAlertsUnreadCount(alerts);
+  }, [alerts, loading]);
+
   const markAsRead = useCallback(
     async (alertId: number) => {
+      const markRead = (source: AlertRecord[]) =>
+        source.map((alert) => (alert.id === alertId ? { ...alert, is_read: true } : alert));
       try {
         if (isDemoMode) {
-          const updateAlerts = (prev: AlertRecord[]) =>
-            prev.map((alert) => (alert.id === alertId ? { ...alert, is_read: true } : alert));
-          setAlerts(updateAlerts);
+          setAlerts(markRead);
           if (demoAlertsRef.current) {
-            demoAlertsRef.current = updateAlerts(demoAlertsRef.current);
+            demoAlertsRef.current = markRead(demoAlertsRef.current);
           }
           return;
         }
+
+        // Optimistic local update avoids full-page loading flicker while preserving UX continuity.
+        setAlerts(markRead);
         await tauriClient.markAlertRead(alertId);
-        await loadAlerts();
       } catch (error) {
         console.error('Failed to mark alert as read:', error);
+        await loadAlerts(false);
       }
     },
     [isDemoMode, loadAlerts],
   );
 
   const markAllAsRead = useCallback(async () => {
+    const markAllRead = (source: AlertRecord[]) =>
+      source.map((alert) => ({ ...alert, is_read: true }));
     try {
       if (isDemoMode) {
-        const updateAlerts = (prev: AlertRecord[]) =>
-          prev.map((alert) => ({ ...alert, is_read: true }));
-        setAlerts(updateAlerts);
+        setAlerts(markAllRead);
         if (demoAlertsRef.current) {
-          demoAlertsRef.current = updateAlerts(demoAlertsRef.current);
+          demoAlertsRef.current = markAllRead(demoAlertsRef.current);
         }
         return;
       }
+
+      setAlerts(markAllRead);
       await tauriClient.markAllAlertsRead();
-      await loadAlerts();
     } catch (error) {
       console.error('Failed to mark all alerts as read:', error);
+      await loadAlerts(false);
     }
   }, [isDemoMode, loadAlerts]);
 
@@ -82,10 +99,12 @@ export function useAlertsData() {
         setAlerts([]);
         return;
       }
+
+      setAlerts([]);
       await tauriClient.clearAllAlerts();
-      await loadAlerts();
     } catch (error) {
       console.error('Failed to clear alerts:', error);
+      await loadAlerts(false);
     }
   }, [isDemoMode, loadAlerts]);
 

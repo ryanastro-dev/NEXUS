@@ -4,6 +4,7 @@
 
 use crate::ai::types::HybridInsightsResult;
 use crate::models::{HostInfo, ScanResult};
+use crate::network::DeviceType;
 use anyhow::Result;
 use serde::Serialize;
 use serde_json;
@@ -41,10 +42,6 @@ pub struct Connection {
     pub connection_type: String,
 }
 
-fn is_router(device_type: &str) -> bool {
-    device_type.eq_ignore_ascii_case("ROUTER") || device_type.eq_ignore_ascii_case("Router")
-}
-
 /// Export topology data to JSON
 pub fn export_topology_json(hosts: &[HostInfo], network: &str) -> Result<String> {
     let devices: Vec<DeviceNode> = hosts
@@ -55,7 +52,7 @@ pub fn export_topology_json(hosts: &[HostInfo], network: &str) -> Result<String>
             mac: h.mac.clone(),
             hostname: h.hostname.clone(),
             vendor: h.vendor.clone(),
-            device_type: h.device_type.clone(),
+            device_type: h.device_type_enum().to_string(),
             os: h.os_guess.clone(),
             risk_score: h.risk_score,
             open_ports: h.open_ports.clone(),
@@ -64,7 +61,9 @@ pub fn export_topology_json(hosts: &[HostInfo], network: &str) -> Result<String>
         .collect();
 
     // Infer connections (router to all devices)
-    let router = hosts.iter().find(|h| is_router(&h.device_type));
+    let router = hosts
+        .iter()
+        .find(|h| h.device_type_enum() == DeviceType::Router);
     let connections: Vec<Connection> = if let Some(router_device) = router {
         hosts
             .iter()

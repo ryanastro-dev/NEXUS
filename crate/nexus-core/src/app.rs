@@ -7,7 +7,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crate::cli::{usage_text, version_text};
 use crate::command::AppCommand;
 use crate::command_handlers::{
-    ai_check_report, ai_insights_result, collect_interfaces, load_test_summary, scan_with_ai,
+    ai_check_report, ai_insights_result, collect_interfaces, load_test_summary, normalize_db,
+    scan_with_ai,
 };
 use crate::export_scan_result_with_ai_json;
 
@@ -64,6 +65,7 @@ pub enum AppCommandResult {
     AiInsights(crate::HybridInsightsResult),
     Scan(ScanWithAi),
     LoadTest(LoadTestSummary),
+    DbNormalize(crate::database::NormalizationSummary),
 }
 
 impl Default for AppContext {
@@ -130,6 +132,10 @@ impl AppContext {
     pub fn is_cancelled(&self) -> bool {
         self.cancel_flag.load(Ordering::Relaxed)
     }
+
+    pub fn cancel_token(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.cancel_flag)
+    }
 }
 
 /// Compatibility wrapper for CLI adapter entrypoint.
@@ -184,6 +190,7 @@ pub async fn execute_command_typed(
         AppCommand::AiInsights => Ok(AppCommandResult::AiInsights(
             ai_insights_result(context).await?,
         )),
+        AppCommand::DbNormalize => Ok(AppCommandResult::DbNormalize(normalize_db(context).await?)),
         AppCommand::Scan { interface } => Ok(AppCommandResult::Scan(
             scan_with_ai(interface, context).await?,
         )),
@@ -239,6 +246,12 @@ fn emit_command_result(result: &AppCommandResult, context: &AppContext) -> Resul
         AppCommandResult::LoadTest(summary) => {
             let output = serde_json::to_string_pretty(summary)
                 .context("Failed to serialize load-test summary")?;
+            context.emit_line(&output);
+            Ok(())
+        }
+        AppCommandResult::DbNormalize(summary) => {
+            let output = serde_json::to_string_pretty(summary)
+                .context("Failed to serialize db-normalize summary")?;
             context.emit_line(&output);
             Ok(())
         }

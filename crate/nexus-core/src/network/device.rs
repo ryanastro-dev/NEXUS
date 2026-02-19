@@ -4,6 +4,8 @@
 //! Also calculates risk scores based on device characteristics.
 
 use serde::Serialize;
+use std::fmt;
+use std::str::FromStr;
 
 /// Device type enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -50,6 +52,42 @@ impl DeviceType {
     }
 }
 
+impl fmt::Display for DeviceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for DeviceType {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let normalized = value.trim().to_ascii_uppercase().replace(['-', ' '], "_");
+
+        let parsed = match normalized.as_str() {
+            "ROUTER" => DeviceType::Router,
+            "SWITCH" => DeviceType::Switch,
+            "ACCESS_POINT" | "ACCESSPOINT" => DeviceType::AccessPoint,
+            "FIREWALL" => DeviceType::Firewall,
+            "SERVER" => DeviceType::Server,
+            "NAS" => DeviceType::Nas,
+            "PC" => DeviceType::Pc,
+            "LAPTOP" => DeviceType::Laptop,
+            "MOBILE" => DeviceType::Mobile,
+            "TABLET" => DeviceType::Tablet,
+            "SMART_TV" | "SMARTTV" => DeviceType::SmartTv,
+            "IOT_DEVICE" | "IOT" => DeviceType::IotDevice,
+            "PRINTER" => DeviceType::Printer,
+            "CAMERA" => DeviceType::Camera,
+            "GAME_CONSOLE" | "GAMECONSOLE" => DeviceType::GameConsole,
+            "UNKNOWN" => DeviceType::Unknown,
+            _ => return Err(()),
+        };
+
+        Ok(parsed)
+    }
+}
+
 /// Infer device type from vendor name
 pub fn infer_device_type_from_vendor(vendor: &str) -> Option<DeviceType> {
     let vendor_lower = vendor.to_lowercase();
@@ -85,7 +123,6 @@ pub fn infer_device_type_from_vendor(vendor: &str) -> Option<DeviceType> {
     if contains_any(
         &vendor_lower,
         &[
-            "apple",
             "samsung",
             "xiaomi",
             "huawei",
@@ -174,6 +211,30 @@ pub fn infer_device_type_from_vendor(vendor: &str) -> Option<DeviceType> {
         ],
     ) {
         return Some(DeviceType::IotDevice);
+    }
+
+    None
+}
+
+fn infer_apple_device_type(hostname: Option<&str>, ports: &[u16]) -> Option<DeviceType> {
+    if let Some(name) = hostname
+        && let Some(device_type) = infer_device_type_from_hostname(name)
+    {
+        return Some(device_type);
+    }
+
+    // AirPlay/DAAP-like service ports are commonly exposed by Apple TV / HomePod devices.
+    if ports.contains(&7000) || ports.contains(&7001) || ports.contains(&3689) {
+        return Some(DeviceType::SmartTv);
+    }
+
+    // usbmuxd (62078) is commonly exposed by iOS devices over Wi-Fi.
+    if ports.contains(&62078) {
+        return Some(DeviceType::Mobile);
+    }
+
+    if ports.contains(&548) || ports.contains(&445) || ports.contains(&22) {
+        return Some(DeviceType::Laptop);
     }
 
     None
@@ -302,6 +363,13 @@ pub fn infer_device_type(
         return DeviceType::Router;
     }
 
+    if let Some(v) = vendor
+        && v.to_lowercase().contains("apple")
+        && let Some(device_type) = infer_apple_device_type(hostname, ports)
+    {
+        return device_type;
+    }
+
     // Try vendor first (most reliable)
     if let Some(v) = vendor
         && let Some(dt) = infer_device_type_from_vendor(v)
@@ -390,10 +458,7 @@ mod tests {
             infer_device_type_from_vendor("Cisco Systems"),
             Some(DeviceType::Router)
         );
-        assert_eq!(
-            infer_device_type_from_vendor("Apple Inc"),
-            Some(DeviceType::Mobile)
-        );
+        assert_eq!(infer_device_type_from_vendor("Apple Inc"), None);
         assert_eq!(
             infer_device_type_from_vendor("Dell Technologies"),
             Some(DeviceType::Pc)
@@ -431,13 +496,15 @@ mod tests {
     #[test]
     fn test_infer_device_type_mobile_from_vendor() {
         assert_eq!(
-            infer_device_type_from_vendor("Apple"),
-            Some(DeviceType::Mobile)
-        );
-        assert_eq!(
             infer_device_type_from_vendor("Samsung"),
             Some(DeviceType::Mobile)
         );
+    }
+
+    #[test]
+    fn test_infer_device_type_apple_from_hostname_hint() {
+        let result = infer_device_type(Some("Apple Inc."), Some("MacBook-Pro"), &[], false);
+        assert_eq!(result, DeviceType::Laptop);
     }
 
     #[test]
@@ -509,5 +576,21 @@ mod tests {
             true, // randomized MAC
         );
         assert_eq!(score, 100);
+    }
+
+    #[test]
+    fn test_device_type_parse_supports_legacy_spelling() {
+        assert_eq!(
+            "access point".parse::<DeviceType>().ok(),
+            Some(DeviceType::AccessPoint)
+        );
+        assert_eq!(
+            "smart-tv".parse::<DeviceType>().ok(),
+            Some(DeviceType::SmartTv)
+        );
+        assert_eq!(
+            "gameconsole".parse::<DeviceType>().ok(),
+            Some(DeviceType::GameConsole)
+        );
     }
 }

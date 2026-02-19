@@ -2,7 +2,7 @@
 //!
 //! Generates actionable security advice based on scan results
 
-use crate::HostInfo;
+use crate::{DeviceType, HostInfo, alerts::SUSPICIOUS_PORTS};
 use serde::{Deserialize, Serialize};
 
 /// Priority level for recommendations
@@ -47,6 +47,70 @@ pub struct SecurityReport {
     pub summary: String,
 }
 
+fn suspicious_port_recommendation(port: u16) -> (Priority, &'static str, String, String) {
+    match port {
+        23 => (
+            Priority::Critical,
+            "Insecure Services",
+            "Telnet (port 23) detected".to_string(),
+            "Telnet transmits data in plaintext. Disable it and use SSH instead.".to_string(),
+        ),
+        21 => (
+            Priority::High,
+            "Insecure Services",
+            "FTP (port 21) detected".to_string(),
+            "FTP is insecure. Prefer SFTP or FTPS for file transfer.".to_string(),
+        ),
+        3389 => (
+            Priority::Medium,
+            "Remote Access",
+            "RDP (port 3389) exposed".to_string(),
+            "RDP is a common attack target. Enforce MFA/NLA and restrict exposure via VPN or ACLs."
+                .to_string(),
+        ),
+        5900 => (
+            Priority::Medium,
+            "Remote Access",
+            "VNC (port 5900) exposed".to_string(),
+            "VNC can be high risk when internet-exposed. Restrict access and require encrypted tunnels."
+                .to_string(),
+        ),
+        1433 => (
+            Priority::High,
+            "Database Exposure",
+            "MSSQL (port 1433) exposed".to_string(),
+            "Direct database exposure increases breach risk. Restrict access to trusted subnets and rotate credentials."
+                .to_string(),
+        ),
+        3306 => (
+            Priority::High,
+            "Database Exposure",
+            "MySQL (port 3306) exposed".to_string(),
+            "MySQL should not be broadly reachable. Limit network access and enforce strong auth policies."
+                .to_string(),
+        ),
+        5432 => (
+            Priority::High,
+            "Database Exposure",
+            "PostgreSQL (port 5432) exposed".to_string(),
+            "PostgreSQL should be restricted to application tiers or trusted admin paths.".to_string(),
+        ),
+        27017 => (
+            Priority::High,
+            "Database Exposure",
+            "MongoDB (port 27017) exposed".to_string(),
+            "MongoDB exposure can leak sensitive data. Enable authentication and restrict ingress."
+                .to_string(),
+        ),
+        _ => (
+            Priority::Medium,
+            "Exposed Services",
+            format!("Suspicious service (port {}) exposed", port),
+            "Review service necessity and restrict access where possible.".to_string(),
+        ),
+    }
+}
+
 impl SecurityReport {
     /// Generate security recommendations from scan results
     pub fn generate(hosts: &[HostInfo]) -> Self {
@@ -71,55 +135,23 @@ impl SecurityReport {
             });
         }
 
-        // Check for insecure ports (Telnet)
-        let telnet_hosts: Vec<_> = hosts
-            .iter()
-            .filter(|h| h.open_ports.contains(&23))
-            .collect();
+        // Check for suspicious ports based on alert policy so recommendations stay aligned.
+        for &port in SUSPICIOUS_PORTS {
+            let affected_hosts: Vec<_> = hosts
+                .iter()
+                .filter(|h| h.open_ports.contains(&port))
+                .collect();
+            if affected_hosts.is_empty() {
+                continue;
+            }
 
-        if !telnet_hosts.is_empty() {
+            let (priority, category, title, description) = suspicious_port_recommendation(port);
             recommendations.push(Recommendation {
-                priority: Priority::Critical,
-                category: "Insecure Services".to_string(),
-                title: "Telnet (port 23) detected".to_string(),
-                description:
-                    "Telnet transmits data in plaintext. Consider disabling and using SSH instead."
-                        .to_string(),
-                affected_devices: telnet_hosts.iter().map(|h| h.ip.to_string()).collect(),
-            });
-        }
-
-        // Check for FTP
-        let ftp_hosts: Vec<_> = hosts
-            .iter()
-            .filter(|h| h.open_ports.contains(&21))
-            .collect();
-
-        if !ftp_hosts.is_empty() {
-            recommendations.push(Recommendation {
-                priority: Priority::High,
-                category: "Insecure Services".to_string(),
-                title: "FTP (port 21) detected".to_string(),
-                description: "FTP is insecure. Consider using SFTP or FTPS.".to_string(),
-                affected_devices: ftp_hosts.iter().map(|h| h.ip.to_string()).collect(),
-            });
-        }
-
-        // Check for RDP
-        let rdp_hosts: Vec<_> = hosts
-            .iter()
-            .filter(|h| h.open_ports.contains(&3389))
-            .collect();
-
-        if !rdp_hosts.is_empty() {
-            recommendations.push(Recommendation {
-                priority: Priority::Medium,
-                category: "Remote Access".to_string(),
-                title: "RDP (port 3389) exposed".to_string(),
-                description: "RDP can be a target for attacks. Ensure strong authentication and consider VPN.".to_string(),
-                affected_devices: rdp_hosts.iter()
-                    .map(|h| h.ip.to_string())
-                    .collect(),
+                priority,
+                category: category.to_string(),
+                title,
+                description,
+                affected_devices: affected_hosts.iter().map(|h| h.ip.to_string()).collect(),
             });
         }
 
@@ -144,7 +176,7 @@ impl SecurityReport {
         // Check for unknown device types
         let unknown: Vec<_> = hosts
             .iter()
-            .filter(|h| h.device_type == "UNKNOWN")
+            .filter(|h| h.device_type_enum() == DeviceType::Unknown)
             .collect();
 
         if !unknown.is_empty() {
@@ -209,6 +241,40 @@ impl SecurityReport {
             high_count,
             total_issues,
             summary,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn host_with_ports(ports: &[u16]) -> HostInfo {
+        let mut host = HostInfo::new(
+            "192.168.1.10".to_string(),
+            "00:11:22:33:44:55".to_string(),
+            "ROUTER".to_string(),
+            "ARP".to_string(),
+        );
+        host.open_ports = ports.to_vec();
+        host
+    }
+
+    #[test]
+    fn suspicious_ports_have_matching_recommendations() {
+        let report = SecurityReport::generate(&[host_with_ports(SUSPICIOUS_PORTS)]);
+
+        assert_eq!(report.recommendations.len(), SUSPICIOUS_PORTS.len());
+        for port in SUSPICIOUS_PORTS {
+            let title_match = report
+                .recommendations
+                .iter()
+                .any(|recommendation| recommendation.title.contains(&format!("port {}", port)));
+            assert!(
+                title_match,
+                "missing recommendation title for suspicious port {}",
+                port
+            );
         }
     }
 }

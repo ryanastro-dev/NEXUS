@@ -1,16 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Edge, NodeMouseHandler, useEdgesState, useNodesState } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
+import LiveTrafficMonitor from '../components/topology/LiveTrafficMonitor';
+import type { TroubleshootTarget } from '../components/topology/live-traffic-monitor';
 import DeviceNode from '../components/topology/DeviceNode';
 import CyberDeviceNode from '../components/topology/CyberDeviceNode';
 import MeshDeviceNode from '../components/topology/MeshDeviceNode';
 import type { MappingDesign } from '../components/topology/TopologyControls';
+import { useAssistant } from '../hooks/useAssistant';
 import { HostInfo, useScanContext } from '../hooks/useScan';
 import { useTheme } from '../hooks/useTheme';
 import { getMappingTheme } from '../lib/mapping-themes';
 import { generateTopologyLayout } from '../lib/topology-layout';
 import {
+  TopologyAssistantOverlay,
   TopologyCanvas,
   TopologyEmptyState,
   TopologyLoadingState,
@@ -26,10 +30,35 @@ interface TopologyNodeData {
   responseTime?: number;
 }
 
+function buildFallbackHost(target: TroubleshootTarget): HostInfo {
+  return {
+    ip: target.ip?.trim() || '0.0.0.0',
+    mac: target.mac?.trim() || 'UNKNOWN',
+    hostname: target.hostname,
+    device_type: target.device_type ?? 'UNKNOWN',
+    risk_score: 0,
+    discovery_method: 'MONITOR_EVENT',
+    open_ports: [],
+    response_time_ms: null,
+  };
+}
+
 export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { scanResult, isScanning, tauriAvailable, scan, scanProgress, scanPhase } = useScanContext();
+  const {
+    isGeneratingReport,
+    networkReport,
+    networkReportError,
+    generateNetworkReport,
+    clearNetworkReport,
+    isTroubleshooting,
+    troubleshootAdvice,
+    troubleshootError,
+    troubleshootDevice,
+    clearTroubleshootAdvice,
+  } = useAssistant();
 
   const [isLocked, setIsLocked] = useState(() => {
     const saved = localStorage.getItem('topology-locked');
@@ -100,6 +129,26 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
 
   const themeConfig = useMemo(() => getMappingTheme(mappingDesign, isDark), [mappingDesign, isDark]);
 
+  const handleGenerateReport = useCallback(() => {
+    const hosts = scanResult?.active_hosts;
+    const subnet = scanResult?.subnet;
+    void generateNetworkReport(hosts, subnet);
+  }, [generateNetworkReport, scanResult?.active_hosts, scanResult?.subnet]);
+
+  const handleTroubleshootOffline = useCallback(
+    (target: TroubleshootTarget) => {
+      const matchedHost = scanResult?.active_hosts.find((host) => {
+        const byMac = target.mac && host.mac.toLowerCase() === target.mac.toLowerCase();
+        const byIp = target.ip && host.ip === target.ip;
+        return Boolean(byMac || byIp);
+      });
+
+      const host = matchedHost ?? buildFallbackHost(target);
+      void troubleshootDevice(host, ['Device transitioned to offline state in monitor event stream.']);
+    },
+    [scanResult?.active_hosts, troubleshootDevice],
+  );
+
   // Safe cast for ReactFlow node-type registry compatibility across custom node components.
   const nodeTypes = useMemo(() => {
     const component =
@@ -142,52 +191,78 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     });
   }, [edgeColor, edges, mappingDesign, nodes, themeConfig]);
 
+  const hasScanData = Boolean(scanResult && scanResult.active_hosts.length > 0);
+
+  let topologyContent: ReactNode;
   if (!scanResult && !isScanning) {
-    return (
+    topologyContent = (
       <TopologyEmptyState
         bgColor={bgColor}
         tauriAvailable={tauriAvailable}
-        showTrafficMonitor={themeConfig.showTrafficMonitor}
         isDark={isDark}
         onScan={() => {
           void scan();
         }}
       />
     );
-  }
-
-  if (isScanning) {
-    return (
+  } else if (isScanning) {
+    topologyContent = (
       <TopologyLoadingState
         bgColor={bgColor}
         scanProgress={scanProgress}
         activeStageIndex={activeStageIndex}
         scanElapsedSeconds={scanElapsedSeconds}
-        showTrafficMonitor={themeConfig.showTrafficMonitor}
         isDark={isDark}
+      />
+    );
+  } else {
+    topologyContent = (
+      <TopologyCanvas
+        bgColor={bgColor}
+        controlsBg={controlsBg}
+        controlsBorder={controlsBorder}
+        controlsText={controlsText}
+        isDark={isDark}
+        isLocked={isLocked}
+        mappingDesign={mappingDesign}
+        themeConfig={themeConfig}
+        nodes={nodes}
+        enhancedEdges={enhancedEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        nodeTypes={nodeTypes}
+        onLockToggle={handleLockToggle}
+        onDesignChange={handleDesignChange}
+        onGenerateReport={handleGenerateReport}
+        isGeneratingReport={isGeneratingReport}
+        assistantOverlay={
+          <TopologyAssistantOverlay
+            isDark={isDark}
+            isGeneratingReport={isGeneratingReport}
+            networkReport={networkReport}
+            networkReportError={networkReportError}
+            onCloseReport={clearNetworkReport}
+            isTroubleshooting={isTroubleshooting}
+            troubleshootAdvice={troubleshootAdvice}
+            troubleshootError={troubleshootError}
+            onCloseTroubleshoot={clearTroubleshootAdvice}
+          />
+        }
       />
     );
   }
 
   return (
-    <TopologyCanvas
-      bgColor={bgColor}
-      controlsBg={controlsBg}
-      controlsBorder={controlsBorder}
-      controlsText={controlsText}
-      isDark={isDark}
-      isLocked={isLocked}
-      mappingDesign={mappingDesign}
-      themeConfig={themeConfig}
-      nodes={nodes}
-      enhancedEdges={enhancedEdges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeClick={onNodeClick}
-      nodeTypes={nodeTypes}
-      onLockToggle={handleLockToggle}
-      onDesignChange={handleDesignChange}
-      hasScanData={Boolean(scanResult && scanResult.active_hosts.length > 0)}
-    />
+    <div className="flex h-full flex-col">
+      <div className="flex-1">{topologyContent}</div>
+      <LiveTrafficMonitor
+        visible={themeConfig.showTrafficMonitor}
+        isDark={isDark}
+        hasScanData={hasScanData}
+        onTroubleshoot={handleTroubleshootOffline}
+        isTroubleshooting={isTroubleshooting}
+      />
+    </div>
   );
 }

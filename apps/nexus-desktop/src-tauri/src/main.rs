@@ -10,6 +10,21 @@ mod commands;
 mod demo_data;
 
 use commands::{AppState, MonitorState};
+use tauri::{Listener, Manager};
+
+fn focus_main_window(app: &tauri::AppHandle) {
+    if let Some(main_window) = app.get_webview_window("main") {
+        let _ = main_window.show();
+        let _ = main_window.unminimize();
+        let _ = main_window.set_focus();
+    }
+}
+
+fn close_splash_window(app: &tauri::AppHandle) {
+    if let Some(splash_window) = app.get_webview_window("splash") {
+        let _ = splash_window.close();
+    }
+}
 
 fn main() {
     // Initialize structured logging system
@@ -40,6 +55,18 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            focus_main_window(app);
+            close_splash_window(app);
+        }))
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            app.listen("ui-ready", move |_| {
+                focus_main_window(&app_handle);
+                close_splash_window(&app_handle);
+            });
+            Ok(())
+        })
         .manage(app_state)
         .manage(monitor_state)
         .invoke_handler(tauri::generate_handler![
@@ -74,6 +101,9 @@ fn main() {
             commands::insights::ai_insights,
             commands::insights::get_network_health,
             commands::insights::get_device_distribution,
+            commands::assistant::ai_analyze_device_security,
+            commands::assistant::ai_generate_network_report,
+            commands::assistant::ai_troubleshoot_device,
             // Export commands
             commands::exports::export_devices_to_csv,
             commands::exports::export_scan_to_csv,
@@ -92,6 +122,7 @@ fn main() {
             commands::database::get_database_path,
             commands::scan::get_scan_result_schema,
             commands::settings::apply_runtime_settings,
+            commands::settings::apply_ai_runtime_settings,
             commands::settings::get_vulnerability_db_status,
             commands::settings::sync_vulnerability_db,
             commands::settings::sync_vulnerability_feed,

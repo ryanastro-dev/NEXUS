@@ -1,5 +1,6 @@
 import { Cpu, Gauge, Loader2, Play, Shield } from 'lucide-react';
 
+import Select from '../../common/Select';
 import { CARD } from './constants';
 
 interface CoreEngineActionsCardProps {
@@ -33,34 +34,36 @@ export function CoreEngineActionsCard({
   onAiInsights,
   onLoadTest,
 }: CoreEngineActionsCardProps) {
+  const inputClass =
+    'h-11 w-full rounded-xl border border-theme bg-bg-tertiary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none';
+  const interfaceOptions = [
+    { value: '', label: 'Auto detect' },
+    ...interfaces.map((iface) => ({ value: iface, label: iface })),
+  ];
+
   return (
-    <div className={`${CARD} space-y-4 p-5`}>
+    <div className={`${CARD} space-y-4 p-4`}>
       <div className="flex items-center gap-2">
         <Cpu className="h-4 w-4 text-accent-blue" />
-        <h2 className="text-lg font-bold text-text-primary">Core Engine Actions</h2>
+        <h2 className="text-base font-bold text-text-primary">Core Engine Actions</h2>
       </div>
 
       <div>
         <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">Interface</label>
-        <select
+        <Select
+          options={interfaceOptions}
           value={selectedInterface}
-          onChange={(event) => onSelectedInterfaceChange(event.target.value)}
-          className="w-full rounded border border-theme bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
-        >
-          <option value="">Auto detect</option>
-          {interfaces.map((iface) => (
-            <option key={iface} value={iface}>
-              {iface}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => onSelectedInterfaceChange(String(value))}
+          searchable={interfaces.length > 8}
+          fullWidth
+        />
       </div>
 
       <div className="space-y-2">
         <button
           onClick={onScanWithAi}
           disabled={scanLoading}
-          className="flex w-full items-center justify-center gap-2 rounded bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all hover:brightness-110 disabled:opacity-50"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all hover:brightness-110 disabled:opacity-50"
         >
           {scanLoading ? (
             <>
@@ -78,7 +81,7 @@ export function CoreEngineActionsCard({
         <button
           onClick={onAiInsights}
           disabled={insightsLoading}
-          className="flex w-full items-center justify-center gap-2 rounded border border-theme bg-bg-secondary px-4 py-2.5 text-sm font-semibold text-text-primary transition hover:bg-bg-hover disabled:opacity-50"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-theme bg-bg-secondary px-4 text-sm font-semibold text-text-primary transition hover:bg-bg-hover disabled:opacity-50"
         >
           {insightsLoading ? (
             <>
@@ -94,7 +97,7 @@ export function CoreEngineActionsCard({
         </button>
       </div>
 
-      <div className="space-y-2 rounded-lg border border-theme bg-bg-tertiary/40 p-3">
+      <div className="space-y-2 rounded-xl border border-theme bg-bg-tertiary/40 p-3">
         <div className="flex items-center gap-2">
           <Gauge className="h-4 w-4 text-accent-blue" />
           <p className="text-sm font-semibold text-text-primary">Load Test</p>
@@ -108,7 +111,7 @@ export function CoreEngineActionsCard({
               max={50}
               value={loadIterations}
               onChange={(event) => onLoadIterationsChange(Number(event.target.value || 1))}
-              className="w-full rounded border border-theme bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+              className={inputClass}
             />
           </div>
           <div>
@@ -121,14 +124,14 @@ export function CoreEngineActionsCard({
               max={16}
               value={loadConcurrency}
               onChange={(event) => onLoadConcurrencyChange(Number(event.target.value || 1))}
-              className="w-full rounded border border-theme bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+              className={inputClass}
             />
           </div>
         </div>
         <button
           onClick={onLoadTest}
           disabled={loadLoading}
-          className="flex w-full items-center justify-center gap-2 rounded bg-slate-800 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 text-sm font-bold text-white transition hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-900 dark:hover:bg-slate-800"
         >
           {loadLoading ? (
             <>

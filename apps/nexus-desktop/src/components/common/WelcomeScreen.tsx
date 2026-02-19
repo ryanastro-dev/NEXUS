@@ -100,7 +100,7 @@ export default function WelcomeScreen({ onStartScan, isScanning = false }: Welco
         {/* App Name - Premium Typography */}
         <div className="mb-6">
           <h1 className="text-6xl font-bold bg-gradient-to-r from-slate-800 via-blue-700 to-cyan-700 bg-clip-text text-transparent mb-3 tracking-tight leading-tight">
-            Network Topology Mapper
+            NEXUS
           </h1>
           <p className="text-xl text-slate-600 font-medium">
             Professional Network Discovery & Monitoring

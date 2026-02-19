@@ -21,6 +21,8 @@ fn is_virtual_adapter_name(name_lower: &str) -> bool {
         || name_lower.contains("docker")
         || name_lower.contains("vethernet")
         || name_lower.contains("wsl")
+        || name_lower.contains("npcap")
+        || name_lower.contains("loopback")
 }
 
 fn collect_candidate_interfaces(
@@ -130,7 +132,7 @@ pub fn find_valid_interface() -> Result<InterfaceInfo> {
     let candidates = sorted_candidate_interfaces(&pnet_interfaces, true);
 
     if let Some(best) = candidates.into_iter().next() {
-        log_debug!(
+        tracing::info!(
             "Selected interface: {} (IP: {}/{}, MAC: {})",
             best.name,
             best.ip,
@@ -170,7 +172,7 @@ pub fn find_interface_by_name(interface_name: &str) -> Result<InterfaceInfo> {
         .iter()
         .find(|i| i.name.eq_ignore_ascii_case(interface_name))
     {
-        log_debug!(
+        tracing::info!(
             "Selected requested interface: {} (IP: {}/{}, MAC: {})",
             found.name,
             found.ip,

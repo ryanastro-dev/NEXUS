@@ -14,19 +14,19 @@ export function SettingsActions({
   onSave,
 }: SettingsActionsProps) {
   return (
-    <div className="mt-6 flex items-center justify-between">
+    <div className="flex flex-wrap items-center justify-between gap-2.5">
       <button
         onClick={onReset}
-        className="flex items-center gap-2 rounded-lg border-2 border-theme px-4 py-2 text-text-secondary transition-all hover:border-accent-blue hover:text-text-primary"
+        className="flex h-9 items-center gap-2 rounded-lg border-2 border-theme px-3.5 text-text-secondary transition-all hover:border-accent-blue hover:text-text-primary"
       >
         <RefreshCw className="h-4 w-4" />
-        <span className="text-sm font-medium">Reset to Defaults</span>
+        <span className="text-sm font-medium">Reset All</span>
       </button>
 
       <button
         onClick={onSave}
         disabled={!hasChanges && saveStatus === 'idle'}
-        className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold shadow-lg transition-all ${
+        className={`flex h-9 items-center gap-2 rounded-lg px-5 text-sm font-bold shadow-lg transition-all ${
           saveStatus === 'saved'
             ? 'bg-accent-green text-white'
             : hasChanges
@@ -35,7 +35,7 @@ export function SettingsActions({
         }`}
       >
         <Save className="h-4 w-4" />
-        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Settings'}
+        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save All Settings'}
       </button>
     </div>
   );

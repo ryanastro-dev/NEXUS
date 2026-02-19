@@ -10,6 +10,7 @@ pub enum AppCommand {
     },
     AiCheck,
     AiInsights,
+    DbNormalize,
     Interfaces,
     Help,
     Version,

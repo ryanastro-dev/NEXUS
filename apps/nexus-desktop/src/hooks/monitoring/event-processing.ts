@@ -58,6 +58,8 @@ function updateStatusState(
     return {
       ...status,
       scan_count: status.scan_count + 1,
+      last_scan_time: new Date().toISOString(),
+      devices_online: networkEvent.data.hosts_found,
       devices_total: networkEvent.data.hosts_found,
     };
   }

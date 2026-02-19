@@ -30,14 +30,14 @@ export function StatCard({
   };
 
   return (
-    <div className={`${CARD} p-5`}>
+    <div className={`${CARD} p-4`}>
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <p className="text-xs uppercase tracking-wider text-text-muted">{title}</p>
-          <p className="text-3xl font-black text-text-primary">{value}</p>
+          <p className="text-[2rem] leading-tight font-black text-text-primary">{value}</p>
           <p className="text-xs text-text-secondary">{subtitle}</p>
         </div>
-        <div className={`rounded-xl p-3 ${toneClasses[tone]}`}>{icon}</div>
+        <div className={`rounded-xl p-2.5 ${toneClasses[tone]}`}>{icon}</div>
       </div>
     </div>
   );
@@ -53,14 +53,14 @@ export function BreakdownRow({
   colorClass: string;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
         <span className="text-text-secondary">{label}</span>
         <span className="font-semibold text-text-primary">{value}%</span>
       </div>
-      <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800">
+      <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800">
         <motion.div
-          className={`h-2 rounded-full ${colorClass}`}
+          className={`h-1.5 rounded-full ${colorClass}`}
           initial={{ width: 0 }}
           animate={{ width: `${Math.max(0, Math.min(100, value))}%` }}
           transition={{ duration: 0.6, ease: 'easeOut' }}

@@ -2,7 +2,7 @@
 //!
 //! Calculates overall network security health score
 
-use crate::HostInfo;
+use crate::{DeviceType, HostInfo};
 use serde::{Deserialize, Serialize};
 
 /// Network health status
@@ -31,6 +31,10 @@ pub struct HealthBreakdown {
     pub compliance: u8,
 }
 
+fn clamp_component_penalty(raw_penalty: usize, max_component: u8) -> u8 {
+    raw_penalty.min(max_component as usize) as u8
+}
+
 impl NetworkHealth {
     /// Calculate network health from scan results
     pub fn calculate(hosts: &[HostInfo]) -> Self {
@@ -49,7 +53,12 @@ impl NetworkHealth {
         let security = if high_risk_count == 0 && medium_risk_count == 0 {
             40
         } else {
-            let penalty = (high_risk_count * 15 + medium_risk_count * 5) as u8;
+            let penalty = clamp_component_penalty(
+                high_risk_count
+                    .saturating_mul(15)
+                    .saturating_add(medium_risk_count.saturating_mul(5)),
+                40,
+            );
             40u8.saturating_sub(penalty)
         };
 
@@ -63,8 +72,16 @@ impl NetworkHealth {
 
         // Calculate compliance score (0-30 points)
         let randomized_count = hosts.iter().filter(|h| h.is_randomized).count();
-        let unknown_count = hosts.iter().filter(|h| h.device_type == "UNKNOWN").count();
-        let compliance_penalty = (randomized_count * 3 + unknown_count * 2) as u8;
+        let unknown_count = hosts
+            .iter()
+            .filter(|h| h.device_type_enum() == DeviceType::Unknown)
+            .count();
+        let compliance_penalty = clamp_component_penalty(
+            randomized_count
+                .saturating_mul(3)
+                .saturating_add(unknown_count.saturating_mul(2)),
+            30,
+        );
         let compliance = 30u8.saturating_sub(compliance_penalty);
 
         // Total score
@@ -133,5 +150,55 @@ impl NetworkHealth {
             },
             insights: vec!["No devices scanned".to_string()],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_test_host(
+        index: usize,
+        risk_score: u8,
+        randomized: bool,
+        device_type: &str,
+    ) -> HostInfo {
+        let mut host = HostInfo::new(
+            format!("192.168.1.{}", (index % 254) + 1),
+            format!(
+                "02:00:00:00:{:02x}:{:02x}",
+                ((index / 256) % 256) as u8,
+                (index % 256) as u8
+            ),
+            device_type.to_string(),
+            "ARP".to_string(),
+        );
+        host.risk_score = risk_score;
+        host.is_randomized = randomized;
+        host.response_time_ms = Some(1);
+        host
+    }
+
+    #[test]
+    fn security_penalty_does_not_wrap_on_large_high_risk_counts() {
+        let hosts: Vec<HostInfo> = (0..18)
+            .map(|index| build_test_host(index, 50, false, "ROUTER"))
+            .collect();
+
+        let health = NetworkHealth::calculate(&hosts);
+
+        assert_eq!(health.breakdown.security, 0);
+    }
+
+    #[test]
+    fn compliance_penalty_does_not_wrap_on_large_unknown_counts() {
+        let mut hosts: Vec<HostInfo> = (0..127)
+            .map(|index| build_test_host(index, 0, false, "UNKNOWN"))
+            .collect();
+        hosts.push(build_test_host(127, 0, true, "UNKNOWN"));
+
+        let health = NetworkHealth::calculate(&hosts);
+
+        assert_eq!(health.breakdown.compliance, 0);
     }
 }

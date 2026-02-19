@@ -5,10 +5,10 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
 
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 
 use super::events::{DeviceSnapshot, MonitoringStatus, NetworkEvent};
 use super::passive_integration::{passive_device_to_snapshot, start_passive_listeners};
@@ -30,6 +30,8 @@ pub type EventCallback = Arc<dyn Fn(NetworkEvent) + Send + Sync>;
 /// Background network monitor.
 pub struct BackgroundMonitor {
     is_running: Arc<AtomicBool>,
+    stop_epoch: Arc<AtomicU64>,
+    stop_notify: Arc<Notify>,
     interval_seconds: Arc<Mutex<u64>>,
     scan_count: Arc<AtomicU32>,
     last_scan_time: Arc<Mutex<Option<String>>>,
@@ -49,6 +51,8 @@ impl BackgroundMonitor {
     pub fn new() -> Self {
         Self {
             is_running: Arc::new(AtomicBool::new(false)),
+            stop_epoch: Arc::new(AtomicU64::new(0)),
+            stop_notify: Arc::new(Notify::new()),
             interval_seconds: Arc::new(Mutex::new(default_monitor_interval())),
             scan_count: Arc::new(AtomicU32::new(0)),
             last_scan_time: Arc::new(Mutex::new(None)),
@@ -107,18 +111,22 @@ impl BackgroundMonitor {
         *self.selected_interface_name.lock().await = Some(selected_interface.name.clone());
         self.is_running.store(true, Ordering::SeqCst);
         self.scan_count.store(0, Ordering::SeqCst);
+        *self.last_scan_time.lock().await = None;
         self.unique_devices_seen.lock().await.clear();
         self.previous_devices.lock().await.clear();
         self.offline_devices.lock().await.clear();
         self.passive_devices.lock().await.clear();
 
         let callback = Arc::new(callback);
+        let session_stop_epoch = self.stop_epoch.load(Ordering::SeqCst);
 
         callback(NetworkEvent::MonitoringStarted {
             interval_seconds: interval_secs,
         });
 
         let is_running = Arc::clone(&self.is_running);
+        let stop_epoch = Arc::clone(&self.stop_epoch);
+        let stop_notify = Arc::clone(&self.stop_notify);
         let scan_count = Arc::clone(&self.scan_count);
         let last_scan_time = Arc::clone(&self.last_scan_time);
         let previous_devices = Arc::clone(&self.previous_devices);
@@ -213,7 +221,16 @@ impl BackgroundMonitor {
                 tracing::debug!("[MONITOR] Starting scan #{}", current_scan);
                 let start = std::time::Instant::now();
 
-                match run_background_scan(&*cb, &scan_interface).await {
+                let scan_result = tokio::select! {
+                    result = run_background_scan(&*cb, &scan_interface) => Some(result),
+                    _ = wait_for_stop_signal(&stop_notify, &stop_epoch, session_stop_epoch) => None,
+                };
+
+                let Some(scan_result) = scan_result else {
+                    break;
+                };
+
+                match scan_result {
                     Ok(devices) => {
                         let merged_devices =
                             merge_active_and_passive_devices(devices, &passive_devices).await;
@@ -251,11 +268,22 @@ impl BackgroundMonitor {
                     }
                 }
 
+                let mut stop_requested = false;
                 for _ in 0..interval {
                     if !is_running.load(Ordering::SeqCst) {
                         break;
                     }
-                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+                        _ = wait_for_stop_signal(&stop_notify, &stop_epoch, session_stop_epoch) => {
+                            stop_requested = true;
+                            break;
+                        }
+                    }
+                }
+
+                if stop_requested {
+                    break;
                 }
             }
 
@@ -270,6 +298,8 @@ impl BackgroundMonitor {
     /// Stop background monitoring.
     pub fn stop(&self) {
         self.is_running.store(false, Ordering::SeqCst);
+        self.stop_epoch.fetch_add(1, Ordering::SeqCst);
+        self.stop_notify.notify_waiters();
     }
 
     /// Get current monitoring status.
@@ -301,5 +331,18 @@ impl BackgroundMonitor {
 impl Default for BackgroundMonitor {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+async fn wait_for_stop_signal(
+    stop_notify: &Notify,
+    stop_epoch: &AtomicU64,
+    session_stop_epoch: u64,
+) {
+    loop {
+        stop_notify.notified().await;
+        if stop_epoch.load(Ordering::SeqCst) != session_stop_epoch {
+            return;
+        }
     }
 }

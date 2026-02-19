@@ -40,7 +40,7 @@ export function CoreEngineResultsColumn({
 }: CoreEngineResultsColumnProps) {
   return (
     <div className="space-y-3">
-      <div className={`${CARD} p-5`}>
+      <div className={`${CARD} p-4`}>
         <h3 className="mb-2 text-sm font-semibold text-text-primary">Engine Output</h3>
         <div className="space-y-2 text-xs text-text-secondary">
           {scanResult && (
@@ -119,7 +119,7 @@ export function CoreEngineResultsColumn({
       )}
 
       {aiOverlaySummary && (
-        <div className={`${CARD} p-5`}>
+        <div className={`${CARD} p-4`}>
           <h3 className="mb-2 text-sm font-semibold text-text-primary">AI Overlay Summary</h3>
           {aiProviderLabel && (
             <p className="mb-2 text-xs text-text-secondary">provider: {aiProviderLabel}</p>

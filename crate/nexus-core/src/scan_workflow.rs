@@ -156,8 +156,11 @@ pub(crate) async fn scan_network(
     // Phase 2 & 3: Run ICMP ping and TCP probe in parallel for faster scanning
     ensure_not_cancelled(context, "scan-tcp")?;
     emit_scan_phase(context, "tcp", 50);
-    let (response_times_result, port_results_result) =
-        tokio::join!(icmp_scan(&arp_hosts), tcp_probe_scan(&arp_hosts));
+    let cancel_token = context.map(|ctx| ctx.cancel_token());
+    let (response_times_result, port_results_result) = tokio::join!(
+        icmp_scan(&arp_hosts, cancel_token.clone()),
+        tcp_probe_scan(&arp_hosts, cancel_token.clone())
+    );
 
     let response_times = response_times_result?;
     let icmp_count = response_times.len();
@@ -174,7 +177,7 @@ pub(crate) async fn scan_network(
     let snmp_data = if snmp_is_enabled {
         ensure_not_cancelled(context, "scan-snmp")?;
         emit_scan_phase(context, "snmp", 65);
-        match snmp_enrich(&host_ips).await {
+        match snmp_enrich(&host_ips, cancel_token.clone()).await {
             Ok(data) => data,
             Err(e) => {
                 crate::log_error!(
@@ -199,7 +202,7 @@ pub(crate) async fn scan_network(
     // Phase 5: DNS reverse lookup
     ensure_not_cancelled(context, "scan-dns")?;
     emit_scan_phase(context, "dns", 80);
-    let dns_hostnames = dns_scan(&host_ips).await;
+    let dns_hostnames = dns_scan(&host_ips, cancel_token).await;
 
     // Build results (exclude local machine from ARP - we add it separately)
     let mut active_hosts: Vec<HostInfo> = arp_hosts
@@ -228,9 +231,9 @@ pub(crate) async fn scan_network(
             let mac_str = format!("{}", mac);
             let vendor_info = lookup_vendor_info(&mac_str);
 
-            // Infer device type and calculate risk score
-            // Gateway detection: typically ends in .1 or has web interface on port 80
-            let is_gateway = ip.octets()[3] == 1 || open_ports.contains(&80);
+            // Infer device type and calculate risk score.
+            // Keep gateway detection conservative to avoid classifying generic web devices as routers.
+            let is_gateway = ip.octets()[3] == 1;
             let device_type = infer_device_type(
                 vendor_info.vendor.as_deref(),
                 dns_hostnames.get(ip).map(|s| s.as_str()),
@@ -273,6 +276,8 @@ pub(crate) async fn scan_network(
                         .collect()
                 })
                 .unwrap_or_default();
+            let security_grade = crate::insights::calculate_security_grade_enum(&host);
+            host.set_security_grade_enum(security_grade);
             host
         })
         .collect();
@@ -291,12 +296,14 @@ pub(crate) async fn scan_network(
     local_host.vendor = local_vendor_info.vendor;
     local_host.is_randomized = local_vendor_info.is_randomized;
     local_host.response_time_ms = Some(0);
+    let local_security_grade = crate::insights::calculate_security_grade_enum(&local_host);
+    local_host.set_security_grade_enum(local_security_grade);
     active_hosts.push(local_host);
 
     // Sort by IP
     active_hosts.sort_by(|a, b| {
-        let ip_a: Ipv4Addr = a.ip.parse().unwrap_or(Ipv4Addr::UNSPECIFIED);
-        let ip_b: Ipv4Addr = b.ip.parse().unwrap_or(Ipv4Addr::UNSPECIFIED);
+        let ip_a = a.ip_addr().unwrap_or(Ipv4Addr::UNSPECIFIED);
+        let ip_b = b.ip_addr().unwrap_or(Ipv4Addr::UNSPECIFIED);
         ip_a.cmp(&ip_b)
     });
 

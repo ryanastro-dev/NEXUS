@@ -5,6 +5,7 @@
 mod alerts;
 mod devices;
 mod helpers;
+mod maintenance;
 mod scan;
 mod security;
 mod stats;
@@ -15,6 +16,7 @@ pub use alerts::{
     insert_alert_with_dedupe_key, mark_alert_read, mark_all_alerts_read,
 };
 pub use devices::{get_all_devices, get_device_by_mac, get_device_history, update_device_name};
+pub use maintenance::normalize_legacy_fields;
 pub use scan::{get_recent_scans, insert_scan};
 pub use security::{lookup_port_warnings, lookup_vulnerabilities};
 pub use stats::{get_latest_scan_hosts, get_network_stats};

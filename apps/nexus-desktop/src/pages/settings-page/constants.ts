@@ -1,3 +1,5 @@
+import type { AiMode } from '../../lib/api/types';
+
 export interface LocalSettings {
   snmpEnabled: boolean;
   snmpCommunity: string;
@@ -6,6 +8,15 @@ export interface LocalSettings {
   preferredInterface: string;
   monitoringEnabled: boolean;
   monitoringInterval: number;
+  aiEnabled: boolean;
+  aiMode: AiMode;
+  aiTimeoutMs: number;
+  ollamaEndpoint: string;
+  ollamaModel: string;
+  geminiEndpoint: string;
+  geminiModel: string;
+  geminiApiKey: string;
+  cloudAllowSensitive: boolean;
 }
 
 export const DEFAULT_SETTINGS: LocalSettings = {
@@ -16,6 +27,15 @@ export const DEFAULT_SETTINGS: LocalSettings = {
   preferredInterface: '',
   monitoringEnabled: false,
   monitoringInterval: 60,
+  aiEnabled: false,
+  aiMode: 'disabled',
+  aiTimeoutMs: 8000,
+  ollamaEndpoint: 'http://127.0.0.1:11434',
+  ollamaModel: 'qwen3:8b',
+  geminiEndpoint: 'https://generativelanguage.googleapis.com',
+  geminiModel: 'gemini-2.5-flash',
+  geminiApiKey: '',
+  cloudAllowSensitive: false,
 };
 
 export const SETTINGS_KEY = 'netmapper-settings';

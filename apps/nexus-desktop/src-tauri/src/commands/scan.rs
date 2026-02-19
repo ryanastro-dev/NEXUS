@@ -52,8 +52,8 @@ pub async fn scan_network(
     let detected_alerts = if let Some(known) = known_devices.as_ref() {
         detect_alerts(known, &scan_result.active_hosts)
     } else {
-        eprintln!(
-            "[WARN] Known-device baseline unavailable; generating baseline-independent alerts only"
+        tracing::warn!(
+            "Known-device baseline unavailable; generating baseline-independent alerts only"
         );
         detect_alerts_without_baseline(&scan_result.active_hosts)
     };
@@ -136,8 +136,8 @@ pub async fn scan_network_with_ai(
     let detected_alerts = if let Some(known) = known_devices.as_ref() {
         detect_alerts(known, &scan_with_ai.scan.active_hosts)
     } else {
-        eprintln!(
-            "[WARN] Known-device baseline unavailable; generating baseline-independent alerts only"
+        tracing::warn!(
+            "Known-device baseline unavailable; generating baseline-independent alerts only"
         );
         detect_alerts_without_baseline(&scan_with_ai.scan.active_hosts)
     };

@@ -186,7 +186,62 @@ export interface HybridInsightsResult {
   ai_error?: string | null;
 }
 
+export interface AssistantMetadata {
+  provider?: string | null;
+  model?: string | null;
+  ai_error?: string | null;
+}
+
+export interface DeviceSecurityAnalysis {
+  target: string;
+  ip: string;
+  mac: string;
+  risk_score: number;
+  risk_level: string;
+  executive_summary: string;
+  key_findings: string[];
+  recommended_actions: string[];
+  metadata: AssistantMetadata;
+}
+
+export interface NetworkReportSummary {
+  generated_at: string;
+  subnet?: string | null;
+  total_hosts: number;
+  online_hosts: number;
+  offline_hosts: number;
+  executive_summary: string;
+  topology_highlights: string[];
+  key_risks: string[];
+  recommended_actions: string[];
+  metadata: AssistantMetadata;
+}
+
+export interface DeviceTroubleshootAdvice {
+  target: string;
+  ip: string;
+  mac: string;
+  status: string;
+  summary: string;
+  likely_causes: string[];
+  diagnostic_steps: string[];
+  suggested_commands: string[];
+  metadata: AssistantMetadata;
+}
+
 export interface AiSettings {
+  enabled: boolean;
+  mode: AiMode;
+  timeout_ms: number;
+  ollama_endpoint: string;
+  ollama_model: string;
+  gemini_endpoint: string;
+  gemini_model: string;
+  gemini_api_key?: string | null;
+  cloud_allow_sensitive: boolean;
+}
+
+export interface AiRuntimeSettingsInput {
   enabled: boolean;
   mode: AiMode;
   timeout_ms: number;

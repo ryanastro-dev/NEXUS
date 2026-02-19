@@ -20,17 +20,17 @@ pub const MAX_SCAN_HOSTS: usize = 254;
 
 // ====== ARP Adaptive Scan Configuration ======
 
-/// Maximum total wait time for ARP replies (ms) - reduced
-pub const ARP_MAX_WAIT_MS: u64 = 1200;
+/// Maximum total wait time for ARP replies (ms)
+pub const ARP_MAX_WAIT_MS: u64 = 3000;
 
 /// Interval to check for new hosts (ms)
-pub const ARP_CHECK_INTERVAL_MS: u64 = 150;
+pub const ARP_CHECK_INTERVAL_MS: u64 = 100;
 
 /// Stop early if no new hosts for this duration (ms)
-pub const ARP_IDLE_TIMEOUT_MS: u64 = 300;
+pub const ARP_IDLE_TIMEOUT_MS: u64 = 800;
 
-/// Number of ARP scan rounds (reduced to 1 for speed)
-pub const ARP_ROUNDS: u8 = 1;
+/// Number of ARP scan rounds
+pub const ARP_ROUNDS: u8 = 2;
 
 /// TCP probe timeout (reduced from 500ms)
 pub const TCP_PROBE_TIMEOUT: Duration = Duration::from_millis(300);

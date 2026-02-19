@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Lock, Unlock, Zap, Grid3x3, Share2 } from 'lucide-react';
+import { Lock, Unlock, Zap, Grid3x3, Share2, FileText, Loader2 } from 'lucide-react';
 
 export type MappingDesign = 'default' | 'cyber' | 'mesh';
 
@@ -8,6 +8,8 @@ interface TopologyControlsProps {
   onLockToggle: () => void;
   mappingDesign: MappingDesign;
   onDesignChange: (design: MappingDesign) => void;
+  onGenerateReport?: () => void;
+  isGeneratingReport?: boolean;
 }
 
 export default function TopologyControls({
@@ -15,6 +17,8 @@ export default function TopologyControls({
   onLockToggle,
   mappingDesign,
   onDesignChange,
+  onGenerateReport,
+  isGeneratingReport = false,
 }: TopologyControlsProps) {
   
   const getButtonClass = (isActive: boolean, isLock?: boolean) => {
@@ -68,6 +72,17 @@ export default function TopologyControls({
       >
         <Share2 size={16} />
       </button>
+
+      {onGenerateReport && (
+        <button
+          onClick={onGenerateReport}
+          disabled={isGeneratingReport}
+          title="Generate network report"
+          className={getButtonClass(false)}
+        >
+          {isGeneratingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+        </button>
+      )}
 
       {/* Divider */}
       <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />

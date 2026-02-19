@@ -3,7 +3,7 @@ use rusqlite::{Connection, params};
 
 use crate::database::models::{DeviceHistoryRecord, DeviceRecord};
 
-use super::helpers::parse_datetime_column;
+use super::helpers::{normalize_optional_device_type, parse_datetime_column};
 
 /// Get all devices.
 pub fn get_all_devices(conn: &Connection) -> Result<Vec<DeviceRecord>> {
@@ -26,7 +26,7 @@ pub fn get_all_devices(conn: &Connection) -> Result<Vec<DeviceRecord>> {
                 last_ip: row.get(4)?,
                 vendor: row.get(5)?,
                 risk_score: row.get(6)?,
-                device_type: row.get(7)?,
+                device_type: normalize_optional_device_type(row.get(7)?),
                 hostname: row.get(8)?,
                 os_guess: row.get(9)?,
                 custom_name: row.get(10)?,
@@ -57,7 +57,7 @@ pub fn get_device_by_mac(conn: &Connection, mac: &str) -> Result<Option<DeviceRe
                 last_ip: row.get(4)?,
                 vendor: row.get(5)?,
                 risk_score: row.get(6)?,
-                device_type: row.get(7)?,
+                device_type: normalize_optional_device_type(row.get(7)?),
                 hostname: row.get(8)?,
                 os_guess: row.get(9)?,
                 custom_name: row.get(10)?,

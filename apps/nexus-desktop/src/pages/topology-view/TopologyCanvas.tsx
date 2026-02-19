@@ -12,9 +12,9 @@ import {
   ReactFlow,
 } from '@xyflow/react';
 import { motion } from 'framer-motion';
+import type { ReactNode } from 'react';
 
 import TopologyControls, { MappingDesign } from '../../components/topology/TopologyControls';
-import LiveTrafficMonitor from '../../components/topology/LiveTrafficMonitor';
 import type { MappingThemeConfig } from '../../lib/mapping-themes';
 import { DEVICE_TYPE_COLORS } from './constants';
 
@@ -35,7 +35,9 @@ interface TopologyCanvasProps {
   nodeTypes: NodeTypes;
   onLockToggle: () => void;
   onDesignChange: (design: MappingDesign) => void;
-  hasScanData: boolean;
+  onGenerateReport?: () => void;
+  isGeneratingReport?: boolean;
+  assistantOverlay?: ReactNode;
 }
 
 export function TopologyCanvas({
@@ -55,7 +57,9 @@ export function TopologyCanvas({
   nodeTypes,
   onLockToggle,
   onDesignChange,
-  hasScanData,
+  onGenerateReport,
+  isGeneratingReport = false,
+  assistantOverlay,
 }: TopologyCanvasProps) {
   return (
     <div className="flex h-full flex-col">
@@ -71,7 +75,11 @@ export function TopologyCanvas({
           onLockToggle={onLockToggle}
           mappingDesign={mappingDesign}
           onDesignChange={onDesignChange}
+          onGenerateReport={onGenerateReport}
+          isGeneratingReport={isGeneratingReport}
         />
+
+        {assistantOverlay}
 
         <ReactFlow
           nodes={nodes}
@@ -140,12 +148,6 @@ export function TopologyCanvas({
           />
         </ReactFlow>
       </motion.div>
-
-      <LiveTrafficMonitor
-        visible={themeConfig.showTrafficMonitor}
-        isDark={isDark}
-        hasScanData={hasScanData}
-      />
     </div>
   );
 }

@@ -73,8 +73,8 @@ export default function Sidebar({
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const showCollapsedToggle = isCollapsed && isSidebarHovered;
   const sidebarTransition = isCollapsed
-    ? ({ type: 'spring', stiffness: 430, damping: 40, mass: 0.62 } as const)
-    : ({ type: 'spring', stiffness: 350, damping: 34, mass: 0.72 } as const);
+    ? ({ type: 'tween', duration: 0.16, ease: [0.2, 0, 0, 1] } as const)
+    : ({ type: 'tween', duration: 0.2, ease: [0.2, 0, 0, 1] } as const);
 
   return (
     <motion.aside
@@ -94,7 +94,7 @@ export default function Sidebar({
           <div className="flex h-full items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2.5">
               <div className="h-9 w-9 shrink-0 flex items-center justify-center">
-                <img src="/icon.png" alt="NetMapper Pro" className="w-full h-full object-contain" />
+                <img src="/icon.png" alt="NEXUS" className="w-full h-full object-contain" />
               </div>
               <motion.div
                 className="overflow-hidden"
@@ -102,8 +102,8 @@ export default function Sidebar({
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.16, ease: 'easeOut' }}
               >
-                <h1 className="text-[1.38rem] font-bold text-text-primary whitespace-nowrap leading-tight">NetMapper</h1>
-                <p className="text-[11px] text-text-muted whitespace-nowrap">Pro Edition</p>
+                <h1 className="text-[1.38rem] font-bold text-text-primary whitespace-nowrap leading-tight">NEXUS</h1>
+                <p className="text-[11px] text-text-muted whitespace-nowrap">NetMapper Pro</p>
               </motion.div>
             </div>
 
@@ -130,7 +130,7 @@ export default function Sidebar({
                 }}
                 transition={{ duration: 0.12, ease: 'easeOut' }}
               >
-                <img src="/icon.png" alt="NetMapper Pro" className="h-9 w-9 object-contain" />
+                <img src="/icon.png" alt="NEXUS" className="h-9 w-9 object-contain" />
               </motion.div>
 
               <motion.button
@@ -192,7 +192,6 @@ export default function Sidebar({
                         ? 'bg-accent-blue/10 text-accent-blue font-medium'
                         : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
                     )}
-                    whileHover={{ x: isCollapsed ? 0 : 2 }}
                     whileTap={{ scale: 0.98 }}
                     title={isCollapsed ? item.label : undefined}
                   >

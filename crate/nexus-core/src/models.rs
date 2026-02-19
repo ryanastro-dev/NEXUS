@@ -3,7 +3,9 @@
 use pnet::datalink::NetworkInterface;
 use pnet::util::MacAddr;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::net::Ipv4Addr;
+use std::str::FromStr;
 
 /// Result structure for the host discovery scan
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,6 +67,74 @@ pub struct HostInfo {
     pub security_grade: String, // "A", "B", "C", "D", "F"
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum SecurityGrade {
+    A,
+    B,
+    C,
+    D,
+    F,
+    Unknown,
+}
+
+impl SecurityGrade {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SecurityGrade::A => "A",
+            SecurityGrade::B => "B",
+            SecurityGrade::C => "C",
+            SecurityGrade::D => "D",
+            SecurityGrade::F => "F",
+            SecurityGrade::Unknown => "",
+        }
+    }
+}
+
+impl fmt::Display for SecurityGrade {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for SecurityGrade {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let normalized = value.trim().to_ascii_uppercase();
+        let parsed = match normalized.as_str() {
+            "A" => SecurityGrade::A,
+            "B" => SecurityGrade::B,
+            "C" => SecurityGrade::C,
+            "D" => SecurityGrade::D,
+            "F" => SecurityGrade::F,
+            "" | "UNKNOWN" => SecurityGrade::Unknown,
+            _ => return Err(()),
+        };
+
+        Ok(parsed)
+    }
+}
+
+fn parse_mac_addr(mac: &str) -> Option<MacAddr> {
+    let normalized = mac.trim().replace('-', ":");
+    let mut octets = [0u8; 6];
+    let mut split = normalized.split(':');
+
+    for octet in &mut octets {
+        let part = split.next()?;
+        *octet = u8::from_str_radix(part, 16).ok()?;
+    }
+
+    if split.next().is_some() {
+        return None;
+    }
+
+    Some(MacAddr::new(
+        octets[0], octets[1], octets[2], octets[3], octets[4], octets[5],
+    ))
+}
+
 impl HostInfo {
     /// Canonical minimal constructor to avoid field drift across call-sites.
     pub fn new(ip: String, mac: String, device_type: String, discovery_method: String) -> Self {
@@ -88,6 +158,34 @@ impl HostInfo {
             port_warnings: Vec::new(),
             security_grade: String::new(),
         }
+    }
+
+    pub fn ip_addr(&self) -> Option<Ipv4Addr> {
+        self.ip.parse().ok()
+    }
+
+    pub fn mac_addr(&self) -> Option<MacAddr> {
+        parse_mac_addr(&self.mac)
+    }
+
+    pub fn device_type_enum(&self) -> crate::network::DeviceType {
+        self.device_type
+            .parse()
+            .unwrap_or(crate::network::DeviceType::Unknown)
+    }
+
+    pub fn set_device_type_enum(&mut self, device_type: crate::network::DeviceType) {
+        self.device_type = device_type.to_string();
+    }
+
+    pub fn security_grade_enum(&self) -> SecurityGrade {
+        self.security_grade
+            .parse()
+            .unwrap_or(SecurityGrade::Unknown)
+    }
+
+    pub fn set_security_grade_enum(&mut self, grade: SecurityGrade) {
+        self.security_grade = grade.to_string();
     }
 }
 
@@ -132,4 +230,28 @@ pub struct PortWarning {
     pub warning: String,
     pub severity: String, // CRITICAL, HIGH, MEDIUM, LOW
     pub recommendation: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_info_typed_accessors_parse_legacy_strings() {
+        let mut host = HostInfo::new(
+            "192.168.1.10".to_string(),
+            "aa-bb-cc-dd-ee-ff".to_string(),
+            "smart_tv".to_string(),
+            "ARP".to_string(),
+        );
+        host.security_grade = "b".to_string();
+
+        assert_eq!(host.ip_addr(), Some(Ipv4Addr::new(192, 168, 1, 10)));
+        assert_eq!(
+            host.mac_addr(),
+            Some(MacAddr::new(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff))
+        );
+        assert_eq!(host.device_type_enum(), crate::network::DeviceType::SmartTv);
+        assert_eq!(host.security_grade_enum(), SecurityGrade::B);
+    }
 }

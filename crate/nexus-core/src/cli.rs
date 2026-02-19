@@ -29,6 +29,7 @@ Usage:
   nexus-core load-test [--interface <NAME>] [--iterations <N>] [--concurrency <N>]
   nexus-core ai-check
   nexus-core ai-insights
+  nexus-core db-normalize
   nexus-core interfaces
   nexus-core --help
   nexus-core --version
@@ -90,7 +91,7 @@ where
         match arg {
             "-h" | "--help" => return Ok(AppCommand::Help),
             "-V" | "--version" => return Ok(AppCommand::Version),
-            "scan" | "interfaces" | "load-test" | "ai-check" | "ai-insights" => {
+            "scan" | "interfaces" | "load-test" | "ai-check" | "ai-insights" | "db-normalize" => {
                 if command.as_deref().is_some_and(|existing| existing != arg) {
                     return Err(anyhow::anyhow!(
                         "Multiple commands provided. Use only one command.\n\n{}",
@@ -162,7 +163,7 @@ where
             return Ok(AppCommand::Help);
         }
         return Err(anyhow::anyhow!(
-            "Missing command. Use one of: scan, load-test, ai-check, ai-insights, interfaces.\n\n{}",
+            "Missing command. Use one of: scan, load-test, ai-check, ai-insights, db-normalize, interfaces.\n\n{}",
             usage_text()
         ));
     }
@@ -208,6 +209,15 @@ where
                 ));
             }
             Ok(AppCommand::AiInsights)
+        }
+        "db-normalize" => {
+            if interface.is_some() || iterations.is_some() || concurrency.is_some() {
+                return Err(anyhow::anyhow!(
+                    "--interface/--iterations/--concurrency are not valid with db-normalize.\n\n{}",
+                    usage_text()
+                ));
+            }
+            Ok(AppCommand::DbNormalize)
         }
         _ => unreachable!(),
     }
@@ -272,6 +282,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_db_normalize_command() {
+        let args = ["nexus-core", "db-normalize"];
+        let parsed = parse_cli_args(args).expect("db-normalize command should parse");
+        assert_eq!(parsed, CliCommand::DbNormalize);
+    }
+
+    #[test]
     fn parse_load_test_command_with_options() {
         let args = [
             "nexus-core",
@@ -314,6 +331,13 @@ mod tests {
         let args = ["nexus-core", "ai-insights", "--interface", "Ethernet"];
         let err = parse_cli_args(args).expect_err("ai-insights should reject scan flags");
         assert!(err.to_string().contains("not valid with ai-insights"));
+    }
+
+    #[test]
+    fn parse_db_normalize_rejects_scan_flags() {
+        let args = ["nexus-core", "db-normalize", "--interface", "Ethernet"];
+        let err = parse_cli_args(args).expect_err("db-normalize should reject scan flags");
+        assert!(err.to_string().contains("not valid with db-normalize"));
     }
 
     #[test]

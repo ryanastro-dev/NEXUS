@@ -1,7 +1,5 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock3, Loader2 } from 'lucide-react';
-
-import LiveTrafficMonitor from '../../components/topology/LiveTrafficMonitor';
 import { SCAN_PIPELINE_STAGES } from './constants';
 import { loadingProgressPercent } from './utils';
 
@@ -10,7 +8,6 @@ interface TopologyLoadingStateProps {
   scanProgress: number;
   activeStageIndex: number;
   scanElapsedSeconds: number;
-  showTrafficMonitor: boolean;
   isDark: boolean;
 }
 
@@ -19,62 +16,111 @@ export function TopologyLoadingState({
   scanProgress,
   activeStageIndex,
   scanElapsedSeconds,
-  showTrafficMonitor,
   isDark,
 }: TopologyLoadingStateProps) {
   const progressPct = loadingProgressPercent(scanProgress, activeStageIndex);
   const activeStageLabel = SCAN_PIPELINE_STAGES[activeStageIndex]?.title ?? 'Topology Discovery';
+  const isScanComplete = scanProgress >= 100;
+
+  const cardSurfaceClass = isDark
+    ? 'border-slate-700/70 bg-slate-950/72 shadow-[0_30px_80px_-35px_rgba(2,6,23,0.95)]'
+    : 'border-slate-200/80 bg-white/78 shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)]';
+
+  const badgeClass = isDark
+    ? 'border-cyan-400/35 bg-cyan-400/12 text-cyan-200'
+    : 'border-sky-400/35 bg-sky-500/10 text-sky-700';
+
+  const titleClass = isDark ? 'text-slate-100' : 'text-slate-900';
+  const bodyClass = isDark ? 'text-slate-300/90' : 'text-slate-600';
+
+  const elapsedCardClass = isDark
+    ? 'border-cyan-400/30 bg-cyan-400/10 text-slate-100'
+    : 'border-sky-300/55 bg-sky-500/10 text-slate-800';
+
+  const progressTrackClass = isDark ? 'bg-slate-800/70' : 'bg-slate-200/85';
+  const progressLabelClass = isDark ? 'text-cyan-300' : 'text-sky-700';
+  const progressTextClass = isDark ? 'text-slate-300' : 'text-slate-600';
+
+  const pendingDotClass = isDark ? 'bg-slate-600' : 'bg-slate-400';
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="relative flex-1 overflow-hidden" style={{ backgroundColor: bgColor }}>
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-20 left-1/4 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
-          <div className="absolute right-10 bottom-10 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
-        </div>
+    <div className="relative h-full overflow-hidden" style={{ backgroundColor: bgColor }}>
+      <div className="pointer-events-none absolute inset-0">
+          <div
+            className={`absolute -top-20 left-1/4 h-80 w-80 rounded-full blur-3xl ${
+              isDark ? 'bg-cyan-500/10' : 'bg-cyan-300/18'
+            }`}
+          />
+          <div
+            className={`absolute right-10 bottom-10 h-72 w-72 rounded-full blur-3xl ${
+              isDark ? 'bg-blue-500/10' : 'bg-blue-300/16'
+            }`}
+          />
+          <div
+            className={`absolute bottom-2 left-12 h-64 w-64 rounded-full blur-3xl ${
+              isDark ? 'bg-emerald-500/8' : 'bg-emerald-300/14'
+            }`}
+          />
+      </div>
 
-        <div className="relative mx-auto flex h-full w-full max-w-5xl items-center justify-center p-5 sm:p-8">
-          <motion.section
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="w-full rounded-3xl border border-cyan-400/20 bg-slate-950/55 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
-          >
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="relative mx-auto flex h-full w-full max-w-5xl items-center justify-center p-4 sm:p-5 lg:p-6">
+        <motion.section
+          initial={false}
+          className={`min-h-[28rem] w-full rounded-[28px] border p-5 backdrop-blur-xl sm:p-6 xl:min-h-[30rem] ${cardSurfaceClass}`}
+        >
+            <div
+              className={`mb-5 h-px w-full ${
+                isDark
+                  ? 'bg-gradient-to-r from-cyan-400/0 via-cyan-400/30 to-cyan-400/0'
+                  : 'bg-gradient-to-r from-sky-400/0 via-sky-500/25 to-sky-400/0'
+              }`}
+            />
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-300">
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${badgeClass}`}
+                >
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Discovery Pipeline Active
                 </div>
-                <h2 className="text-2xl font-black leading-tight text-slate-100 sm:text-3xl">
+                <h2 className={`text-2xl font-black leading-tight sm:text-4xl ${titleClass}`}>
                   Mapping your live network fabric
                 </h2>
-                <p className="max-w-2xl text-sm text-slate-300/85 sm:text-base">
+                <p className={`max-w-2xl text-sm sm:text-base ${bodyClass}`}>
                   Collecting hosts, profiling topology signals, and preparing graph overlays for
                   command view.
                 </p>
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200/90">
+                <p
+                  className={`text-xs font-semibold uppercase tracking-wide ${
+                    isDark ? 'text-cyan-200/90' : 'text-sky-700/90'
+                  }`}
+                >
                   Current phase: {activeStageLabel}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300">
+              <div className={`rounded-2xl border px-4 py-3 ${elapsedCardClass}`}>
+                <p
+                  className={`text-[11px] font-semibold uppercase tracking-wide ${
+                    isDark ? 'text-cyan-300' : 'text-sky-700'
+                  }`}
+                >
                   Elapsed
                 </p>
-                <p className="mt-1 flex items-center gap-1.5 text-xl font-bold text-slate-100">
-                  <Clock3 className="h-4 w-4 text-cyan-200" />
+                <p className="mt-1 flex items-center gap-1.5 text-xl font-bold">
+                  <Clock3 className={`h-4 w-4 ${isDark ? 'text-cyan-200' : 'text-sky-700'}`} />
                   {scanElapsedSeconds}s
                 </p>
               </div>
             </div>
 
-            <div className="mt-5">
-              <div className="mb-2 flex items-center justify-between text-xs text-slate-300">
+            <div className="mt-4">
+              <div className={`mb-2 flex items-center justify-between text-xs ${progressTextClass}`}>
                 <span>Topology synthesis in progress</span>
-                <span className="font-semibold text-cyan-300">{progressPct}%</span>
+                <span className={`font-semibold ${progressLabelClass}`}>{progressPct}%</span>
               </div>
-              <div className="h-2 rounded-full bg-slate-800/70">
+              <div className={`h-2 rounded-full ${progressTrackClass}`}>
                 <motion.div
                   className="h-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
                   initial={{ width: '0%' }}
@@ -84,9 +130,8 @@ export function TopologyLoadingState({
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
               {SCAN_PIPELINE_STAGES.map((stage, idx) => {
-                const isScanComplete = scanProgress >= 100;
                 const status =
                   isScanComplete || idx < activeStageIndex
                     ? 'complete'
@@ -98,37 +143,50 @@ export function TopologyLoadingState({
                 return (
                   <div
                     key={stage.id}
-                    className={`rounded-xl border p-3 ${
+                    className={`rounded-xl border p-2.5 ${
                       status === 'complete'
-                        ? 'border-emerald-400/25 bg-emerald-500/10'
+                        ? isDark
+                          ? 'border-emerald-400/25 bg-emerald-500/10'
+                          : 'border-emerald-300/55 bg-emerald-100/70'
                         : status === 'active'
-                          ? 'border-cyan-400/30 bg-cyan-500/10'
-                          : 'border-slate-700/60 bg-slate-900/65'
+                          ? isDark
+                            ? 'border-cyan-400/30 bg-cyan-500/10'
+                            : 'border-sky-300/60 bg-sky-100/70'
+                          : isDark
+                            ? 'border-slate-700/60 bg-slate-900/65'
+                            : 'border-slate-200/90 bg-white/70'
                     }`}
                   >
                     <div className="mb-1.5 flex items-center justify-between">
-                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200">
-                        <Icon className="h-3.5 w-3.5 text-cyan-300" />
+                      <p
+                        className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${
+                          isDark ? 'text-slate-200' : 'text-slate-800'
+                        }`}
+                      >
+                        <Icon className={`h-3.5 w-3.5 ${isDark ? 'text-cyan-300' : 'text-sky-700'}`} />
                         {stage.title}
                       </p>
                       {status === 'complete' ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+                        <CheckCircle2
+                          className={`h-4 w-4 ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}
+                        />
                       ) : status === 'active' ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-cyan-300" />
+                        <Loader2
+                          className={`h-4 w-4 animate-spin ${isDark ? 'text-cyan-300' : 'text-sky-700'}`}
+                        />
                       ) : (
-                        <div className="h-2.5 w-2.5 rounded-full bg-slate-600" />
+                        <div className={`h-2.5 w-2.5 rounded-full ${pendingDotClass}`} />
                       )}
                     </div>
-                    <p className="text-xs text-slate-300">{stage.detail}</p>
+                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      {stage.detail}
+                    </p>
                   </div>
                 );
               })}
             </div>
-          </motion.section>
-        </div>
+        </motion.section>
       </div>
-
-      <LiveTrafficMonitor visible={showTrafficMonitor} isDark={isDark} hasScanData={false} />
     </div>
   );
 }

@@ -132,6 +132,41 @@ pub(crate) async fn load_test_summary(
     Ok(summary)
 }
 
+pub(crate) async fn normalize_db(
+    context: &AppContext,
+) -> Result<crate::database::NormalizationSummary> {
+    ensure_not_cancelled(context, "db-normalize")?;
+    context.emit_event(AppEvent::Info {
+        message: "Normalizing legacy database values".to_string(),
+    });
+
+    let db = crate::database::Database::new(context.db_path().to_path_buf()).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to open database for normalization at {}: {}",
+            context.db_path().display(),
+            e
+        )
+    })?;
+
+    let summary = {
+        let conn = db.connection();
+        let conn = conn
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Database connection lock poisoned"))?;
+        crate::database::queries::normalize_legacy_fields(&conn)
+            .map_err(|e| anyhow::anyhow!("Failed to normalize legacy database values: {}", e))?
+    };
+
+    context.emit_event(AppEvent::Info {
+        message: format!(
+            "Normalization complete: {} row updates",
+            summary.rows_updated
+        ),
+    });
+
+    Ok(summary)
+}
+
 fn ensure_not_cancelled(context: &AppContext, stage: &str) -> Result<()> {
     if context.is_cancelled() {
         context.emit_event(AppEvent::Cancelled {

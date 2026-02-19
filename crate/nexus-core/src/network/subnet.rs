@@ -10,25 +10,18 @@ use crate::models::InterfaceInfo;
 /// Prefix lengths below this threshold are treated as large subnets.
 const LARGE_SUBNET_PREFIX_THRESHOLD: u8 = 24;
 /// Hard cap for large subnets to keep scans responsive.
-const LARGE_SUBNET_MAX_HOSTS: usize = 32;
-
-/// Logs a message to stderr
-macro_rules! log_stderr {
-    ($($arg:tt)*) => {
-        tracing::info!($($arg)*);
-    };
-}
-
-/// Logs a warning to stderr
-macro_rules! log_warn {
-    ($($arg:tt)*) => {
-        tracing::warn!($($arg)*);
-    };
-}
+const LARGE_SUBNET_MAX_HOSTS: usize = 128;
 
 /// Checks if an IP address is a network or broadcast address
 pub fn is_special_address(ip: Ipv4Addr, subnet: &Ipv4Network) -> bool {
     ip == subnet.network() || ip == subnet.broadcast()
+}
+
+fn gateway_candidate(subnet: &Ipv4Network) -> Option<Ipv4Addr> {
+    u32::from(subnet.network())
+        .checked_add(1)
+        .map(Ipv4Addr::from)
+        .filter(|ip| subnet.contains(*ip) && !is_special_address(*ip, subnet))
 }
 
 /// Checks if a target IP is in the same subnet as the local interface (L2 reachable)
@@ -65,7 +58,7 @@ pub fn calculate_subnet_ips(interface: &InterfaceInfo) -> Result<(Ipv4Network, V
     };
 
     let ips = if all_ips.len() > host_cap {
-        log_warn!(
+        crate::log_warn!(
             "Subnet {} has {} hosts, limiting scan to {} hosts",
             subnet,
             all_ips.len(),
@@ -83,12 +76,29 @@ pub fn calculate_subnet_ips(interface: &InterfaceInfo) -> Result<(Ipv4Network, V
             start = all_ips.len().saturating_sub(host_cap);
         }
 
-        all_ips.into_iter().skip(start).take(host_cap).collect()
+        let mut sampled: Vec<Ipv4Addr> = all_ips.into_iter().skip(start).take(host_cap).collect();
+
+        if interface.prefix_len < LARGE_SUBNET_PREFIX_THRESHOLD
+            && let Some(gateway_ip) = gateway_candidate(&subnet)
+            && gateway_ip != interface.ip
+            && !sampled.contains(&gateway_ip)
+        {
+            if sampled.len() == host_cap {
+                sampled.pop();
+            }
+            sampled.insert(0, gateway_ip);
+            crate::log_stderr!(
+                "Large-subnet sampling includes gateway candidate {}",
+                gateway_ip
+            );
+        }
+
+        sampled
     } else {
         all_ips
     };
 
-    log_stderr!(
+    crate::log_stderr!(
         "Calculated subnet: {} with {} scannable hosts",
         subnet,
         ips.len()

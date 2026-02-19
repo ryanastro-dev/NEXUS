@@ -168,3 +168,11 @@ pub struct TelemetrySample {
     pub metric_value: f64,
     pub label: Option<String>,
 }
+
+/// Result summary for database normalization/backfill operations.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NormalizationSummary {
+    pub normalized_device_types: usize,
+    pub normalized_security_grades: usize,
+    pub rows_updated: usize,
+}

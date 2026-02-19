@@ -2,7 +2,7 @@
 //!
 //! Calculates security grades (A-F) for network devices
 
-use crate::models::HostInfo;
+use crate::models::{HostInfo, SecurityGrade};
 
 /// Calculate security grade for a host based on vulnerabilities and risk factors
 ///
@@ -12,7 +12,7 @@ use crate::models::HostInfo;
 /// - C (26-45 penalty): Fair security, some concerns
 /// - D (46-70 penalty): Poor security, multiple issues
 /// - F (71+ penalty): Critical security risks
-pub fn calculate_security_grade(host: &HostInfo) -> String {
+pub fn calculate_security_grade_enum(host: &HostInfo) -> SecurityGrade {
     let mut penalty = 0;
 
     // Vulnerability penalties based on severity
@@ -47,12 +47,16 @@ pub fn calculate_security_grade(host: &HostInfo) -> String {
 
     // Convert penalty to letter grade
     match penalty {
-        0..=10 => "A".to_string(),
-        11..=25 => "B".to_string(),
-        26..=45 => "C".to_string(),
-        46..=70 => "D".to_string(),
-        _ => "F".to_string(),
+        0..=10 => SecurityGrade::A,
+        11..=25 => SecurityGrade::B,
+        26..=45 => SecurityGrade::C,
+        46..=70 => SecurityGrade::D,
+        _ => SecurityGrade::F,
     }
+}
+
+pub fn calculate_security_grade(host: &HostInfo) -> String {
+    calculate_security_grade_enum(host).to_string()
 }
 
 #[cfg(test)]
@@ -84,10 +88,11 @@ mod tests {
         };
 
         assert_eq!(calculate_security_grade(&host), "A");
+        assert_eq!(calculate_security_grade_enum(&host), SecurityGrade::A);
     }
 
     #[test]
-    fn test_grade_f_critical_vulns() {
+    fn test_grade_d_critical_vulns() {
         let mut host = HostInfo {
             ip: "192.168.1.1".to_string(),
             mac: "AA:BB:CC:DD:EE:FF".to_string(),

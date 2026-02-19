@@ -3,34 +3,26 @@
 
 /* Enable class-based dark mode */
 @custom-variant dark (&:where(.dark, .dark *));
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* ===== Scrollbar Customization ===== */
-/* Hide scrollbars completely for cleaner UI */
+/* Hide scrollbars globally */
 * {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 *::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Opera */
-}
-
-/* Optional: Show minimal scrollbar on hover for main content */
-.scrollable-content:hover::-webkit-scrollbar {
-  display: block;
-  width: 6px;
-}
-
-.scrollable-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollable-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-.scrollable-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* ===== Base Styles ===== */
@@ -91,9 +83,11 @@
 
   /* Fonts */
   --font-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-    sans-serif;
-  --font-mono: "JetBrains Mono", "Consolas", "Monaco", monospace;
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono:
+    "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
 
   /* 2026 Design System - Professional Enterprise Palette */
   --glass-bg: rgba(15, 23, 42, 0.75);
@@ -280,9 +274,35 @@ body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
+}
+
+/* Allow text selection where users need copy/edit behavior */
+input,
+textarea,
+select,
+[contenteditable="true"],
+pre,
+code,
+.font-mono,
+.selectable,
+[data-selectable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Prevent browser-style image dragging */
+img,
+svg {
+  -webkit-user-drag: none;
+  user-drag: none;
 }
 
 /* ===== PREMIUM GLASS UTILITIES ===== */

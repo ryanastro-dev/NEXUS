@@ -4,9 +4,17 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::super::events::{DeviceSnapshot, NetworkEvent};
+use crate::DeviceType;
 
 fn is_unknown_passive_mac(mac: &str) -> bool {
     mac.starts_with("unknown_")
+}
+
+fn is_unknown_device_type(device_type: &str) -> bool {
+    device_type
+        .parse::<DeviceType>()
+        .unwrap_or(DeviceType::Unknown)
+        == DeviceType::Unknown
 }
 
 pub(super) async fn upsert_passive_device<F>(
@@ -62,8 +70,8 @@ pub(super) async fn apply_arp_enrichment(
                 if existing.hostname.is_none() {
                     existing.hostname = snapshot.hostname.take();
                 }
-                if existing.device_type.eq_ignore_ascii_case("unknown")
-                    && !snapshot.device_type.eq_ignore_ascii_case("unknown")
+                if is_unknown_device_type(&existing.device_type)
+                    && !is_unknown_device_type(&snapshot.device_type)
                 {
                     existing.device_type = snapshot.device_type;
                 }

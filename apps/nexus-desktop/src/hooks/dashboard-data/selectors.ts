@@ -96,7 +96,10 @@ export function selectDeviceTypeData(payload: DashboardPayload): DeviceTypePoint
 }
 
 export function selectRiskLabel(payload: DashboardPayload): string {
-  const score = payload.health?.score ?? 0;
+  const score = payload.health?.score;
+  if (score === null || score === undefined || !Number.isFinite(score)) {
+    return 'No Data';
+  }
   if (score >= 85) {
     return 'Hardened';
   }
@@ -107,4 +110,22 @@ export function selectRiskLabel(payload: DashboardPayload): string {
     return 'At Risk';
   }
   return 'Critical';
+}
+
+export function selectLatestThroughput(payload: DashboardPayload): number | null {
+  const throughputPoints = payload.telemetryThroughput?.points ?? [];
+  if (throughputPoints.length > 0) {
+    const latest = throughputPoints[throughputPoints.length - 1];
+    return Number(latest.metric_value.toFixed(2));
+  }
+
+  const latestScan = [...payload.scans]
+    .filter((scan) => scan.duration_ms > 0)
+    .sort((left, right) => Date.parse(right.scan_time) - Date.parse(left.scan_time))[0];
+
+  if (!latestScan) {
+    return null;
+  }
+
+  return Number(((latestScan.total_hosts / latestScan.duration_ms) * 1000).toFixed(2));
 }

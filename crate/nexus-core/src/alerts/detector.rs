@@ -13,7 +13,7 @@ use crate::database::DeviceRecord;
 fn append_security_alerts(current_hosts: &[HostInfo], alerts: &mut Vec<Alert>) {
     // Check for high risk devices
     for host in current_hosts {
-        if host.risk_score >= HIGH_RISK_THRESHOLD as u8 {
+        if host.risk_score >= HIGH_RISK_THRESHOLD {
             let hostname_str = host.hostname.as_deref().unwrap_or("Unknown");
             alerts.push(
                 Alert::new(

@@ -3,6 +3,7 @@ import type { UseMonitoringReturn } from '../hooks/useMonitoring';
 import { tauriClient } from '../lib/api/tauri-client';
 import type {
   AiCheckReport,
+  AiMode,
   AiSettings,
   RuntimeDiagnostics,
   VulnerabilityDbStatus,
@@ -29,6 +30,36 @@ interface SettingsProps {
   monitor: UseMonitoringReturn;
 }
 
+interface SettingsGroupLabelProps {
+  title: string;
+  description?: string;
+  tone: 'runtime' | 'manual' | 'experimental';
+}
+
+function SettingsGroupLabel({ title, description, tone }: SettingsGroupLabelProps) {
+  const toneStyles =
+    tone === 'runtime'
+      ? 'border-emerald-300/60 bg-emerald-100/70 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/10 dark:text-emerald-300'
+      : tone === 'manual'
+        ? 'border-cyan-300/60 bg-cyan-100/70 text-cyan-700 dark:border-cyan-500/35 dark:bg-cyan-500/10 dark:text-cyan-300'
+        : 'border-amber-300/60 bg-amber-100/70 text-amber-700 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-300';
+  const badgeLabel = tone === 'runtime' ? 'Active Now' : tone === 'manual' ? 'Manual Actions' : 'Local / Demo';
+
+  return (
+    <div className="px-1 pb-0.5 pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-text-secondary">{title}</h2>
+          {description ? <p className="mt-0.5 text-xs text-text-muted">{description}</p> : null}
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${toneStyles}`}>
+          {badgeLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings({ monitor: monitoring }: SettingsProps) {
   const [snmpEnabled, setSnmpEnabled] = useState(DEFAULT_SETTINGS.snmpEnabled);
   const [snmpCommunity, setSnmpCommunity] = useState(DEFAULT_SETTINGS.snmpCommunity);
@@ -51,6 +82,18 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
   const [dbPath, setDbPath] = useState<string | null>(null);
   const [scanSchemaVersion, setScanSchemaVersion] = useState<string | null>(null);
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(DEFAULT_SETTINGS.aiEnabled);
+  const [aiMode, setAiMode] = useState<AiMode>(DEFAULT_SETTINGS.aiMode);
+  const [aiTimeoutMs, setAiTimeoutMs] = useState(DEFAULT_SETTINGS.aiTimeoutMs);
+  const [ollamaEndpoint, setOllamaEndpoint] = useState(DEFAULT_SETTINGS.ollamaEndpoint);
+  const [ollamaModel, setOllamaModel] = useState(DEFAULT_SETTINGS.ollamaModel);
+  const [geminiEndpoint, setGeminiEndpoint] = useState(DEFAULT_SETTINGS.geminiEndpoint);
+  const [geminiModel, setGeminiModel] = useState(DEFAULT_SETTINGS.geminiModel);
+  const [geminiApiKey, setGeminiApiKey] = useState(DEFAULT_SETTINGS.geminiApiKey);
+  const [cloudAllowSensitive, setCloudAllowSensitive] = useState(
+    DEFAULT_SETTINGS.cloudAllowSensitive,
+  );
+  const [aiApplyLoading, setAiApplyLoading] = useState(false);
   const [aiCheckReport, setAiCheckReport] = useState<AiCheckReport | null>(null);
   const [aiCheckLoading, setAiCheckLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -77,6 +120,15 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     setPreferredInterface(settings.preferredInterface || '');
     setMonitoringEnabled(settings.monitoringEnabled || false);
     setMonitoringInterval(settings.monitoringInterval || 60);
+    setAiEnabled(settings.aiEnabled === true);
+    setAiMode(settings.aiEnabled ? settings.aiMode : 'disabled');
+    setAiTimeoutMs(settings.aiTimeoutMs || 8000);
+    setOllamaEndpoint(settings.ollamaEndpoint || DEFAULT_SETTINGS.ollamaEndpoint);
+    setOllamaModel(settings.ollamaModel || DEFAULT_SETTINGS.ollamaModel);
+    setGeminiEndpoint(settings.geminiEndpoint || DEFAULT_SETTINGS.geminiEndpoint);
+    setGeminiModel(settings.geminiModel || DEFAULT_SETTINGS.geminiModel);
+    setGeminiApiKey(settings.geminiApiKey || '');
+    setCloudAllowSensitive(settings.cloudAllowSensitive === true);
 
     tauriClient.getInterfaces().then(setInterfaces).catch(() => setInterfaces([]));
     tauriClient.getDatabasePath().then(setDbPath).catch(() => setDbPath(null));
@@ -87,7 +139,21 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
         setScanSchemaVersion(typeof version === 'string' ? version : null);
       })
       .catch(() => setScanSchemaVersion(null));
-    tauriClient.getAiSettings().then(setAiSettings).catch(() => setAiSettings(null));
+    tauriClient
+      .getAiSettings()
+      .then((runtimeAiSettings) => {
+        setAiSettings(runtimeAiSettings);
+        setAiEnabled(runtimeAiSettings.enabled);
+        setAiMode(runtimeAiSettings.mode);
+        setAiTimeoutMs(runtimeAiSettings.timeout_ms);
+        setOllamaEndpoint(runtimeAiSettings.ollama_endpoint);
+        setOllamaModel(runtimeAiSettings.ollama_model);
+        setGeminiEndpoint(runtimeAiSettings.gemini_endpoint);
+        setGeminiModel(runtimeAiSettings.gemini_model);
+        setGeminiApiKey(runtimeAiSettings.gemini_api_key ?? '');
+        setCloudAllowSensitive(runtimeAiSettings.cloud_allow_sensitive);
+      })
+      .catch(() => setAiSettings(null));
     tauriClient
       .getVulnerabilityDbStatus()
       .then(setVulnDbStatus)
@@ -107,6 +173,15 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       preferredInterface,
       monitoringEnabled,
       monitoringInterval,
+      aiEnabled,
+      aiMode,
+      aiTimeoutMs,
+      ollamaEndpoint,
+      ollamaModel,
+      geminiEndpoint,
+      geminiModel,
+      geminiApiKey,
+      cloudAllowSensitive,
     };
     const saved = loadSettings();
     const changed = JSON.stringify(current) !== JSON.stringify(saved);
@@ -119,10 +194,49 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     preferredInterface,
     monitoringEnabled,
     monitoringInterval,
+    aiEnabled,
+    aiMode,
+    aiTimeoutMs,
+    ollamaEndpoint,
+    ollamaModel,
+    geminiEndpoint,
+    geminiModel,
+    geminiApiKey,
+    cloudAllowSensitive,
   ]);
+
+  const aiHasChanges =
+    aiSettings === null ||
+    aiSettings.enabled !== aiEnabled ||
+    aiSettings.mode !== (aiEnabled ? aiMode : 'disabled') ||
+    aiSettings.timeout_ms !== aiTimeoutMs ||
+    aiSettings.ollama_endpoint !== ollamaEndpoint ||
+    aiSettings.ollama_model !== ollamaModel ||
+    aiSettings.gemini_endpoint !== geminiEndpoint ||
+    aiSettings.gemini_model !== geminiModel ||
+    (aiSettings.gemini_api_key ?? '') !== geminiApiKey ||
+    aiSettings.cloud_allow_sensitive !== cloudAllowSensitive;
+
+  const applyAiRuntimeConfig = async () => {
+    await tauriClient.applyAiRuntimeSettings({
+      enabled: aiEnabled,
+      mode: aiEnabled ? aiMode : 'disabled',
+      timeout_ms: Number.isFinite(aiTimeoutMs) ? aiTimeoutMs : DEFAULT_SETTINGS.aiTimeoutMs,
+      ollama_endpoint: ollamaEndpoint.trim() || DEFAULT_SETTINGS.ollamaEndpoint,
+      ollama_model: ollamaModel.trim() || DEFAULT_SETTINGS.ollamaModel,
+      gemini_endpoint: geminiEndpoint.trim() || DEFAULT_SETTINGS.geminiEndpoint,
+      gemini_model: geminiModel.trim() || DEFAULT_SETTINGS.geminiModel,
+      gemini_api_key: geminiApiKey.trim() ? geminiApiKey.trim() : null,
+      cloud_allow_sensitive: cloudAllowSensitive,
+    });
+  };
 
   const handleSave = async () => {
     setSaveStatus('saving');
+    const normalizedMonitoringInterval =
+      Number.isFinite(monitoringInterval) && monitoringInterval > 0
+        ? monitoringInterval
+        : DEFAULT_SETTINGS.monitoringInterval;
     const settings = {
       snmpEnabled,
       snmpCommunity,
@@ -130,7 +244,16 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       tcpPorts,
       preferredInterface,
       monitoringEnabled,
-      monitoringInterval,
+      monitoringInterval: normalizedMonitoringInterval,
+      aiEnabled,
+      aiMode: aiEnabled ? aiMode : 'disabled',
+      aiTimeoutMs,
+      ollamaEndpoint,
+      ollamaModel,
+      geminiEndpoint,
+      geminiModel,
+      geminiApiKey,
+      cloudAllowSensitive,
     };
 
     try {
@@ -140,8 +263,16 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
         snmpEnabled,
         snmpCommunity,
         parsedPorts.length > 0 ? parsedPorts : fallbackPorts,
-        monitoringInterval,
+        normalizedMonitoringInterval,
       );
+      if (monitoring.status.is_running) {
+        await tauriClient.startMonitoring(normalizedMonitoringInterval);
+        await monitoring.fetchStatus();
+      }
+      await applyAiRuntimeConfig();
+      const latestAiSettings = await tauriClient.getAiSettings();
+      setAiSettings(latestAiSettings);
+      window.dispatchEvent(new Event('ai-status-refresh'));
 
       if (saveSettingsToStorage(settings)) {
         setSaveStatus('saved');
@@ -168,6 +299,15 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     setPreferredInterface(DEFAULT_SETTINGS.preferredInterface);
     setMonitoringEnabled(DEFAULT_SETTINGS.monitoringEnabled);
     setMonitoringInterval(DEFAULT_SETTINGS.monitoringInterval);
+    setAiEnabled(DEFAULT_SETTINGS.aiEnabled);
+    setAiMode(DEFAULT_SETTINGS.aiMode);
+    setAiTimeoutMs(DEFAULT_SETTINGS.aiTimeoutMs);
+    setOllamaEndpoint(DEFAULT_SETTINGS.ollamaEndpoint);
+    setOllamaModel(DEFAULT_SETTINGS.ollamaModel);
+    setGeminiEndpoint(DEFAULT_SETTINGS.geminiEndpoint);
+    setGeminiModel(DEFAULT_SETTINGS.geminiModel);
+    setGeminiApiKey(DEFAULT_SETTINGS.geminiApiKey);
+    setCloudAllowSensitive(DEFAULT_SETTINGS.cloudAllowSensitive);
 
     try {
       await tauriClient.applyRuntimeSettings(
@@ -176,6 +316,24 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
         parseTcpPorts(DEFAULT_SETTINGS.tcpPorts),
         DEFAULT_SETTINGS.monitoringInterval,
       );
+      if (monitoring.status.is_running) {
+        await tauriClient.startMonitoring(DEFAULT_SETTINGS.monitoringInterval);
+        await monitoring.fetchStatus();
+      }
+      await tauriClient.applyAiRuntimeSettings({
+        enabled: DEFAULT_SETTINGS.aiEnabled,
+        mode: DEFAULT_SETTINGS.aiMode,
+        timeout_ms: DEFAULT_SETTINGS.aiTimeoutMs,
+        ollama_endpoint: DEFAULT_SETTINGS.ollamaEndpoint,
+        ollama_model: DEFAULT_SETTINGS.ollamaModel,
+        gemini_endpoint: DEFAULT_SETTINGS.geminiEndpoint,
+        gemini_model: DEFAULT_SETTINGS.geminiModel,
+        gemini_api_key: null,
+        cloud_allow_sensitive: DEFAULT_SETTINGS.cloudAllowSensitive,
+      });
+      const latestAiSettings = await tauriClient.getAiSettings();
+      setAiSettings(latestAiSettings);
+      window.dispatchEvent(new Event('ai-status-refresh'));
     } catch {
       // Keep reset flow resilient if runtime bridge fails.
     }
@@ -215,6 +373,38 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     setTimeout(() => window.location.reload(), 300);
   };
 
+  const handleApplyAiSettings = async () => {
+    setAiApplyLoading(true);
+    setAiError(null);
+    try {
+      await applyAiRuntimeConfig();
+      const nextAiSettings = await tauriClient.getAiSettings();
+      setAiSettings(nextAiSettings);
+      const stored = loadSettings();
+      saveSettingsToStorage({
+        ...stored,
+        aiEnabled,
+        aiMode: aiEnabled ? aiMode : 'disabled',
+        aiTimeoutMs,
+        ollamaEndpoint,
+        ollamaModel,
+        geminiEndpoint,
+        geminiModel,
+        geminiApiKey,
+        cloudAllowSensitive,
+      });
+      window.dispatchEvent(new Event('ai-status-refresh'));
+      toast.success('AI runtime settings applied');
+      await handleAiCheck();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setAiError(message);
+      toast.error('Failed to apply AI settings');
+    } finally {
+      setAiApplyLoading(false);
+    }
+  };
+
   const handleAiCheck = async () => {
     setAiCheckLoading(true);
     setAiError(null);
@@ -247,79 +437,130 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
   };
 
   return (
-    <div className="relative flex-1 overflow-y-auto bg-bg-primary p-4 sm:p-6 lg:p-8">
+    <div className="relative h-full overflow-hidden bg-bg-primary p-3 sm:p-4 lg:p-5">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-16 -left-16 h-80 w-80 rounded-full bg-cyan-300/15 blur-3xl dark:bg-cyan-500/10" />
         <div className="absolute top-20 right-0 h-96 w-96 rounded-full bg-blue-300/10 blur-3xl dark:bg-blue-500/10" />
       </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col space-y-4">
-        <SettingsHero panelClassName={PANEL} />
+      <div className="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col gap-3">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="space-y-3 pb-1">
+            <SettingsHero panelClassName={PANEL} />
 
-        <ConfigurationSection
-          panelClassName={PANEL}
-          scanInterval={scanInterval}
-          onScanIntervalChange={setScanInterval}
-          preferredInterface={preferredInterface}
-          onPreferredInterfaceChange={setPreferredInterface}
-          interfaces={interfaces}
-          tcpPorts={tcpPorts}
-          onTcpPortsChange={setTcpPorts}
-          dbPath={dbPath}
-          scanSchemaVersion={scanSchemaVersion}
-          runtimeDiagnostics={runtimeDiagnostics}
-          diagnosticsLoading={diagnosticsLoading}
-          onRunDiagnostics={() => void handleRunDiagnostics()}
-        />
+            <SettingsGroupLabel
+              title="Runtime Controls"
+              tone="runtime"
+            />
 
-        <SnmpSection
-          panelClassName={PANEL}
-          snmpEnabled={snmpEnabled}
-          onToggle={() => setSnmpEnabled(!snmpEnabled)}
-        />
+            <ConfigurationSection
+              panelClassName={PANEL}
+              preferredInterface={preferredInterface}
+              onPreferredInterfaceChange={setPreferredInterface}
+              interfaces={interfaces}
+              tcpPorts={tcpPorts}
+              onTcpPortsChange={setTcpPorts}
+              dbPath={dbPath}
+              scanSchemaVersion={scanSchemaVersion}
+              runtimeDiagnostics={runtimeDiagnostics}
+              diagnosticsLoading={diagnosticsLoading}
+              onRunDiagnostics={() => void handleRunDiagnostics()}
+            />
 
-        <MonitoringSection
-          panelClassName={PANEL}
-          monitoringEnabled={monitoringEnabled}
-          monitoringInterval={monitoringInterval}
-          monitoring={monitoring}
-          onToggle={() => setMonitoringEnabled(!monitoringEnabled)}
-          onMonitoringIntervalChange={setMonitoringInterval}
-        />
+            <MonitoringSection
+              panelClassName={PANEL}
+              monitoringEnabled={monitoringEnabled}
+              monitoringInterval={monitoringInterval}
+              monitoring={monitoring}
+              onToggle={() => setMonitoringEnabled(!monitoringEnabled)}
+              onMonitoringIntervalChange={setMonitoringInterval}
+            />
 
-        <AiEngineSection
-          panelClassName={PANEL}
-          aiSettings={aiSettings}
-          aiCheckReport={aiCheckReport}
-          aiCheckLoading={aiCheckLoading}
-          aiError={aiError}
-          onRunAiCheck={() => void handleAiCheck()}
-        />
+            <SnmpSection
+              panelClassName={PANEL}
+              snmpEnabled={snmpEnabled}
+              onToggle={() => setSnmpEnabled(!snmpEnabled)}
+            />
 
-        <DemoModeSection panelClassName={PANEL} demoMode={demoMode} onToggle={handleDemoModeToggle} />
+            <AiEngineSection
+              panelClassName={PANEL}
+              aiSettings={aiSettings}
+              aiEnabled={aiEnabled}
+              aiMode={aiMode}
+              aiTimeoutMs={aiTimeoutMs}
+              ollamaEndpoint={ollamaEndpoint}
+              ollamaModel={ollamaModel}
+              geminiEndpoint={geminiEndpoint}
+              geminiModel={geminiModel}
+              geminiApiKey={geminiApiKey}
+              cloudAllowSensitive={cloudAllowSensitive}
+              aiApplyLoading={aiApplyLoading}
+              aiHasChanges={aiHasChanges}
+              aiCheckReport={aiCheckReport}
+              aiCheckLoading={aiCheckLoading}
+              aiError={aiError}
+              onAiEnabledToggle={() => {
+                setAiEnabled((previous) => !previous);
+                if (aiMode === 'disabled') {
+                  setAiMode('local');
+                }
+              }}
+              onAiModeChange={setAiMode}
+              onAiTimeoutChange={(value) =>
+                setAiTimeoutMs(
+                  Number.isFinite(value)
+                    ? Math.max(500, Math.min(60000, Math.round(value)))
+                    : DEFAULT_SETTINGS.aiTimeoutMs,
+                )
+              }
+              onOllamaEndpointChange={setOllamaEndpoint}
+              onOllamaModelChange={setOllamaModel}
+              onGeminiEndpointChange={setGeminiEndpoint}
+              onGeminiModelChange={setGeminiModel}
+              onGeminiApiKeyChange={setGeminiApiKey}
+              onCloudAllowSensitiveToggle={() => setCloudAllowSensitive((value) => !value)}
+              onApplyAiSettings={() => void handleApplyAiSettings()}
+              onRunAiCheck={() => void handleAiCheck()}
+            />
 
-        <VulnerabilityDbSection
-          panelClassName={PANEL}
-          autoUpdateVulnDB={autoUpdateVulnDB}
-          onAutoUpdateToggle={() => setAutoUpdateVulnDB(!autoUpdateVulnDB)}
-          vulnDBExpanded={vulnDBExpanded}
-          onExpandToggle={() => setVulnDBExpanded(!vulnDBExpanded)}
-          syncRange={syncRange}
-          onSyncRangeChange={setSyncRange}
-          embeddedCVEs={embeddedCVEs}
-          downloadedCVEs={downloadedCVEs}
-          lastUpdate={lastUpdate}
-          isSyncing={isSyncing}
-          syncNotice={syncNotice}
-          onSyncDatabase={() => void handleSyncDatabase()}
-        />
+            <SettingsGroupLabel
+              title="Vulnerability Data"
+              tone="manual"
+            />
 
-        <SettingsActions
-          hasChanges={hasChanges}
-          saveStatus={saveStatus}
-          onReset={() => void handleReset()}
-          onSave={() => void handleSave()}
-        />
+            <VulnerabilityDbSection
+              panelClassName={PANEL}
+              autoUpdateVulnDB={autoUpdateVulnDB}
+              onAutoUpdateToggle={() => setAutoUpdateVulnDB(!autoUpdateVulnDB)}
+              vulnDBExpanded={vulnDBExpanded}
+              onExpandToggle={() => setVulnDBExpanded(!vulnDBExpanded)}
+              syncRange={syncRange}
+              onSyncRangeChange={setSyncRange}
+              embeddedCVEs={embeddedCVEs}
+              downloadedCVEs={downloadedCVEs}
+              lastUpdate={lastUpdate}
+              isSyncing={isSyncing}
+              syncNotice={syncNotice}
+              onSyncDatabase={() => void handleSyncDatabase()}
+            />
+
+            <SettingsGroupLabel
+              title="Experimental"
+              tone="experimental"
+            />
+
+            <DemoModeSection panelClassName={PANEL} demoMode={demoMode} onToggle={handleDemoModeToggle} />
+          </div>
+        </div>
+
+        <div className={`${PANEL} shrink-0 p-3 sm:p-4`}>
+          <SettingsActions
+            hasChanges={hasChanges}
+            saveStatus={saveStatus}
+            onReset={() => void handleReset()}
+            onSave={() => void handleSave()}
+          />
+        </div>
       </div>
     </div>
   );

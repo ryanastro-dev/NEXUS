@@ -3,6 +3,7 @@
 //! Defines alert categories and severity levels
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Alert severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,6 +22,12 @@ impl AlertSeverity {
             AlertSeverity::High => "HIGH",
             AlertSeverity::Critical => "CRITICAL",
         }
+    }
+}
+
+impl fmt::Display for AlertSeverity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -65,6 +72,12 @@ impl AlertType {
     }
 }
 
+impl fmt::Display for AlertType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// A generated alert
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Alert {
@@ -105,8 +118,6 @@ pub const SUSPICIOUS_PORTS: &[u16] = &[
     21,    // FTP (insecure)
     3389,  // RDP (potential attack vector)
     5900,  // VNC (potential attack vector)
-    8080,  // Alternate HTTP
-    8443,  // Alternate HTTPS
     1433,  // MSSQL
     3306,  // MySQL
     5432,  // PostgreSQL
@@ -114,4 +125,4 @@ pub const SUSPICIOUS_PORTS: &[u16] = &[
 ];
 
 /// High risk threshold
-pub const HIGH_RISK_THRESHOLD: u32 = 50;
+pub const HIGH_RISK_THRESHOLD: u8 = 50;

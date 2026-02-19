@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Clock, Eye } from 'lucide-react';
 
 import type { AlertRecord } from '../../lib/api/types';
@@ -10,13 +10,24 @@ interface AlertsListProps {
   alerts: AlertRecord[];
   filteredAlerts: AlertRecord[];
   onMarkAsRead: (alertId: number) => void;
+  fillHeight?: boolean;
 }
 
-export function AlertsList({ loading, alerts, filteredAlerts, onMarkAsRead }: AlertsListProps) {
+export function AlertsList({
+  loading,
+  alerts,
+  filteredAlerts,
+  onMarkAsRead,
+  fillHeight = false,
+}: AlertsListProps) {
   if (loading) {
     return (
-      <div className={`${CARD} p-12 text-center`}>
-        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-accent-blue border-t-transparent" />
+      <div
+        className={`${CARD} ${
+          fillHeight ? 'flex h-full min-h-[280px] flex-col items-center justify-center p-6' : 'p-10 text-center'
+        }`}
+      >
+        <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-accent-blue border-t-transparent" />
         <p className="text-text-muted">Loading alerts...</p>
       </div>
     );
@@ -24,9 +35,13 @@ export function AlertsList({ loading, alerts, filteredAlerts, onMarkAsRead }: Al
 
   if (filteredAlerts.length === 0) {
     return (
-      <div className={`${CARD} p-12 text-center`}>
-        <CheckCircle className="mx-auto mb-4 h-16 w-16 text-accent-green" />
-        <h3 className="mb-2 text-xl font-bold text-text-primary">All Clear!</h3>
+      <div
+        className={`${CARD} ${
+          fillHeight ? 'flex h-full min-h-[280px] flex-col items-center justify-center p-6' : 'p-10 text-center'
+        }`}
+      >
+        <CheckCircle className="mx-auto mb-3 h-14 w-14 text-accent-green" />
+        <h3 className="mb-1.5 text-lg font-bold text-text-primary sm:text-xl">All Clear!</h3>
         <p className="text-text-muted">
           {alerts.length === 0
             ? 'No alerts yet. Your network is being monitored.'
@@ -37,32 +52,34 @@ export function AlertsList({ loading, alerts, filteredAlerts, onMarkAsRead }: Al
   }
 
   return (
-    <>
-      {filteredAlerts.map((alert, index) => {
+    <AnimatePresence initial={false}>
+      {filteredAlerts.map((alert) => {
         const config = getAlertConfig(alert.severity);
 
         return (
           <motion.div
             key={alert.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className={`${CARD} overflow-hidden border-l-4 ${config.border} transition-all hover:border-accent-blue/30`}
+            layout
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className={`${CARD} min-h-[118px] overflow-hidden border-l-[3px] ${config.border} transition-all hover:border-accent-blue/30`}
           >
-            <div className="p-6">
-              <div className="flex items-start gap-4">
-                <div className={`shrink-0 rounded-lg p-3 ${config.bg} ${config.color}`}>
+            <div className="p-3 sm:p-3.5">
+              <div className="flex items-start gap-3">
+                <div className={`shrink-0 rounded-lg p-2 ${config.bg} ${config.color}`}>
                   {config.icon}
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="mb-2 flex items-start justify-between gap-4">
+                  <div className="mb-1 flex items-start justify-between gap-2.5">
                     <div className="flex items-center gap-3">
-                      <h3 className="text-base font-semibold text-text-primary">
+                      <h3 className="text-[1.05rem] font-semibold text-text-primary">
                         {formatAlertTypeLabel(alert.alert_type)}
                       </h3>
                       {!alert.is_read && (
-                        <span className="rounded bg-accent-blue/20 px-2 py-0.5 text-xs font-bold text-accent-blue">
+                        <span className="rounded bg-accent-blue/20 px-1.5 py-0.5 text-xs font-bold text-accent-blue">
                           NEW
                         </span>
                       )}
@@ -73,38 +90,40 @@ export function AlertsList({ loading, alerts, filteredAlerts, onMarkAsRead }: Al
                     </div>
                   </div>
 
-                  <p className="mb-3 text-sm leading-relaxed text-text-secondary">{alert.message}</p>
+                  <p className="mb-2 text-sm text-text-secondary">{alert.message}</p>
 
-                  {(alert.device_ip || alert.device_mac) && (
-                    <div className="mb-3 flex items-center gap-4 text-xs text-text-muted">
-                      {alert.device_ip && (
-                        <span className="rounded bg-bg-tertiary px-2 py-1 font-mono">
-                          {alert.device_ip}
-                        </span>
-                      )}
-                      {alert.device_mac && (
-                        <span className="rounded bg-bg-tertiary px-2 py-1 font-mono">
-                          {alert.device_mac}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {(alert.device_ip || alert.device_mac) && (
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-text-muted">
+                        {alert.device_ip && (
+                          <span className="rounded bg-bg-tertiary px-1.5 py-0.5 font-mono">
+                            {alert.device_ip}
+                          </span>
+                        )}
+                        {alert.device_mac && (
+                          <span className="rounded bg-bg-tertiary px-1.5 py-0.5 font-mono">
+                            {alert.device_mac}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                  {!alert.is_read && (
-                    <button
-                      onClick={() => onMarkAsRead(alert.id)}
-                      className="flex items-center gap-1.5 rounded-lg bg-bg-tertiary px-3 py-1.5 text-sm text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Mark as Read
-                    </button>
-                  )}
+                    {!alert.is_read && (
+                      <button
+                        onClick={() => onMarkAsRead(alert.id)}
+                        className="ml-auto flex items-center gap-1 rounded-lg bg-bg-tertiary px-2 py-1 text-xs text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Mark as Read
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </motion.div>
         );
       })}
-    </>
+    </AnimatePresence>
   );
 }

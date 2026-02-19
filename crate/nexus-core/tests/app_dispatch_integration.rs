@@ -257,6 +257,73 @@ async fn typed_dispatch_returns_aiinsights_variant_with_seeded_db() {
 }
 
 #[tokio::test]
+async fn typed_dispatch_returns_db_normalize_variant() {
+    let db_path = unique_temp_db_path("nexus_db_normalize_typed");
+    let db = Database::new(db_path.clone()).expect("db should initialize");
+    {
+        let conn = db.connection();
+        let conn = conn
+            .lock()
+            .expect("database lock should not be poisoned for insert");
+        conn.execute(
+            "INSERT INTO devices (mac, device_type) VALUES (?1, ?2)",
+            rusqlite::params!["AA:BB:CC:DD:EE:99", "router"],
+        )
+        .expect("device insert should succeed");
+    }
+    drop(db);
+
+    let (context, _lines) = make_test_context(Some(db_path.clone()));
+    let result = execute_command_typed(CliCommand::DbNormalize, &context)
+        .await
+        .expect("db-normalize should succeed");
+
+    match result {
+        AppCommandResult::DbNormalize(summary) => {
+            assert!(summary.rows_updated >= 1);
+        }
+        _ => panic!("expected AppCommandResult::DbNormalize"),
+    }
+
+    let _ = std::fs::remove_file(db_path);
+}
+
+#[tokio::test]
+async fn db_normalize_writes_summary_json_to_output_hook() {
+    let db_path = unique_temp_db_path("nexus_db_normalize_output");
+    let db = Database::new(db_path.clone()).expect("db should initialize");
+    {
+        let conn = db.connection();
+        let conn = conn
+            .lock()
+            .expect("database lock should not be poisoned for insert");
+        conn.execute(
+            "INSERT INTO devices (mac, device_type) VALUES (?1, ?2)",
+            rusqlite::params!["AA:BB:CC:DD:EE:98", "router"],
+        )
+        .expect("device insert should succeed");
+    }
+    drop(db);
+
+    let (context, lines) = make_test_context(Some(db_path.clone()));
+    execute_command_with_context(CliCommand::DbNormalize, &context)
+        .await
+        .expect("db-normalize should succeed");
+
+    let output = lines
+        .lock()
+        .expect("output lock should not be poisoned")
+        .join("\n");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("db-normalize output should be valid JSON");
+    assert!(parsed.get("rows_updated").is_some());
+    assert!(parsed.get("normalized_device_types").is_some());
+    assert!(parsed.get("normalized_security_grades").is_some());
+
+    let _ = std::fs::remove_file(db_path);
+}
+
+#[tokio::test]
 async fn cancelled_load_test_returns_error_without_running_network_path() {
     let (context, _lines, events) = make_test_context_with_events(None);
     context.cancel();

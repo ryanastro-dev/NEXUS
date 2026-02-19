@@ -1,6 +1,21 @@
-import { Bell, Sun, Moon, Play, CircleStop, Loader2, Circle, CheckCircle } from 'lucide-react';
+import {
+  Bell,
+  Sun,
+  Monitor,
+  Moon,
+  Play,
+  CircleStop,
+  Loader2,
+  Circle,
+  CheckCircle,
+  Bot,
+  AlertTriangle,
+  ShieldAlert,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { ReactNode } from 'react';
 import { ScanStatus } from '../../hooks/useScan';
+import { deriveAiPillState, useAiStatus } from '../../hooks/useAiStatus';
 import { useTheme } from '../../hooks/useTheme';
 
 interface TopHeaderProps {
@@ -56,16 +71,93 @@ function StatusPill({ scanStatus }: { scanStatus: ScanStatus }) {
   const config = getStatusConfig();
 
   return (
-    <motion.div
-      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all ${config.bgColor} ${config.textColor}`}
+    <div
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${config.bgColor} ${config.textColor}`}
       key={scanStatus}
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
     >
       {config.icon}
       <span className="text-xs font-medium">{config.text}</span>
-    </motion.div>
+    </div>
+  );
+}
+
+function AiStatusPill() {
+  const aiSnapshot = useAiStatus();
+  const aiState = deriveAiPillState(aiSnapshot);
+
+  const toneClasses = {
+    success: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-300',
+    warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-300',
+    danger: 'bg-rose-500/10 text-rose-600 dark:text-rose-300',
+    neutral: 'bg-slate-500/10 text-slate-600 dark:text-slate-300',
+  } as const;
+
+  const icon =
+    aiState.tone === 'success' ? (
+      <Bot className="h-3.5 w-3.5" />
+    ) : aiState.tone === 'warning' ? (
+      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+    ) : aiState.tone === 'danger' ? (
+      <ShieldAlert className="h-3.5 w-3.5" />
+    ) : (
+      <AlertTriangle className="h-3.5 w-3.5" />
+    );
+
+  return (
+    <div
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ${toneClasses[aiState.tone]}`}
+      key={`${aiState.label}-${aiState.tone}`}
+      title={aiState.detail}
+    >
+      {icon}
+      <span className="text-xs font-medium">{aiState.label}</span>
+    </div>
+  );
+}
+
+function ThemeModeControl() {
+  const { themeMode, setThemeMode } = useTheme();
+
+  const options: Array<{
+    id: 'light' | 'system' | 'dark';
+    label: string;
+    icon: ReactNode;
+  }> = [
+    { id: 'light', label: 'Light', icon: <Sun className="h-4 w-4" /> },
+    { id: 'system', label: 'System', icon: <Monitor className="h-4 w-4" /> },
+    { id: 'dark', label: 'Dark', icon: <Moon className="h-4 w-4" /> },
+  ];
+
+  return (
+    <div className="flex items-center rounded-full border border-theme bg-bg-tertiary/75 p-1 shadow-sm">
+      {options.map((option) => {
+        const isActive = themeMode === option.id;
+
+        return (
+          <motion.button
+            key={option.id}
+            onClick={() => setThemeMode(option.id)}
+            className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+              isActive
+                ? 'text-text-primary'
+                : 'text-text-muted hover:text-text-primary'
+            }`}
+            title={option.label}
+            aria-label={`${option.label} theme`}
+            whileTap={{ scale: 0.96 }}
+          >
+            {isActive && (
+              <motion.span
+                className="absolute inset-0 rounded-full border border-theme bg-bg-secondary shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                layoutId="theme-mode-pill"
+                transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+              />
+            )}
+            <span className="relative z-10">{option.icon}</span>
+          </motion.button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -78,8 +170,6 @@ export default function TopHeader({
   onNavigateToAlerts,
   unreadAlertsCount = 0,
 }: TopHeaderProps) {
-  const { theme, toggleTheme } = useTheme();
-
   const handleScanToggle = () => {
     if (isScanning) {
       onStopScan?.();
@@ -124,78 +214,52 @@ export default function TopHeader({
     <header className="h-16 bg-bg-secondary border-b border-theme flex items-center justify-between px-4 gap-4">
       {/* Left: Page Title & Subtitle */}
       <div className="flex flex-col">
-        <motion.h1
+        <h1
           className="text-[1.35rem] font-bold leading-tight text-text-primary"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-          key={title}
         >
           {title}
-        </motion.h1>
-        <motion.p
+        </h1>
+        <p
           className="text-xs text-text-muted"
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          key={subtitle}
         >
           {subtitle}
-        </motion.p>
+        </p>
       </div>
 
       {/* Right: Status Pill + Actions */}
       <div className="flex items-center gap-2.5 shrink-0">
         {/* Status Indicator Pill */}
         <StatusPill scanStatus={scanStatus} />
+        <AiStatusPill />
 
-        {/* Theme Toggle */}
-        <motion.button
-          onClick={toggleTheme}
-          className="p-2 rounded-lg hover:bg-bg-hover transition-colors"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          aria-label="Toggle theme"
-        >
-          {theme === 'light' ? (
-            <Moon className="h-[18px] w-[18px] text-text-secondary" />
-          ) : (
-            <Sun className="h-[18px] w-[18px] text-text-secondary" />
-          )}
-        </motion.button>
+        {/* Theme Mode Control */}
+        <ThemeModeControl />
 
         {/* Notification Bell */}
-        <motion.button
+        <button
           onClick={onNavigateToAlerts}
-          className="relative p-2 rounded-lg hover:bg-bg-hover transition-colors"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          className="relative rounded-lg p-2 transition-colors hover:bg-bg-hover"
           aria-label="Notifications"
         >
           <Bell className="h-[18px] w-[18px] text-text-secondary" />
           {unreadAlertsCount > 0 && (
-            <motion.span
+            <span
               className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent-red px-1 text-[10px] font-bold text-white"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
-            </motion.span>
+            </span>
           )}
-        </motion.button>
+        </button>
 
         {/* Scan Control Button */}
-        <motion.button
+        <button
           onClick={handleScanToggle}
           className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-all ${buttonConfig.bgColor}`}
-          whileHover={{ scale: buttonConfig.disabled ? 1 : 1.05, y: buttonConfig.disabled ? 0 : -1 }}
-          whileTap={{ scale: buttonConfig.disabled ? 1 : 0.95 }}
           disabled={buttonConfig.disabled || (!onStartScan && !onStopScan)}
         >
           {buttonConfig.icon}
           <span>{buttonConfig.text}</span>
-        </motion.button>
+        </button>
       </div>
     </header>
   );

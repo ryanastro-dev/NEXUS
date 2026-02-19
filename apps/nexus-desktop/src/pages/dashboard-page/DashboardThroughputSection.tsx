@@ -11,25 +11,44 @@ const ScanThroughputChart = lazy(() => import('../../components/dashboard/charts
 interface DashboardThroughputSectionProps {
   payload: DashboardPayloadView;
   scanTrendData: ScanTrendDatum[];
+  latestThroughput: number | null;
 }
 
 export function DashboardThroughputSection({
   payload,
   scanTrendData,
+  latestThroughput,
 }: DashboardThroughputSectionProps) {
   return (
-    <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+    <section className="grid grid-cols-1 gap-3 xl:grid-cols-12">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`${CARD} p-5 xl:col-span-8`}
+        className={`${CARD} p-4 xl:col-span-8`}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-text-primary">Scan Throughput</h2>
-          <p className="text-xs text-text-secondary">Hosts and duration per scan</p>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-text-primary sm:text-lg">Scan Throughput</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/70 bg-cyan-100/70 px-2 py-0.5 font-semibold text-cyan-700 dark:border-cyan-500/35 dark:bg-cyan-500/10 dark:text-cyan-300">
+                <span className="h-2 w-2 rounded-full bg-cyan-500" />
+                Hosts Found
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/70 bg-amber-100/70 px-2 py-0.5 font-semibold text-amber-700 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-300">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                Duration (s)
+              </span>
+            </div>
+          </div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/70 bg-cyan-100/70 px-2 py-0.5 text-[11px] dark:border-cyan-500/35 dark:bg-cyan-500/10">
+            <span className="font-medium text-cyan-700 dark:text-cyan-300">Discovery Rate</span>
+            <span className="font-semibold text-cyan-700 dark:text-cyan-200">
+              {latestThroughput !== null ? `${latestThroughput} hosts/s` : 'N/A'}
+            </span>
+          </div>
         </div>
-        <div className="h-72">
-          <Suspense fallback={<ChartFallback heightClass="h-72" />}>
+        <div className="h-60 sm:h-64">
+          <Suspense fallback={<ChartFallback heightClass="h-60 sm:h-64" />}>
             <ScanThroughputChart data={scanTrendData} />
           </Suspense>
         </div>
@@ -38,11 +57,11 @@ export function DashboardThroughputSection({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`${CARD} space-y-5 p-5 xl:col-span-4`}
+        className={`${CARD} space-y-4 p-4 xl:col-span-4`}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-text-primary">Security Posture</h2>
-          <Gauge className="h-5 w-5 text-emerald-500" />
+          <h2 className="text-base font-bold text-text-primary sm:text-lg">Security Posture</h2>
+          <Gauge className="h-4 w-4 text-emerald-500 sm:h-5 sm:w-5" />
         </div>
         <BreakdownRow
           label="Security"
@@ -59,7 +78,7 @@ export function DashboardThroughputSection({
           value={payload.health?.breakdown.compliance ?? 0}
           colorClass="bg-amber-500"
         />
-        <div className="space-y-2 rounded-xl border border-slate-200/70 bg-slate-100/80 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+        <div className="space-y-1.5 rounded-xl border border-slate-200/70 bg-slate-100/80 p-2.5 dark:border-slate-700 dark:bg-slate-900/60">
           {(payload.health?.insights ?? ['No insights available']).slice(0, 4).map((insight) => (
             <p key={insight} className="text-xs text-text-secondary">
               {insight}

@@ -10,7 +10,7 @@ use pnet::util::MacAddr;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::config::{arp_check_interval_ms, arp_idle_timeout_ms, arp_max_wait_ms, arp_rounds};
@@ -21,13 +21,6 @@ use crate::network::is_special_address;
 const BROADCAST_MAC: MacAddr = MacAddr(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
 /// Max per-round budget for transmitting ARP requests on slow adapters.
 const ARP_SEND_BUDGET_MS: u64 = 8000;
-
-/// Logs a message to stderr
-macro_rules! log_stderr {
-    ($($arg:tt)*) => {
-        tracing::info!($($arg)*);
-    };
-}
 
 /// Creates an ARP request packet
 fn create_arp_request(
@@ -75,7 +68,7 @@ pub fn active_arp_scan(
     let cfg_arp_idle_timeout_ms = arp_idle_timeout_ms();
     let cfg_arp_rounds = arp_rounds();
 
-    log_stderr!(
+    crate::log_stderr!(
         "Phase 1: Active ARP scanning {} hosts (adaptive timing)...",
         target_ips.len()
     );
@@ -116,6 +109,7 @@ pub fn active_arp_scan(
     let discovered: Arc<std::sync::Mutex<HashMap<Ipv4Addr, MacAddr>>> =
         Arc::new(std::sync::Mutex::new(HashMap::new()));
     let host_count = Arc::new(AtomicUsize::new(0));
+    let receiver_stop = Arc::new(AtomicBool::new(false));
     let scan_start = Instant::now();
 
     // Calculate total timeout for receiver thread (all rounds + buffer)
@@ -123,13 +117,14 @@ pub fn active_arp_scan(
 
     let discovered_clone = Arc::clone(&discovered);
     let host_count_clone = Arc::clone(&host_count);
+    let receiver_stop_clone = Arc::clone(&receiver_stop);
     let subnet_clone = *subnet;
 
     // Start receiver thread
     let receiver_handle = std::thread::spawn(move || {
         let deadline = Instant::now() + total_timeout;
 
-        while Instant::now() < deadline {
+        while Instant::now() < deadline && !receiver_stop_clone.load(Ordering::SeqCst) {
             match rx.next() {
                 Ok(packet) => {
                     if let Some(ethernet) = EthernetPacket::new(packet)
@@ -146,7 +141,7 @@ pub fn active_arp_scan(
                             let mut map = match discovered_clone.lock() {
                                 Ok(map) => map,
                                 Err(_) => {
-                                    log_stderr!(
+                                    crate::log_stderr!(
                                         "ARP receiver map lock poisoned; stopping receiver thread"
                                     );
                                     break;
@@ -161,8 +156,16 @@ pub fn active_arp_scan(
                         }
                     }
                 }
-                Err(_) => {
-                    std::thread::sleep(Duration::from_micros(50));
+                Err(e) => {
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                    ) {
+                        continue;
+                    }
+
+                    crate::log_warn!("ARP receiver error: {}", e);
+                    std::thread::sleep(Duration::from_millis(1));
                 }
             }
         }
@@ -189,7 +192,7 @@ pub fn active_arp_scan(
         };
 
         if remaining.is_empty() {
-            log_stderr!(
+            crate::log_stderr!(
                 "Round {}/{}: All hosts found, skipping",
                 round,
                 cfg_arp_rounds
@@ -197,7 +200,7 @@ pub fn active_arp_scan(
             break;
         }
 
-        log_stderr!(
+        crate::log_stderr!(
             "Round {}/{}: Blasting {} requests ({} already found)...",
             round,
             cfg_arp_rounds,
@@ -211,7 +214,7 @@ pub fn active_arp_scan(
         for (sent_requests, target_ip) in remaining.iter().enumerate() {
             if round_start.elapsed() >= send_budget {
                 let skipped = remaining.len().saturating_sub(sent_requests);
-                log_stderr!(
+                crate::log_stderr!(
                     "Round {} send budget reached ({}ms): sent {}, skipped {} remaining targets",
                     round,
                     ARP_SEND_BUDGET_MS,
@@ -225,17 +228,17 @@ pub fn active_arp_scan(
                 Ok(packet) => match tx.send_to(&packet, None) {
                     Some(Ok(_)) => {}
                     Some(Err(e)) => {
-                        log_stderr!("Failed to send ARP request to {}: {}", target_ip, e);
+                        crate::log_stderr!("Failed to send ARP request to {}: {}", target_ip, e);
                     }
                     None => {
-                        log_stderr!(
+                        crate::log_stderr!(
                             "Failed to send ARP request to {}: no transmit channel",
                             target_ip
                         );
                     }
                 },
                 Err(e) => {
-                    log_stderr!("Failed to create ARP request for {}: {}", target_ip, e);
+                    crate::log_stderr!("Failed to create ARP request for {}: {}", target_ip, e);
                 }
             }
         }
@@ -259,7 +262,7 @@ pub fn active_arp_scan(
                 last_change = Instant::now();
             } else if last_change.elapsed() >= idle_timeout {
                 // No new hosts for idle_timeout, stop early
-                log_stderr!(
+                crate::log_stderr!(
                     "Round {} early exit: no new hosts for {}ms",
                     round,
                     cfg_arp_idle_timeout_ms
@@ -269,7 +272,7 @@ pub fn active_arp_scan(
         }
 
         let final_count = host_count.load(Ordering::SeqCst);
-        log_stderr!(
+        crate::log_stderr!(
             "Round {} complete: {} hosts found ({} new) in {:?}",
             round,
             final_count,
@@ -278,23 +281,41 @@ pub fn active_arp_scan(
         );
     }
 
-    // Wait for receiver to finish
-    if receiver_handle.join().is_err() {
-        return Err(anyhow!("ARP receiver thread panicked"));
+    // Close the TX side and request receiver stop once rounds are done.
+    // On some adapters this helps unblock `rx.next()` promptly.
+    drop(tx);
+    receiver_stop.store(true, Ordering::SeqCst);
+
+    // Wait briefly for the receiver to finish without stalling the whole scan.
+    let join_wait_ms = cfg_arp_check_interval_ms.saturating_mul(2).clamp(200, 1000);
+    let join_deadline = Instant::now() + Duration::from_millis(join_wait_ms);
+    while !receiver_handle.is_finished() && Instant::now() < join_deadline {
+        std::thread::sleep(Duration::from_millis(10));
     }
 
-    let map = discovered
+    if receiver_handle.is_finished() {
+        if receiver_handle.join().is_err() {
+            return Err(anyhow!("ARP receiver thread panicked"));
+        }
+    } else {
+        crate::log_warn!(
+            "ARP receiver thread did not stop within {}ms; continuing without blocking",
+            join_wait_ms
+        );
+    }
+
+    let mut map = discovered
         .lock()
         .map_err(|_| anyhow!("ARP discovered-host map lock poisoned"))?;
     for (ip, mac) in map.iter() {
-        log_stderr!("[ARP] Found: {} -> {}", ip, mac);
+        crate::log_stderr!("[ARP] Found: {} -> {}", ip, mac);
     }
 
-    log_stderr!(
+    crate::log_stderr!(
         "Phase 1 complete: {} hosts found in {:?}",
         map.len(),
         scan_start.elapsed()
     );
 
-    Ok(map.clone())
+    Ok(std::mem::take(&mut *map))
 }

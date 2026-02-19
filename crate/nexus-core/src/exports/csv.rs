@@ -4,9 +4,18 @@
 
 use crate::database::DeviceRecord;
 use crate::models::HostInfo;
+use crate::network::DeviceType;
 use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use csv::Writer;
+
+fn canonical_device_type(device_type: Option<&str>) -> String {
+    device_type
+        .unwrap_or_default()
+        .parse::<DeviceType>()
+        .unwrap_or(DeviceType::Unknown)
+        .to_string()
+}
 
 /// Export devices to CSV format
 pub fn export_devices_csv(devices: &[DeviceRecord]) -> Result<String> {
@@ -37,7 +46,7 @@ pub fn export_devices_csv(devices: &[DeviceRecord]) -> Result<String> {
             device.hostname.as_deref().unwrap_or("N/A"),
             device.custom_name.as_deref().unwrap_or(""),
             device.vendor.as_deref().unwrap_or("Unknown"),
-            device.device_type.as_deref().unwrap_or("Unknown"),
+            &canonical_device_type(device.device_type.as_deref()),
             device.os_guess.as_deref().unwrap_or("Unknown"),
             &device.risk_score.to_string(),
             &device.first_seen.to_rfc3339(),
@@ -87,7 +96,7 @@ pub fn export_hosts_csv(hosts: &[HostInfo]) -> Result<String> {
             &host.mac,
             host.hostname.as_deref().unwrap_or("N/A"),
             host.vendor.as_deref().unwrap_or("Unknown"),
-            &host.device_type,
+            &host.device_type_enum().to_string(),
             host.os_guess.as_deref().unwrap_or("Unknown"),
             &host.risk_score.to_string(),
             &open_ports,

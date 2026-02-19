@@ -4,7 +4,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::database::models::ScanRecord;
 use crate::models::{HostInfo, ScanResult};
 
-use super::helpers::parse_datetime_column;
+use super::helpers::{normalize_device_type, normalize_security_grade, parse_datetime_column};
 
 /// Insert a scan result into the database.
 pub fn insert_scan(conn: &Connection, result: &ScanResult) -> Result<i64> {
@@ -57,6 +57,9 @@ pub fn insert_scan(conn: &Connection, result: &ScanResult) -> Result<i64> {
 }
 
 fn upsert_device_from_host(conn: &Connection, host: &HostInfo, scan_id: i64) -> Result<i64> {
+    let normalized_device_type = normalize_device_type(&host.device_type);
+    let normalized_security_grade = normalize_security_grade(&host.security_grade);
+
     let existing_device_id: Option<i64> = conn
         .query_row(
             "SELECT id FROM devices WHERE mac = ?1",
@@ -86,7 +89,7 @@ fn upsert_device_from_host(conn: &Connection, host: &HostInfo, scan_id: i64) -> 
                 &host.vendor,
                 if host.is_randomized { 1 } else { 0 },
                 host.risk_score as i32,
-                &host.device_type,
+                &normalized_device_type,
                 &host.hostname,
                 &host.os_guess,
             ],
@@ -106,7 +109,7 @@ fn upsert_device_from_host(conn: &Connection, host: &HostInfo, scan_id: i64) -> 
                 &host.vendor,
                 if host.is_randomized { 1 } else { 0 },
                 host.risk_score as i32,
-                &host.device_type,
+                &normalized_device_type,
                 &host.hostname,
                 &host.os_guess,
             ],
@@ -137,7 +140,7 @@ fn upsert_device_from_host(conn: &Connection, host: &HostInfo, scan_id: i64) -> 
             host.ttl.map(|t| t as i32),
             host.risk_score as i32,
             if host.is_randomized { 1 } else { 0 },
-            &host.security_grade,
+            &normalized_security_grade,
             true,
             &host.discovery_method,
             open_ports,

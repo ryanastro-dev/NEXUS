@@ -4,7 +4,7 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::database::models::NetworkStats;
 use crate::models::HostInfo;
 
-use super::helpers::parse_datetime;
+use super::helpers::{normalize_device_type, normalize_security_grade, parse_datetime};
 
 /// Get host-like records from the latest scan for insight calculations.
 pub fn get_latest_scan_hosts(conn: &Connection) -> Result<Vec<HostInfo>> {
@@ -19,6 +19,7 @@ pub fn get_latest_scan_hosts(conn: &Connection) -> Result<Vec<HostInfo>> {
             dh.response_time_ms,
             dh.risk_score,
             dh.is_randomized,
+            dh.security_grade,
             dh.open_ports
         FROM device_history dh
         JOIN devices d ON d.id = dh.device_id
@@ -36,7 +37,8 @@ pub fn get_latest_scan_hosts(conn: &Connection) -> Result<Vec<HostInfo>> {
             let vendor: Option<String> = row.get(2)?;
             let device_type = row
                 .get::<_, Option<String>>(3)?
-                .unwrap_or_else(|| "UNKNOWN".to_string());
+                .map(|value| normalize_device_type(&value))
+                .unwrap_or_else(|| normalize_device_type("UNKNOWN"));
             let hostname: Option<String> = row.get(4)?;
             let response_time_ms = row.get::<_, Option<i64>>(5)?.map(|value| value as u64);
             let raw_risk_score: i32 = row.get(6)?;
@@ -56,7 +58,8 @@ pub fn get_latest_scan_hosts(conn: &Connection) -> Result<Vec<HostInfo>> {
                 raw_risk_score as u8
             };
             let is_randomized = row.get::<_, i32>(7)? == 1;
-            let ports_str = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+            let security_grade_raw = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+            let ports_str = row.get::<_, Option<String>>(9)?.unwrap_or_default();
 
             let mut host = HostInfo::new(ip, mac, device_type, "DATABASE".to_string());
             host.vendor = vendor;
@@ -64,11 +67,16 @@ pub fn get_latest_scan_hosts(conn: &Connection) -> Result<Vec<HostInfo>> {
             host.response_time_ms = response_time_ms;
             host.risk_score = risk_score;
             host.is_randomized = is_randomized;
+            host.security_grade = normalize_security_grade(&security_grade_raw);
             host.open_ports = ports_str
                 .split(',')
                 .filter(|port| !port.is_empty())
                 .filter_map(|port| port.parse::<u16>().ok())
                 .collect();
+            if host.security_grade.is_empty() {
+                let inferred_grade = crate::insights::calculate_security_grade_enum(&host);
+                host.set_security_grade_enum(inferred_grade);
+            }
             Ok(host)
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;

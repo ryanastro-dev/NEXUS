@@ -2,7 +2,8 @@ use crate::database::Database;
 use crate::models::{HostInfo, ScanResult};
 
 use super::{
-    get_network_stats, get_recent_scans, get_recent_telemetry, insert_scan, insert_telemetry_sample,
+    get_network_stats, get_recent_scans, get_recent_telemetry, insert_scan,
+    insert_telemetry_sample, normalize_legacy_fields,
 };
 
 #[test]
@@ -106,4 +107,73 @@ fn test_insert_and_get_recent_telemetry() {
     let host_samples = get_recent_telemetry(&conn, "scan.hosts_found", 10).unwrap();
     assert_eq!(host_samples.len(), 1);
     assert_eq!(host_samples[0].metric_value, 12.0);
+}
+
+#[test]
+fn test_normalize_legacy_fields_canonicalizes_device_type_and_grade() {
+    let db = Database::in_memory().unwrap();
+    let conn = db.connection();
+    let conn = conn.lock().unwrap();
+
+    conn.execute(
+        r#"
+        INSERT INTO scans (
+            interface_name, local_ip, local_mac, subnet, scan_method,
+            arp_discovered, icmp_discovered, total_hosts, duration_ms
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+        "#,
+        rusqlite::params![
+            "eth0",
+            "192.168.1.1",
+            "AA:BB:CC:DD:EE:FF",
+            "192.168.1.0/24",
+            "arp+icmp",
+            1,
+            1,
+            1,
+            1000
+        ],
+    )
+    .unwrap();
+    let scan_id = conn.last_insert_rowid();
+
+    conn.execute(
+        "INSERT INTO devices (mac, device_type) VALUES (?1, ?2)",
+        rusqlite::params!["AA:BB:CC:DD:EE:01", "router"],
+    )
+    .unwrap();
+    let device_id = conn.last_insert_rowid();
+
+    conn.execute(
+        r#"
+        INSERT INTO device_history (
+            scan_id, device_id, ip, security_grade, is_online
+        ) VALUES (?1, ?2, ?3, ?4, ?5)
+        "#,
+        rusqlite::params![scan_id, device_id, "192.168.1.10", "b", 1],
+    )
+    .unwrap();
+
+    let summary = normalize_legacy_fields(&conn).unwrap();
+    assert_eq!(summary.normalized_device_types, 1);
+    assert_eq!(summary.normalized_security_grades, 1);
+    assert_eq!(summary.rows_updated, 2);
+
+    let normalized_type: String = conn
+        .query_row(
+            "SELECT device_type FROM devices WHERE id = ?1",
+            [device_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(normalized_type, "ROUTER");
+
+    let normalized_grade: String = conn
+        .query_row(
+            "SELECT security_grade FROM device_history WHERE device_id = ?1",
+            [device_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(normalized_grade, "B");
 }

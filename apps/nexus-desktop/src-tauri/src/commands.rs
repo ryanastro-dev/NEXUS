@@ -6,6 +6,7 @@
 pub(crate) mod database;
 pub(crate) mod demo;
 pub(crate) mod exports;
+pub(crate) mod assistant;
 pub(crate) mod insights;
 pub(crate) mod monitoring;
 pub(crate) mod scan;

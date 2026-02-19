@@ -35,13 +35,15 @@ export default function PortScanToolPanel() {
   };
 
   const openPorts = results.filter((r) => r.is_open);
+  const inputClass =
+    "h-11 w-full rounded-xl border border-theme bg-bg-tertiary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none";
 
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <div className={`${CARD} p-5`}>
+      <div className={`${CARD} h-fit p-4`}>
         <div className="mb-3 flex items-center gap-2">
           <Hash className="h-4 w-4 text-accent-blue" />
-          <h2 className="text-lg font-bold text-text-primary">Configuration</h2>
+          <h2 className="text-base font-bold text-text-primary">Configuration</h2>
         </div>
 
         <div className="space-y-3">
@@ -54,7 +56,7 @@ export default function PortScanToolPanel() {
               placeholder="192.168.1.1"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              className="w-full rounded border border-theme bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+              className={inputClass}
             />
           </div>
 
@@ -67,7 +69,7 @@ export default function PortScanToolPanel() {
                 type="number"
                 value={startPort}
                 onChange={(e) => setStartPort(e.target.value)}
-                className="w-full rounded border border-theme bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+                className={inputClass}
               />
             </div>
             <div>
@@ -78,7 +80,7 @@ export default function PortScanToolPanel() {
                 type="number"
                 value={endPort}
                 onChange={(e) => setEndPort(e.target.value)}
-                className="w-full rounded border border-theme bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+                className={inputClass}
               />
             </div>
           </div>
@@ -86,7 +88,7 @@ export default function PortScanToolPanel() {
           <button
             onClick={() => void handleScan()}
             disabled={loading || !target.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all disabled:opacity-50"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -103,11 +105,11 @@ export default function PortScanToolPanel() {
         </div>
       </div>
 
-      <div className={`${CARD} p-5`}>
+      <div className={`${CARD} h-fit p-4`}>
         <h3 className="mb-2 text-sm font-semibold text-text-primary">
           Results {openPorts.length > 0 && `(${openPorts.length} open)`}
         </h3>
-        <div className="h-56 space-y-1 overflow-y-auto">
+        <div className="h-[208px] space-y-1 overflow-y-auto">
           {openPorts.length === 0 && !loading && (
             <div className="flex h-full items-center justify-center text-xs text-text-muted">
               No open ports found

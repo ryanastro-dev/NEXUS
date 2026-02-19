@@ -5,6 +5,7 @@ export {
   selectAverageLatency,
   selectCriticalAlerts,
   selectDeviceTypeData,
+  selectLatestThroughput,
   selectRiskLabel,
   selectScanTrendData,
   selectUnknownDevices,

@@ -10,6 +10,7 @@ interface SummaryCardProps {
   color: SummaryCardColor;
   onClick: () => void;
   active: boolean;
+  className?: string;
 }
 
 export function SummaryCard({
@@ -19,21 +20,22 @@ export function SummaryCard({
   color,
   onClick,
   active,
+  className,
 }: SummaryCardProps) {
   return (
     <motion.button
       onClick={onClick}
-      className={`rounded-2xl border bg-white/85 p-6 shadow-sm backdrop-blur-sm transition-all dark:border-slate-800 dark:bg-slate-950/65 ${
+      className={`h-[92px] rounded-2xl border bg-white/85 p-3 shadow-sm backdrop-blur-sm transition-all dark:border-slate-800 dark:bg-slate-950/65 ${
         active ? 'ring-2 ring-accent-blue' : ''
-      } ${SUMMARY_CARD_COLORS[color]}`}
-      whileHover={{ scale: 1.02, y: -2 }}
+      } ${SUMMARY_CARD_COLORS[color]} ${className ?? ''}`}
+      whileHover={{ scale: 1.01, y: -1 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider opacity-80">{title}</span>
-        {icon}
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-85">{title}</span>
+        <span className="scale-90">{icon}</span>
       </div>
-      <div className="text-4xl font-black">{count}</div>
+      <div className="text-[1.85rem] font-black leading-none">{count}</div>
     </motion.button>
   );
 }

@@ -25,7 +25,7 @@ function FilterButton({
   return (
     <button
       onClick={onClick}
-      className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
         active ? `${activeClass} text-white` : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
       }`}
     >
@@ -43,9 +43,9 @@ export function AlertsToolbar({
   onClearAll,
 }: AlertsToolbarProps) {
   return (
-    <div className={`${CARD} p-4`}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+    <div className={`${CARD} p-3`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200/70 bg-bg-secondary/35 p-1 dark:border-slate-800">
           <FilterButton
             active={filter === 'critical'}
             activeClass="bg-accent-red"
@@ -72,11 +72,11 @@ export function AlertsToolbar({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={onMarkAllAsRead}
             disabled={stats.unread === 0}
-            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CheckCircle className="h-4 w-4" />
             Mark all read
@@ -84,7 +84,7 @@ export function AlertsToolbar({
           <button
             onClick={onClearAll}
             disabled={!hasAlerts}
-            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-text-secondary transition-all hover:bg-accent-red/10 hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-text-secondary transition-all hover:bg-accent-red/10 hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
             Clear all

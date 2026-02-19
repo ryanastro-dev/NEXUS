@@ -27,12 +27,15 @@ export default function MacLookupToolPanel() {
     }
   };
 
+  const inputClass =
+    "h-11 w-full rounded-xl border border-theme bg-bg-tertiary px-3 font-mono text-sm text-text-primary focus:border-accent-blue focus:outline-none";
+
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <div className={`${CARD} p-5`}>
+      <div className={`${CARD} h-fit p-4`}>
         <div className="mb-3 flex items-center gap-2">
           <Network className="h-4 w-4 text-accent-blue" />
-          <h2 className="text-lg font-bold text-text-primary">Configuration</h2>
+          <h2 className="text-base font-bold text-text-primary">Configuration</h2>
         </div>
 
         <div className="space-y-3">
@@ -45,15 +48,15 @@ export default function MacLookupToolPanel() {
               placeholder="00:1C:B3:00:00:00"
               value={mac}
               onChange={(e) => setMac(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && void handleLookup()}
-              className="w-full rounded border border-theme bg-bg-tertiary px-3 py-2 font-mono text-sm text-text-primary focus:border-accent-blue focus:outline-none"
+              onKeyDown={(e) => e.key === "Enter" && void handleLookup()}
+              className={inputClass}
             />
           </div>
 
           <button
             onClick={() => void handleLookup()}
             disabled={loading || !mac.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all disabled:opacity-50"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -72,7 +75,7 @@ export default function MacLookupToolPanel() {
             <p className="mb-1 font-semibold">Examples:</p>
             <button
               onClick={() => setMac("34:4a:c3:22:6f:90")}
-              className="block w-full rounded bg-bg-tertiary p-1.5 text-left font-mono hover:bg-bg-hover"
+              className="block w-full rounded-lg bg-bg-tertiary p-2 text-left font-mono hover:bg-bg-hover"
             >
               34:4a:c3:22:6f:90
             </button>
@@ -80,10 +83,10 @@ export default function MacLookupToolPanel() {
         </div>
       </div>
 
-      <div className={`${CARD} p-5`}>
+      <div className={`${CARD} h-fit p-4`}>
         <h3 className="mb-2 text-sm font-semibold text-text-primary">Vendor Information</h3>
         {!result ? (
-          <div className="flex h-32 items-center justify-center text-xs text-text-muted">
+          <div className="flex h-[190px] items-center justify-center text-xs text-text-muted">
             Enter MAC to lookup
           </div>
         ) : result.is_randomized ? (

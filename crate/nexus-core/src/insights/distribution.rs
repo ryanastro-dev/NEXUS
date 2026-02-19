@@ -2,7 +2,7 @@
 //!
 //! Analyzes device type breakdown for insights
 
-use crate::HostInfo;
+use crate::{DeviceType, HostInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -33,7 +33,9 @@ impl DeviceDistribution {
         // Count by type
         let mut by_type: HashMap<String, usize> = HashMap::new();
         for host in hosts {
-            *by_type.entry(host.device_type.clone()).or_insert(0) += 1;
+            *by_type
+                .entry(host.device_type_enum().to_string())
+                .or_insert(0) += 1;
         }
 
         // Calculate percentages
@@ -61,10 +63,10 @@ impl DeviceDistribution {
     }
 
     fn generate_summary(by_type: &HashMap<String, usize>, total: usize) -> String {
-        let router_count = *by_type.get("ROUTER").unwrap_or(&0);
-        let mobile_count = *by_type.get("MOBILE").unwrap_or(&0);
-        let pc_count = *by_type.get("PC").unwrap_or(&0);
-        let unknown_count = *by_type.get("UNKNOWN").unwrap_or(&0);
+        let router_count = *by_type.get(DeviceType::Router.as_str()).unwrap_or(&0);
+        let mobile_count = *by_type.get(DeviceType::Mobile.as_str()).unwrap_or(&0);
+        let pc_count = *by_type.get(DeviceType::Pc.as_str()).unwrap_or(&0);
+        let unknown_count = *by_type.get(DeviceType::Unknown.as_str()).unwrap_or(&0);
 
         let mut parts = Vec::new();
         if router_count > 0 {

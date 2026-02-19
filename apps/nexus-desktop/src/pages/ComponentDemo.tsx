@@ -186,8 +186,9 @@ export default function ComponentDemo() {
             options={selectOptions}
             value={selectValue}
             onChange={(value) => {
-              setSelectValue(value);
-              toast.success(`Selected: ${selectOptions.find(o => o.value === value)?.label}`);
+              const selectedValue = String(value);
+              setSelectValue(selectedValue);
+              toast.success(`Selected: ${selectOptions.find(o => o.value === selectedValue)?.label}`);
             }}
             placeholder="Select an option..."
           />

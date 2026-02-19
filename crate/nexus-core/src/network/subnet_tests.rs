@@ -106,6 +106,18 @@ mod tests {
 
         let (subnet, ips) = result.unwrap();
         assert_eq!(subnet.prefix(), 20);
-        assert_eq!(ips.len(), 32);
+        assert_eq!(ips.len(), 128);
+    }
+
+    #[test]
+    fn test_calculate_subnet_ips_large_subnet_includes_gateway_candidate() {
+        let interface = create_test_interface("172.20.47.200", 20);
+
+        let result = calculate_subnet_ips(&interface);
+        assert!(result.is_ok());
+
+        let (_, ips) = result.unwrap();
+        assert_eq!(ips.len(), 128);
+        assert!(ips.contains(&"172.20.32.1".parse().unwrap()));
     }
 }

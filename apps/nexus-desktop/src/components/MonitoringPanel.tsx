@@ -118,7 +118,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
             ) : (
               <Square className="w-3.5 h-3.5" />
             )}
-            Stop Monitoring
+            Stop Live Monitor
           </button>
         ) : (
           <button
@@ -131,7 +131,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
             ) : (
               <Play className="w-3.5 h-3.5" />
             )}
-            Start Monitoring
+            Start Live Monitor
           </button>
         )}
       </div>
@@ -193,7 +193,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
         <div className="space-y-1.5 max-h-48 overflow-y-auto">
           {events.length === 0 ? (
             <p className="text-center text-text-muted text-xs py-3">
-              No events yet. Start monitoring to see live updates.
+              No events yet. Start Live Monitor to see live updates.
             </p>
           ) : (
             events.map((event, index) => (

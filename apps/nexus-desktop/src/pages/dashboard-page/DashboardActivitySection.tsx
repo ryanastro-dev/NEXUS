@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Bell, Cpu } from 'lucide-react';
 
 import type { UseMonitoringReturn } from '../../hooks/useMonitoring';
@@ -20,58 +20,74 @@ export function DashboardActivitySection({
   monitor,
   deviceTypeData,
 }: DashboardActivitySectionProps) {
+  const [clearedCount, setClearedCount] = useState(0);
+
+  useEffect(() => {
+    if (clearedCount > monitor.events.length) {
+      setClearedCount(monitor.events.length);
+    }
+  }, [clearedCount, monitor.events.length]);
+
+  const visibleEvents = useMemo(
+    () => monitor.events.slice(0, Math.max(0, monitor.events.length - clearedCount)),
+    [clearedCount, monitor.events],
+  );
+
+  const renderedEvents = useMemo(() => visibleEvents.slice(0, 10), [visibleEvents]);
+
   return (
-    <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-      <div className={`${CARD} p-5 xl:col-span-5`}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-text-primary">Device Composition</h2>
-          <Cpu className="h-5 w-5 text-cyan-500" />
+    <section className="grid grid-cols-1 gap-3 xl:grid-cols-12">
+      <div className={`${CARD} p-4 xl:col-span-5`}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-bold text-text-primary sm:text-lg">Device Composition</h2>
+          <Cpu className="h-4 w-4 text-cyan-500 sm:h-5 sm:w-5" />
         </div>
-        <div className="h-64">
-          <Suspense fallback={<ChartFallback heightClass="h-64" />}>
+        <div className="h-56 sm:h-60">
+          <Suspense fallback={<ChartFallback heightClass="h-56 sm:h-60" />}>
             <DeviceCompositionChart data={deviceTypeData} />
           </Suspense>
         </div>
       </div>
 
-      <div className={`${CARD} p-5 xl:col-span-7`}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-text-primary">Live Activity Stream</h2>
+      <div className={`${CARD} p-4 xl:col-span-7`}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-bold text-text-primary sm:text-lg">Live Activity Stream</h2>
           <div className="flex items-center gap-2">
             <button
-              onClick={monitor.clearEvents}
-              className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              onClick={() => setClearedCount(monitor.events.length)}
+              disabled={visibleEvents.length === 0}
+              className="rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              Clear
+              Clear View
             </button>
-            <div className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">
+            <div className="rounded-full bg-cyan-100 px-2 py-1 text-[11px] font-semibold text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">
               {monitor.status.is_running ? 'Live' : 'Paused'}
             </div>
           </div>
         </div>
 
         {monitor.error && (
-          <div className="mb-3 rounded-lg border border-rose-300/70 bg-rose-100/70 px-3 py-2 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
+          <div className="mb-2.5 rounded-lg border border-rose-300/70 bg-rose-100/70 px-2.5 py-2 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
             {monitor.error}
           </div>
         )}
 
-        <div className="max-h-72 space-y-2 overflow-y-auto">
-          {monitor.events.length === 0 ? (
-            <div className="flex min-h-44 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300/80 text-sm text-text-muted dark:border-slate-700">
-              <Bell className="h-6 w-6" />
+        <div className="max-h-64 space-y-1.5 overflow-y-auto">
+          {renderedEvents.length === 0 ? (
+            <div className="flex min-h-36 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300/80 text-sm text-text-muted dark:border-slate-700">
+              <Bell className="h-5 w-5" />
               <p>No recent events captured</p>
             </div>
           ) : (
-            monitor.events.slice(0, 10).map((event, idx) => (
+            renderedEvents.map((event, idx) => (
               <div
                 key={`${event.type}-${idx}`}
-                className="flex items-start gap-3 rounded-xl border border-slate-200/70 bg-slate-100/70 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-900/60"
+                className="flex items-start gap-2.5 rounded-xl border border-slate-200/70 bg-slate-100/70 px-2.5 py-2 dark:border-slate-800 dark:bg-slate-900/60"
               >
                 {eventIcon(event)}
                 <div className="min-w-0">
-                  <p className="text-sm text-text-primary">{eventLabel(event)}</p>
-                  <p className="text-xs text-text-muted">Event #{monitor.events.length - idx}</p>
+                  <p className="text-[13px] leading-snug text-text-primary">{eventLabel(event)}</p>
+                  <p className="text-xs text-text-muted">Event #{visibleEvents.length - idx}</p>
                 </div>
               </div>
             ))

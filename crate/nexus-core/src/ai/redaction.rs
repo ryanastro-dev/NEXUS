@@ -30,7 +30,7 @@ pub(crate) fn build_ai_input_digest(
                         .unwrap_or("unknown")
                 )
             },
-            device_type: host.device_type.clone(),
+            device_type: host.device_type_enum().to_string(),
             risk_score: host.risk_score,
             open_ports: host.open_ports.clone(),
         })

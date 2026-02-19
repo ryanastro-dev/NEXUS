@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AiCheckReport,
+  AiRuntimeSettingsInput,
+  DeviceSecurityAnalysis,
+  DeviceTroubleshootAdvice,
   AiSettings,
   AlertRecord,
   DeviceRecord,
@@ -17,6 +20,7 @@ import type {
   ScanRecord,
   ScanResult,
   TelemetrySeries,
+  NetworkReportSummary,
   VulnerabilityDbStatus,
   VulnerabilitySyncReport,
   VendorLookupResult,
@@ -152,6 +156,10 @@ export const tauriClient = {
       tcpPorts,
       monitoringIntervalSeconds: monitoringIntervalSeconds ?? null,
     }),
+  applyAiRuntimeSettings: (settings: AiRuntimeSettingsInput) =>
+    invokeCommand<void>("apply_ai_runtime_settings", {
+      settings,
+    }),
   getVulnerabilityDbStatus: () =>
     invokeCommand<VulnerabilityDbStatus>("get_vulnerability_db_status"),
   syncVulnerabilityDb: () =>
@@ -172,6 +180,20 @@ export const tauriClient = {
   getAiSettings: () => invokeCommand<AiSettings>("get_ai_settings"),
   runAiCheck: () => invokeCommand<AiCheckReport>("ai_check"),
   getAiInsights: () => invokeCommand<HybridInsightsResult>("ai_insights"),
+  analyzeDeviceSecurity: (device: HostInfo) =>
+    invokeCommand<DeviceSecurityAnalysis>("ai_analyze_device_security", {
+      device,
+    }),
+  generateNetworkReport: (hosts?: HostInfo[], subnet?: string) =>
+    invokeCommand<NetworkReportSummary>("ai_generate_network_report", {
+      hosts: hosts && hosts.length > 0 ? hosts : null,
+      subnet: subnet ?? null,
+    }),
+  troubleshootDevice: (device: HostInfo, symptoms?: string[]) =>
+    invokeCommand<DeviceTroubleshootAdvice>("ai_troubleshoot_device", {
+      device,
+      symptoms: symptoms && symptoms.length > 0 ? symptoms : null,
+    }),
 
   // Exports
   exportDevicesToCsv: () => invokeCommand<string>("export_devices_to_csv"),

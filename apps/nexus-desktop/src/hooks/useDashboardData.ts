@@ -12,6 +12,7 @@ import {
   selectAverageLatency,
   selectCriticalAlerts,
   selectDeviceTypeData,
+  selectLatestThroughput,
   selectRiskLabel,
   selectScanTrendData,
   selectUnknownDevices,
@@ -98,6 +99,7 @@ export function useDashboardData(
   const avgLatency = useMemo(() => selectAverageLatency(scanResult, payload), [scanResult, payload]);
   const scanTrendData = useMemo(() => selectScanTrendData(payload), [payload]);
   const deviceTypeData = useMemo(() => selectDeviceTypeData(payload), [payload]);
+  const latestThroughput = useMemo(() => selectLatestThroughput(payload), [payload]);
   const riskLabel = useMemo(() => selectRiskLabel(payload), [payload]);
 
   return {
@@ -112,6 +114,7 @@ export function useDashboardData(
     avgLatency,
     scanTrendData,
     deviceTypeData,
+    latestThroughput,
     riskLabel,
   };
 }

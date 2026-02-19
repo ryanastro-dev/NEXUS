@@ -4,11 +4,20 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "shell:allow-execute",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-start-dragging",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "core:event:default",
     "shell:allow-open",
     "dialog:default",
     "dialog:allow-save",
+    "fs:default",
     {
       "identifier": "fs:allow-write-file",
       "allow": [
@@ -20,9 +29,6 @@
         },
         {
           "path": "$DOCUMENT/*"
-        },
-        {
-          "path": "$HOME/*"
         }
       ]
     }

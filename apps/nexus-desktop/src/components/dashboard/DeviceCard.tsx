@@ -53,6 +53,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
   
   const isOnline = device.response_time_ms !== null && device.response_time_ms !== undefined;
   const isWarning = device.risk_score >= 50;
+  const openPorts = device.open_ports ?? [];
   
   // Get status badge
   const getStatusBadge = () => {
@@ -67,11 +68,23 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
   const lastSeenText = device.last_seen 
     ? getRelativeTime(device.last_seen)
     : (isOnline ? 'Just now' : 'Unknown');
+
+  const responseTimeText =
+    device.response_time_ms !== null && device.response_time_ms !== undefined
+      ? `${device.response_time_ms}ms`
+      : 'N/A';
+
+  const openPortsText =
+    openPorts.length > 0
+      ? `${openPorts.slice(0, 3).join(', ')}${openPorts.length > 3 ? ` +${openPorts.length - 3}` : ''}`
+      : 'None';
+
+  const vendorText = device.vendor?.trim() || 'Unknown';
   
   return (
     <motion.div
       onClick={onClick}
-      className="cursor-pointer rounded-lg border border-theme bg-bg-secondary p-3.5 transition-all hover:border-accent-blue/50 lg:p-4"
+      className="flex h-full min-h-[292px] cursor-pointer flex-col rounded-lg border border-theme bg-bg-secondary p-3.5 transition-all hover:border-accent-blue/50 lg:p-4"
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ scale: 1.01, y: -2 }}
@@ -114,41 +127,32 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
       {/* Real Network Metrics */}
       <div className="mb-3 space-y-2">
         {/* Response Time */}
-        {device.response_time_ms !== null && device.response_time_ms !== undefined && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Signal className="h-3 w-3 text-text-muted" />
-              <span className="text-xs text-text-muted">Response Time</span>
-            </div>
-            <span className="text-xs font-semibold text-text-primary">
-              {device.response_time_ms}ms
-            </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Signal className="h-3 w-3 text-text-muted" />
+            <span className="text-xs text-text-muted">Response Time</span>
           </div>
-        )}
+          <span className="text-xs font-semibold text-text-primary">{responseTimeText}</span>
+        </div>
 
         {/* Open Ports */}
-        {device.open_ports && device.open_ports.length > 0 && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Wifi className="h-3 w-3 text-text-muted" />
-              <span className="text-xs text-text-muted">Open Ports</span>
-            </div>
-            <span className="text-xs font-semibold text-text-primary">
-              {device.open_ports.slice(0, 3).join(', ')}
-              {device.open_ports.length > 3 && `+${device.open_ports.length - 3}`}
-            </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Wifi className="h-3 w-3 text-text-muted" />
+            <span className="text-xs text-text-muted">Open Ports</span>
           </div>
-        )}
+          <span className="max-w-[150px] truncate text-xs font-semibold text-text-primary">
+            {openPortsText}
+          </span>
+        </div>
 
         {/* Vendor */}
-        {device.vendor && (
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted">Vendor</span>
-            <span className="max-w-[150px] truncate text-xs font-semibold text-text-primary">
-              {device.vendor}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-text-muted">Vendor</span>
+          <span className="max-w-[150px] truncate text-xs font-semibold text-text-primary">
+            {vendorText}
+          </span>
+        </div>
 
         {/* Risk Score */}
         <div className="flex items-center justify-between">
@@ -166,7 +170,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
       </div>
 
       {/* Footer: Security Grade & Last Seen */}
-      <div className="grid grid-cols-2 gap-2 border-t border-theme pt-2">
+      <div className="mt-auto grid grid-cols-2 gap-2 border-t border-theme pt-2">
         <div>
           <p className="mb-1 text-xs text-text-muted">Security Grade</p>
           <p className={`text-base font-bold ${

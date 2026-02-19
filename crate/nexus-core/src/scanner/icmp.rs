@@ -5,26 +5,14 @@ use pnet::util::MacAddr;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use std::time::Duration;
 use std::time::Instant;
 use surge_ping::{Client, Config, IcmpPacket, PingIdentifier, PingSequence};
 use tokio::sync::{Mutex, Semaphore};
+use tokio::task::JoinSet;
 
 use crate::config::{max_concurrent_pings, ping_retries, ping_timeout};
-
-/// Logs a message to stderr
-macro_rules! log_stderr {
-    ($($arg:tt)*) => {
-        tracing::info!($($arg)*);
-    };
-}
-
-/// Logs a warning to stderr
-macro_rules! log_warn {
-    ($($arg:tt)*) => {
-        tracing::warn!($($arg)*);
-    };
-}
 
 /// Result of an ICMP ping including TTL for OS fingerprinting
 #[derive(Debug, Clone)]
@@ -33,13 +21,17 @@ pub struct IcmpResult {
     pub ttl: Option<u8>,
 }
 
+static PING_ID_COUNTER: AtomicU16 = AtomicU16::new(1);
+
 /// Generates a random ping identifier
 fn rand_id() -> u16 {
-    use std::time::SystemTime;
-    let duration = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
-    ((duration.as_nanos() % 0xFFFF) as u16).wrapping_add(1)
+    PING_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
+fn is_cancelled(cancel_token: Option<&Arc<AtomicBool>>) -> bool {
+    cancel_token
+        .map(|token| token.load(Ordering::Relaxed))
+        .unwrap_or(false)
 }
 
 /// Guess the operating system based on TTL value
@@ -94,12 +86,13 @@ async fn ping_host_with_retries(
 /// Performs ICMP scan on discovered hosts to get response times and TTL
 pub async fn icmp_scan(
     arp_hosts: &HashMap<Ipv4Addr, MacAddr>,
+    cancel_token: Option<Arc<AtomicBool>>,
 ) -> Result<HashMap<Ipv4Addr, IcmpResult>> {
     if arp_hosts.is_empty() {
         return Ok(HashMap::new());
     }
 
-    log_stderr!(
+    crate::log_stderr!(
         "Phase 2: ICMP scanning {} hosts for response times...",
         arp_hosts.len()
     );
@@ -108,7 +101,7 @@ pub async fn icmp_scan(
     let client = match Client::new(&config) {
         Ok(c) => Arc::new(c),
         Err(e) => {
-            log_warn!(
+            crate::log_warn!(
                 "ICMP client unavailable ({}), skipping latency measurement",
                 e
             );
@@ -121,21 +114,34 @@ pub async fn icmp_scan(
     let cfg_retries = ping_retries();
     let semaphore = Arc::new(Semaphore::new(concurrency));
     let results = Arc::new(Mutex::new(HashMap::new()));
-
-    let mut handles = Vec::new();
+    let mut tasks: JoinSet<()> = JoinSet::new();
 
     for &ip in arp_hosts.keys() {
+        if is_cancelled(cancel_token.as_ref()) {
+            crate::log_warn!("ICMP scan cancelled while scheduling targets");
+            break;
+        }
+
         let client = Arc::clone(&client);
         let semaphore = Arc::clone(&semaphore);
         let results = Arc::clone(&results);
-        let handle = tokio::spawn(async move {
+        let cancel_token = cancel_token.clone();
+        tasks.spawn(async move {
+            if is_cancelled(cancel_token.as_ref()) {
+                return;
+            }
+
             let _permit = match semaphore.acquire().await {
                 Ok(permit) => permit,
                 Err(e) => {
-                    log_warn!("ICMP semaphore acquire failed for {}: {}", ip, e);
+                    crate::log_warn!("ICMP semaphore acquire failed for {}: {}", ip, e);
                     return;
                 }
             };
+
+            if is_cancelled(cancel_token.as_ref()) {
+                return;
+            }
 
             if let Some(icmp_result) =
                 ping_host_with_retries(&client, ip, cfg_retries, cfg_timeout).await
@@ -144,18 +150,28 @@ pub async fn icmp_scan(
                 res.insert(ip, icmp_result);
             }
         });
-
-        handles.push(handle);
     }
 
-    for handle in handles {
-        if let Err(e) = handle.await {
-            log_warn!("ICMP scan task failed: {}", e);
+    while !tasks.is_empty() {
+        if is_cancelled(cancel_token.as_ref()) {
+            crate::log_warn!("ICMP scan cancelled; aborting in-flight tasks");
+            tasks.abort_all();
+            break;
+        }
+
+        match tokio::time::timeout(Duration::from_millis(50), tasks.join_next()).await {
+            Ok(Some(Err(e))) => {
+                if !e.is_cancelled() {
+                    crate::log_warn!("ICMP scan task failed: {}", e);
+                }
+            }
+            Ok(Some(Ok(()))) | Err(_) => {}
+            Ok(None) => break,
         }
     }
 
-    let res = results.lock().await;
-    log_stderr!("Phase 2 complete: {} hosts responded to ICMP", res.len());
+    let mut res = results.lock().await;
+    crate::log_stderr!("Phase 2 complete: {} hosts responded to ICMP", res.len());
 
-    Ok(res.clone())
+    Ok(std::mem::take(&mut *res))
 }

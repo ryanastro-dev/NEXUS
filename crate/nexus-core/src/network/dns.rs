@@ -6,28 +6,22 @@ use dns_lookup::lookup_addr;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 /// Maximum concurrent DNS lookups
-const MAX_CONCURRENT_DNS: usize = 10;
+const MAX_CONCURRENT_DNS: usize = 50;
 
 /// DNS lookup timeout (synchronous, so we use spawn_blocking)
-const DNS_TIMEOUT_MS: u64 = 2000;
+const DNS_TIMEOUT_MS: u64 = 1000;
 
-/// Logs a message to stderr
-macro_rules! log_stderr {
-    ($($arg:tt)*) => {
-        tracing::info!($($arg)*);
-    };
-}
-
-/// Logs a warning to stderr
-macro_rules! log_warn {
-    ($($arg:tt)*) => {
-        tracing::warn!($($arg)*);
-    };
+fn is_cancelled(cancel_token: Option<&Arc<AtomicBool>>) -> bool {
+    cancel_token
+        .map(|token| token.load(Ordering::Relaxed))
+        .unwrap_or(false)
 }
 
 /// Perform reverse DNS lookup for a single IP address
@@ -47,30 +41,46 @@ pub fn reverse_lookup(ip: Ipv4Addr) -> Option<String> {
 }
 
 /// Perform reverse DNS lookup for multiple IP addresses concurrently
-pub async fn dns_scan(ips: &[Ipv4Addr]) -> HashMap<Ipv4Addr, String> {
+pub async fn dns_scan(
+    ips: &[Ipv4Addr],
+    cancel_token: Option<Arc<AtomicBool>>,
+) -> HashMap<Ipv4Addr, String> {
     if ips.is_empty() {
         return HashMap::new();
     }
 
-    log_stderr!("Phase 5: DNS reverse lookup for {} hosts...", ips.len());
+    crate::log_stderr!("Phase 5: DNS reverse lookup for {} hosts...", ips.len());
 
     let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_DNS));
     let results = Arc::new(Mutex::new(HashMap::new()));
-
-    let mut handles = Vec::new();
+    let mut tasks: JoinSet<()> = JoinSet::new();
 
     for &ip in ips {
+        if is_cancelled(cancel_token.as_ref()) {
+            crate::log_warn!("DNS scan cancelled while scheduling targets");
+            break;
+        }
+
         let semaphore = Arc::clone(&semaphore);
         let results = Arc::clone(&results);
+        let cancel_token = cancel_token.clone();
 
-        let handle = tokio::spawn(async move {
+        tasks.spawn(async move {
+            if is_cancelled(cancel_token.as_ref()) {
+                return;
+            }
+
             let _permit = match semaphore.acquire().await {
                 Ok(permit) => permit,
                 Err(e) => {
-                    log_warn!("DNS semaphore acquire failed for {}: {}", ip, e);
+                    crate::log_warn!("DNS semaphore acquire failed for {}: {}", ip, e);
                     return;
                 }
             };
+
+            if is_cancelled(cancel_token.as_ref()) {
+                return;
+            }
 
             // Run DNS lookup in blocking thread with timeout
             let lookup_result = tokio::time::timeout(
@@ -86,25 +96,35 @@ pub async fn dns_scan(ips: &[Ipv4Addr]) -> HashMap<Ipv4Addr, String> {
                 }
                 Ok(Ok(None)) => {}
                 Ok(Err(e)) => {
-                    log_warn!("DNS worker join failed for {}: {}", ip, e);
+                    crate::log_warn!("DNS worker join failed for {}: {}", ip, e);
                 }
                 Err(_) => {}
             }
         });
-
-        handles.push(handle);
     }
 
-    for handle in handles {
-        if let Err(e) = handle.await {
-            log_warn!("DNS scan task failed: {}", e);
+    while !tasks.is_empty() {
+        if is_cancelled(cancel_token.as_ref()) {
+            crate::log_warn!("DNS scan cancelled; aborting in-flight tasks");
+            tasks.abort_all();
+            break;
+        }
+
+        match tokio::time::timeout(Duration::from_millis(50), tasks.join_next()).await {
+            Ok(Some(Err(e))) => {
+                if !e.is_cancelled() {
+                    crate::log_warn!("DNS scan task failed: {}", e);
+                }
+            }
+            Ok(Some(Ok(()))) | Err(_) => {}
+            Ok(None) => break,
         }
     }
 
-    let res = results.lock().await;
-    log_stderr!("Phase 5 complete: {} hostnames resolved", res.len());
+    let mut res = results.lock().await;
+    crate::log_stderr!("Phase 5 complete: {} hostnames resolved", res.len());
 
-    res.clone()
+    std::mem::take(&mut *res)
 }
 
 #[cfg(test)]

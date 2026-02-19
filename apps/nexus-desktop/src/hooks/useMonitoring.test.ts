@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatEventMessage, getEventStyle } from "./useMonitoring";
+import { createInitialMonitoringState, reduceMonitoringState } from "./monitoring";
 import type { NetworkEventType } from "../lib/api/types";
 
 describe("useMonitoring helpers", () => {
@@ -33,5 +34,24 @@ describe("useMonitoring helpers", () => {
     const style = getEventStyle("UnknownEvent");
     expect(style.icon).toBe("📌");
     expect(style.color).toBe("text-gray-500");
+  });
+
+  it("updates status timestamps and counts on ScanCompleted", () => {
+    const initial = createInitialMonitoringState();
+    const event: NetworkEventType = {
+      type: "ScanCompleted",
+      data: {
+        scan_number: 1,
+        hosts_found: 5,
+        duration_ms: 1500,
+      },
+    };
+
+    const next = reduceMonitoringState(initial, event, 50);
+    expect(next.status.scan_count).toBe(1);
+    expect(next.status.devices_total).toBe(5);
+    expect(next.status.devices_online).toBe(5);
+    expect(next.status.last_scan_time).toBeDefined();
+    expect(Number.isFinite(Date.parse(next.status.last_scan_time ?? ""))).toBe(true);
   });
 });

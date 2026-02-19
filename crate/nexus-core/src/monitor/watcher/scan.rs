@@ -78,7 +78,7 @@ where
         message: format!("TCP probing {} hosts...", arp_hosts.len()),
     });
 
-    let port_results = tcp_probe_scan(&arp_hosts)
+    let port_results = tcp_probe_scan(&arp_hosts, None)
         .await
         .map_err(|error| format!("TCP scan error: {}", error))?;
 
@@ -94,7 +94,7 @@ where
         .copied()
         .collect();
 
-    let dns_hostnames = dns_scan(&host_ips).await;
+    let dns_hostnames = dns_scan(&host_ips, None).await;
 
     callback(NetworkEvent::ScanProgress {
         phase: "COMPLETE".to_string(),
@@ -109,7 +109,7 @@ where
             let mac_str = format!("{}", mac);
             let vendor_info = lookup_vendor_info(&mac_str);
             let open_ports = port_results.get(ip).cloned().unwrap_or_default();
-            let is_gateway = ip.octets()[3] == 1 || open_ports.contains(&80);
+            let is_gateway = ip.octets()[3] == 1;
 
             let device_type = infer_device_type(
                 vendor_info.vendor.as_deref(),
