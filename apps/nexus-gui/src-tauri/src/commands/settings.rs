@@ -344,7 +344,10 @@ pub fn apply_runtime_settings(
 #[tauri::command]
 pub fn apply_ai_runtime_settings(settings: AiRuntimeSettingsInput) -> Result<(), String> {
     let mode = settings.mode.trim().to_ascii_lowercase();
-    if !matches!(mode.as_str(), "disabled" | "local" | "cloud" | "hybrid_auto") {
+    if !matches!(
+        mode.as_str(),
+        "disabled" | "local" | "cloud" | "hybrid_auto"
+    ) {
         return Err("Invalid AI mode. Use disabled/local/cloud/hybrid_auto".to_string());
     }
 

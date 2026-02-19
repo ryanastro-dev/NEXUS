@@ -4,7 +4,7 @@ import type { StreamEvent } from './types';
 
 const THREAD_LOG_PREFIX =
   /^(?:\d{4}-\d{2}-\d{2}T[^\s]+\s+)?(?:INFO|WARN|ERROR)\s+ThreadId\([^)]*\)\s+\d+:\s*/i;
-const LEVEL_PREFIX = /^(?:INFO|WARN|ERROR)\s*[:\-]\s*/i;
+const LEVEL_PREFIX = /^(?:INFO|WARN|ERROR)\s*[:-]\s*/i;
 
 function currentTimestamp(): string {
   return new Date().toTimeString().slice(0, 8);

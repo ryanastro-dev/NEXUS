@@ -1,5 +1,5 @@
 use chrono::Utc;
-use nexus_core::{HostInfo, HybridInsightsResult, generate_hybrid_insights};
+use nexus_core::{generate_hybrid_insights, HostInfo, HybridInsightsResult};
 
 use super::shared::{get_db_connection, lock_db_connection};
 use super::state::AppState;
@@ -52,7 +52,9 @@ pub struct DeviceTroubleshootAdvice {
 }
 
 #[tauri::command]
-pub async fn ai_analyze_device_security(device: HostInfo) -> Result<DeviceSecurityAnalysis, String> {
+pub async fn ai_analyze_device_security(
+    device: HostInfo,
+) -> Result<DeviceSecurityAnalysis, String> {
     if device.ip.trim().is_empty() {
         return Err("Device IP is required for security analysis".to_string());
     }
@@ -145,7 +147,10 @@ pub async fn ai_generate_network_report(
         }
 
         if let Some((vendor, count)) = insights.vendor_distribution.top_vendors.first() {
-            highlights.push(format!("Top vendor footprint: {} ({} devices)", vendor, count));
+            highlights.push(format!(
+                "Top vendor footprint: {} ({} devices)",
+                vendor, count
+            ));
         }
 
         dedup_and_cap(highlights, 4)
@@ -205,7 +210,10 @@ pub async fn ai_troubleshoot_device(
         .unwrap_or_else(|| fallback_troubleshoot_summary(&device, &status));
 
     let likely_causes = if let Some(overlay) = insights.ai_overlay.as_ref() {
-        non_empty_or_fallback(&overlay.top_risks, fallback_likely_causes(&device, &status, &symptoms))
+        non_empty_or_fallback(
+            &overlay.top_risks,
+            fallback_likely_causes(&device, &status, &symptoms),
+        )
     } else {
         fallback_likely_causes(&device, &status, &symptoms)
     };
@@ -333,13 +341,19 @@ fn fallback_device_actions(device: &HostInfo) -> Vec<String> {
     let mut actions = Vec::new();
 
     if device.open_ports.contains(&23) {
-        actions.push("Disable Telnet (port 23) and migrate to SSH with key-based auth.".to_string());
+        actions
+            .push("Disable Telnet (port 23) and migrate to SSH with key-based auth.".to_string());
     }
     if device.open_ports.contains(&22) {
-        actions.push("Keep SSH (port 22) restricted to trusted admin IPs and enforce strong credentials.".to_string());
+        actions.push(
+            "Keep SSH (port 22) restricted to trusted admin IPs and enforce strong credentials."
+                .to_string(),
+        );
     }
     if device.open_ports.contains(&3389) {
-        actions.push("Restrict RDP (port 3389) behind VPN/NLA and enable MFA for remote access.".to_string());
+        actions.push(
+            "Restrict RDP (port 3389) behind VPN/NLA and enable MFA for remote access.".to_string(),
+        );
     }
 
     if device.risk_score >= 70 {
