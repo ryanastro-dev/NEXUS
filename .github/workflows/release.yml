@@ -105,6 +105,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Package Intel macOS app bundle
+        if: matrix.platform_id == 'macos15-intel'
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find target apps/nexus-gui/src-tauri/target -type d -path '*/release/bundle/macos/*.app' 2>/dev/null | head -n 1 || true)"
+          if [ -z "$app_path" ]; then
+            echo "Intel macOS .app bundle not found"
+            exit 1
+          fi
+          app_dir="$(dirname "$app_path")"
+          app_name="$(basename "$app_path")"
+          archive_name="${app_name%.app}_x64.app.tar.gz"
+          (cd "$app_dir" && tar -czf "$archive_name" "$app_name")
+          echo "Created $app_dir/$archive_name"
+
       - name: Upload desktop artifacts
         uses: actions/upload-artifact@v6
         with:
