@@ -110,6 +110,14 @@ jobs:
         with:
           name: release-${{ matrix.platform_id }}
           path: |
+            target/**/release/bundle/**/*.deb
+            target/**/release/bundle/**/*.rpm
+            target/**/release/bundle/**/*.AppImage
+            target/**/release/bundle/**/*.exe
+            target/**/release/bundle/**/*.msi
+            target/**/release/bundle/**/*.dmg
+            target/**/release/bundle/**/*.app.tar.gz
+            target/**/release/bundle/**/*.tar.gz
             apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.deb
             apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.rpm
             apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.AppImage
@@ -118,7 +126,7 @@ jobs:
             apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.dmg
             apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.app.tar.gz
             apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.tar.gz
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
   publish:
@@ -144,6 +152,16 @@ jobs:
             | while IFS= read -r -d '' f; do cp "$f" dist/flat/; done
           ls -la dist/flat
 
+      - name: Verify release files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=$(find dist/flat -type f | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "No release files found after artifact download/flatten."
+            exit 1
+          fi
+
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
@@ -159,4 +177,3 @@ jobs:
             dist/flat/*.rpm
             dist/flat/*.AppImage
             dist/flat/*.tar.gz
-
