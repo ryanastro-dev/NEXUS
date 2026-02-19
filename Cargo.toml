@@ -1,6 +1,6 @@
 [workspace]
 members = [
   "crate/nexus-core",
-  "apps/nexus-desktop/src-tauri"
+  "apps/nexus-gui/src-tauri"
 ]
 resolver = "2"

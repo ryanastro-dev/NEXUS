@@ -17,6 +17,7 @@ jobs:
   build:
     name: Build desktop (${{ matrix.platform_id }})
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     permissions:
       contents: read
     strategy:
@@ -27,14 +28,30 @@ jobs:
             platform_id: linux-x64
             tauri_args: ""
             needs_npcap: false
+            experimental: false
           - os: windows-latest
             platform_id: windows-x64
             tauri_args: ""
             needs_npcap: true
-          - os: macos-latest
-            platform_id: macos-arm64
+            experimental: false
+          - os: macos-15-intel
+            platform_id: macos15-intel
+            tauri_args: "--target x86_64-apple-darwin"
+            needs_npcap: false
+            mac_target: x86_64-apple-darwin
+            experimental: false
+          - os: macos-15
+            platform_id: macos15-arm64
             tauri_args: "--target aarch64-apple-darwin"
             needs_npcap: false
+            mac_target: aarch64-apple-darwin
+            experimental: false
+          - os: macos-26
+            platform_id: macos26-arm64-beta
+            tauri_args: "--target aarch64-apple-darwin"
+            needs_npcap: false
+            mac_target: aarch64-apple-darwin
+            experimental: true
 
     steps:
       - name: Checkout
@@ -45,21 +62,21 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/nexus-desktop/package-lock.json
+          cache-dependency-path: apps/nexus-gui/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Add Rust target (macOS ARM)
-        if: matrix.os == 'macos-latest'
-        run: rustup target add aarch64-apple-darwin
+      - name: Add Rust target (macOS)
+        if: startsWith(matrix.os, 'macos-')
+        run: rustup target add ${{ matrix.mac_target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: |
             ./ -> target
-            ./apps/nexus-desktop/src-tauri -> target
+            ./apps/nexus-gui/src-tauri -> target
 
       - name: Install Linux desktop dependencies
         if: matrix.os == 'ubuntu-24.04'
@@ -79,11 +96,11 @@ jobs:
         run: ./scripts/install-npcap-sdk.ps1
 
       - name: Install frontend dependencies
-        working-directory: apps/nexus-desktop
+        working-directory: apps/nexus-gui
         run: npm ci
 
       - name: Build Tauri app
-        working-directory: apps/nexus-desktop
+        working-directory: apps/nexus-gui
         run: npm run tauri build -- ${{ matrix.tauri_args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,14 +110,14 @@ jobs:
         with:
           name: release-${{ matrix.platform_id }}
           path: |
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.deb
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.rpm
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.AppImage
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.exe
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.msi
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.dmg
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.app.tar.gz
-            apps/nexus-desktop/src-tauri/target/**/release/bundle/**/*.tar.gz
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.deb
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.rpm
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.AppImage
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.exe
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.msi
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.dmg
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.app.tar.gz
+            apps/nexus-gui/src-tauri/target/**/release/bundle/**/*.tar.gz
           if-no-files-found: warn
           retention-days: 7
 
@@ -142,3 +159,4 @@ jobs:
             dist/flat/*.rpm
             dist/flat/*.AppImage
             dist/flat/*.tar.gz
+

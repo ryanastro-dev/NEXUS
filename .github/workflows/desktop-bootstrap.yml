@@ -7,12 +7,12 @@ on:
       - master
       - work
     paths:
-      - "apps/nexus-desktop/**"
+      - "apps/nexus-gui/**"
       - ".github/workflows/desktop-bootstrap.yml"
       - "scripts/desktop-smoke.ps1"
   pull_request:
     paths:
-      - "apps/nexus-desktop/**"
+      - "apps/nexus-gui/**"
       - ".github/workflows/desktop-bootstrap.yml"
       - "scripts/desktop-smoke.ps1"
 
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: apps/nexus-desktop
+        working-directory: apps/nexus-gui
 
     steps:
       - name: Checkout
@@ -40,10 +40,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/nexus-desktop/package-lock.json
+          cache-dependency-path: apps/nexus-gui/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build frontend
         run: npm run build
+
