@@ -15,9 +15,6 @@ import { useKeyboardShortcuts, SHORTCUTS } from "./hooks/useKeyboardShortcuts";
 import Sidebar from "./components/layout/Sidebar";
 import TopHeader from "./components/layout/TopHeader";
 import DeviceDetailModal from "./components/devices/DeviceDetailModal";
-import WelcomeScreen, {
-  useWelcomeScreen,
-} from "./components/common/WelcomeScreen";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { ToastProvider } from "./components/common/Toast";
 import DemoBanner from "./components/common/DemoBanner";
@@ -93,7 +90,6 @@ function AppContent() {
   const monitoring = useMonitoring();
   const autoStartedMonitorRef = useRef(false);
   const { toggleTheme } = useTheme();
-  const { shouldShow: showWelcome, markAsShown } = useWelcomeScreen();
 
   const fetchUnreadAlertsCount = useCallback(async () => {
     try {
@@ -348,15 +344,6 @@ function AppContent() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
-      {showWelcome && (
-        <WelcomeScreen
-          onStartScan={() => {
-            markAsShown();
-            void scan();
-          }}
-          isScanning={isScanning}
-        />
-      )}
 
       <Sidebar currentPage={currentPage} onNavigate={handlePageChange} />
 
@@ -394,3 +381,4 @@ function App() {
 }
 
 export default App;
+
