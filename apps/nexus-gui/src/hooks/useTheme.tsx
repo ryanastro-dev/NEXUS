@@ -127,6 +127,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('theme-mode', themeMode);
   }, [theme, themeMode]);
 
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+
+    const appWindow = getCurrentWindow();
+    const windowTheme: TauriTheme | null = themeMode === 'system' ? null : theme;
+
+    void appWindow.setTheme(windowTheme).catch(() => {
+      // Keep web theme behavior even if native theme sync is unavailable.
+    });
+  }, [theme, themeMode]);
+
   const toggleTheme = () => {
     setThemeModeState((prev) => {
       if (prev === 'dark') {
@@ -167,3 +180,4 @@ export function useTheme() {
     setThemeMode: context.setThemeMode,
   };
 }
+

@@ -1,6 +1,6 @@
 [package]
 name = "nexus-gui"
-version = "0.1.0"
+version = "0.1.2"
 description = "NEXUS Desktop — Cross-Platform Network Intelligence GUI"
 authors = ["NEXUS Team"]
 edition = "2021"
@@ -36,3 +36,4 @@ nexus-core = { path = "../../../crate/nexus-core", features = ["pdf-export"] }
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
