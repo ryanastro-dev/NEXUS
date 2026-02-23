@@ -100,7 +100,7 @@ impl ArpMonitor {
                                 Ok(()) => {}
                                 Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
                                     dropped_on_full += 1;
-                                    if dropped_on_full == 1 || dropped_on_full % 500 == 0 {
+                                    if dropped_on_full == 1 || dropped_on_full.is_multiple_of(500) {
                                         tracing::warn!(
                                             dropped_events = dropped_on_full,
                                             "ARP passive queue full; dropping newest events"

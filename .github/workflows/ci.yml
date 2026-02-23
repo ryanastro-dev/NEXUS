@@ -104,6 +104,14 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
 
+      - name: Prepare frontend dist placeholder for Tauri context
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path apps/nexus-gui/dist | Out-Null
+          if (-not (Test-Path apps/nexus-gui/dist/index.html)) {
+            Set-Content -Path apps/nexus-gui/dist/index.html -Value '<!doctype html><title>NEXUS</title>' -NoNewline
+          }
+
       - name: Cargo check
         run: cargo check --workspace --all-targets
 
