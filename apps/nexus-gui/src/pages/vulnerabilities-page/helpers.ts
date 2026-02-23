@@ -5,13 +5,22 @@ import type {
   VulnerabilityStats,
 } from './types';
 
+function normalizeSecurityGrade(grade?: string): string {
+  return (grade ?? '').trim().toUpperCase();
+}
+
+function isSecureGrade(grade?: string): boolean {
+  const normalized = normalizeSecurityGrade(grade);
+  return normalized === 'A' || normalized === 'B';
+}
+
 export function mapHostsToDevices(activeHosts?: ScanHostLike[]): DeviceWithVulns[] {
   if (!activeHosts) {
     return [];
   }
 
-  return activeHosts.map((host) => ({
-    id: 0,
+  return activeHosts.map((host, index) => ({
+    id: index,
     mac: host.mac,
     last_ip: host.ip,
     vendor: host.vendor,
@@ -27,13 +36,10 @@ export function mapHostsToDevices(activeHosts?: ScanHostLike[]): DeviceWithVulns
 
 export function buildVulnerabilityStats(devices: DeviceWithVulns[]): VulnerabilityStats {
   return {
-    critical: devices.filter((device) => device.security_grade === 'F').length,
-    high: devices.filter((device) => device.security_grade === 'D').length,
-    medium: devices.filter((device) => device.security_grade === 'C').length,
-    secure: devices.filter((device) => {
-      const grade = device.security_grade || '';
-      return grade === 'A' || grade === 'B' || grade === '' || grade === 'N/A';
-    }).length,
+    critical: devices.filter((device) => normalizeSecurityGrade(device.security_grade) === 'F').length,
+    high: devices.filter((device) => normalizeSecurityGrade(device.security_grade) === 'D').length,
+    medium: devices.filter((device) => normalizeSecurityGrade(device.security_grade) === 'C').length,
+    secure: devices.filter((device) => isSecureGrade(device.security_grade)).length,
   };
 }
 
@@ -46,18 +52,25 @@ export function filterDevicesByRisk(
       return true;
     }
 
+    const grade = normalizeSecurityGrade(device.security_grade);
+
     if (filter === 'critical') {
-      return device.security_grade === 'F';
+      return grade === 'F';
     }
 
     if (filter === 'high') {
-      return device.security_grade === 'D';
+      return grade === 'D';
     }
 
     if (filter === 'medium') {
-      return device.security_grade === 'C';
+      return grade === 'C';
+    }
+
+    if (filter === 'secure') {
+      return isSecureGrade(grade);
     }
 
     return true;
   });
 }
+

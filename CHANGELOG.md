@@ -15,8 +15,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [0.3.1] - 2026-02-08
 
 ### Added
-- Typed frontend/backend command client (`apps/nexus-desktop/src/lib/api/tauri-client.ts`) and shared TS API types.
-- Runtime utility checks for Tauri availability (`apps/nexus-desktop/src/lib/runtime/is-tauri.ts`).
+- Typed frontend/backend command client (`apps/nexus-gui/src/lib/api/tauri-client.ts`) and shared TS API types.
+- Runtime utility checks for Tauri availability (`apps/nexus-gui/src/lib/runtime/is-tauri.ts`).
 - Integration test coverage for alert generation + dedupe across consecutive scans.
 
 ### Changed
@@ -34,8 +34,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Reduced scan log noise by moving repeated interface/monitor logs to structured debug paths.
 
 ### Validation
-- `cargo check --all-targets` (root and `apps/nexus-desktop/src-tauri`) passing.
-- `cargo clippy --all-targets` (root and `apps/nexus-desktop/src-tauri`) passing.
+- `cargo check --all-targets` (root and `apps/nexus-gui/src-tauri`) passing.
+- `cargo clippy --all-targets` (root and `apps/nexus-gui/src-tauri`) passing.
 - `cargo test --all-targets` passing.
 - `cargo test --test alerts_dedupe_integration` passing.
-- `npm --prefix apps/nexus-desktop run build` passing.
+- `npm --prefix apps/nexus-gui run build` passing.

@@ -169,7 +169,7 @@ Premium native application with 9 full pages.
 │       ├── insights/          # Health scoring, security grading
 │       ├── exports/           # CSV, JSON, PDF
 │       └── logging/           # Structured tracing
-├── apps/nexus-desktop/        # Desktop application
+├── apps/nexus-gui/        # Desktop application
 │   ├── src/                   # React frontend
 │   │   ├── pages/             # 9 page components
 │   │   ├── components/        # UI component library
@@ -198,10 +198,10 @@ Premium native application with 9 full pages.
 
 ```bash
 # 1. Install frontend dependencies
-npm --prefix apps/nexus-desktop ci
+npm --prefix apps/nexus-gui ci
 
 # 2. Launch development mode (backend + frontend hot-reload)
-npm --prefix apps/nexus-desktop run tauri dev
+npm --prefix apps/nexus-gui run tauri dev
 
 # 3. Run core engine tests
 cargo test -p nexus-core --all-targets
@@ -210,7 +210,7 @@ cargo test -p nexus-core --all-targets
 ### Frontend Only (no backend)
 
 ```bash
-npm --prefix apps/nexus-desktop run dev
+npm --prefix apps/nexus-gui run dev
 # → http://localhost:1420
 ```
 
@@ -219,7 +219,7 @@ npm --prefix apps/nexus-desktop run dev
 ## Build
 
 ```bash
-cd apps/nexus-desktop
+cd apps/nexus-gui
 npm run tauri build
 ```
 
@@ -237,7 +237,7 @@ npm run tauri build
 cargo check --all-targets          # Type checking
 cargo clippy --all-targets         # Linting
 cargo test --all-targets           # Unit + integration tests
-npm --prefix apps/nexus-desktop run build   # Frontend build
+npm --prefix apps/nexus-gui run build   # Frontend build
 ```
 
 ---
@@ -333,8 +333,8 @@ This project is developed for academic and research purposes at Technological Un
 ## 🚀 Quick Start (စတင်နည်း)
 
 ```bash
-npm --prefix apps/nexus-desktop ci
-npm --prefix apps/nexus-desktop run tauri dev
+npm --prefix apps/nexus-gui ci
+npm --prefix apps/nexus-gui run tauri dev
 ```
 
 Platform အလိုက် Installer ထွက်ရှိနိုင်ပါသည်:

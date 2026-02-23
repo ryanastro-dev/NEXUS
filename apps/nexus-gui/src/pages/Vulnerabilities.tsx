@@ -29,6 +29,10 @@ export default function Vulnerabilities() {
     () => filterDevicesByRisk(devices, filter),
     [devices, filter],
   );
+  const toggleRiskFilter = (nextFilter: Exclude<VulnerabilityFilter, 'all'>) => {
+    setFilter((currentFilter) => (currentFilter === nextFilter ? 'all' : nextFilter));
+  };
+
   const summaryCardClass = 'h-[86px] min-w-0 w-full p-2.5';
 
   if (!scanResult && !isScanning) {
@@ -157,7 +161,7 @@ export default function Vulnerabilities() {
             count={stats.critical}
             icon={<XCircle className="h-5 w-5" />}
             color="red"
-            onClick={() => setFilter('critical')}
+            onClick={() => toggleRiskFilter('critical')}
             active={filter === 'critical'}
             className={summaryCardClass}
           />
@@ -166,7 +170,7 @@ export default function Vulnerabilities() {
             count={stats.high}
             icon={<AlertTriangle className="h-5 w-5" />}
             color="orange"
-            onClick={() => setFilter('high')}
+            onClick={() => toggleRiskFilter('high')}
             active={filter === 'high'}
             className={summaryCardClass}
           />
@@ -175,7 +179,7 @@ export default function Vulnerabilities() {
             count={stats.medium}
             icon={<Info className="h-5 w-5" />}
             color="yellow"
-            onClick={() => setFilter('medium')}
+            onClick={() => toggleRiskFilter('medium')}
             active={filter === 'medium'}
             className={summaryCardClass}
           />
@@ -184,8 +188,8 @@ export default function Vulnerabilities() {
             count={stats.secure}
             icon={<CheckCircle className="h-5 w-5" />}
             color="green"
-            onClick={() => setFilter('all')}
-            active={filter === 'all'}
+            onClick={() => toggleRiskFilter('secure')}
+            active={filter === 'secure'}
             className={summaryCardClass}
           />
         </div>
@@ -201,7 +205,7 @@ export default function Vulnerabilities() {
             <div className="grid auto-rows-fr grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
               {filteredDevices.map((device, index) => (
                 <motion.div
-                  key={device.mac}
+                  key={`${device.mac}-${device.last_ip}-${device.id}`}
                   className="h-full"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -217,3 +221,4 @@ export default function Vulnerabilities() {
     </div>
   );
 }
+
