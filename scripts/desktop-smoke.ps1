@@ -19,7 +19,11 @@ function Run-Step {
   Write-Host "    $Command" -ForegroundColor DarkGray
 
   try {
+    $global:LASTEXITCODE = 0
     Invoke-Expression $Command
+    if ($global:LASTEXITCODE -ne 0) {
+      throw "Command exited with code $global:LASTEXITCODE"
+    }
     Write-Host "[OK] $Name" -ForegroundColor Green
   } catch {
     if ($AllowFailure) {
@@ -32,9 +36,9 @@ function Run-Step {
 }
 
 Run-Step -Name "Rust workspace check" -Command "cargo check --workspace"
-Run-Step -Name "Frontend lint" -Command "npm --prefix apps/nexus-desktop run lint"
-Run-Step -Name "Frontend unit tests" -Command "npm --prefix apps/nexus-desktop run test"
-Run-Step -Name "Desktop frontend build" -Command "npm --prefix apps/nexus-desktop run build"
+Run-Step -Name "Frontend lint" -Command "npm --prefix apps/nexus-gui run lint"
+Run-Step -Name "Frontend unit tests" -Command "npm --prefix apps/nexus-gui run test"
+Run-Step -Name "Desktop frontend build" -Command "npm --prefix apps/nexus-gui run build"
 Run-Step -Name "Alert dedupe integration" -Command "cargo test --workspace --test alerts_dedupe_integration -- --nocapture"
 Run-Step -Name "App dispatch integration" -Command "cargo test --workspace --test app_dispatch_integration -- --nocapture"
 Run-Step -Name "Monitor lifecycle smoke (ignored test)" -Command "cargo test --workspace --test monitor_sequence_smoke -- --ignored --nocapture" -AllowFailure
