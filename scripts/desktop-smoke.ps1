@@ -35,6 +35,21 @@ function Run-Step {
   }
 }
 
+function Ensure-TauriFrontendDist {
+  $distDir = Join-Path $root 'apps/nexus-gui/dist'
+  $indexPath = Join-Path $distDir 'index.html'
+
+  if (-not (Test-Path $distDir)) {
+    New-Item -ItemType Directory -Path $distDir -Force | Out-Null
+  }
+
+  if (-not (Test-Path $indexPath)) {
+    Set-Content -Path $indexPath -Value '<!doctype html><title>NEXUS</title>' -NoNewline
+    Write-Host 'Prepared frontendDist placeholder for Tauri context checks.' -ForegroundColor DarkYellow
+  }
+}
+
+Ensure-TauriFrontendDist
 Run-Step -Name "Rust workspace check" -Command "cargo check --workspace"
 Run-Step -Name "Frontend lint" -Command "npm --prefix apps/nexus-gui run lint"
 Run-Step -Name "Frontend unit tests" -Command "npm --prefix apps/nexus-gui run test"

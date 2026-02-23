@@ -126,6 +126,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Install Npcap SDK (Packet.lib)
+        shell: pwsh
+        run: ./scripts/install-npcap-sdk.ps1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
