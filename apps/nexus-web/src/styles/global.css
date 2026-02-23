@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-dark: #09090b;
+  --color-brand-primary: #3b82f6; /* Blue */
+  --color-brand-secondary: #8b5cf6; /* Purple */
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+:root {
+  --app-bg: #09090b;
+  --app-text: #fafafa;
+  --nav-bg: rgba(9, 9, 11, 0.8);
+  --nav-border: rgba(255, 255, 255, 0.05);
+  --theme-toggle-bg: rgba(255, 255, 255, 0.04);
+  --theme-toggle-border: rgba(255, 255, 255, 0.12);
+  --theme-toggle-icon: #9ca3af;
+  --theme-toggle-active-bg: rgba(255, 255, 255, 0.95);
+  --theme-toggle-active-icon: #111827;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --app-bg: #f8fafc; /* Premium soft off-white */
+  --app-text: #0f172a; /* Deep slate for high contrast */
+  --nav-bg: rgba(255, 255, 255, 0.7);
+  --nav-border: rgba(15, 23, 42, 0.08);
+  --theme-toggle-bg: rgba(15, 23, 42, 0.04);
+  --theme-toggle-border: rgba(15, 23, 42, 0.1);
+  --theme-toggle-icon: #64748b;
+  --theme-toggle-active-bg: #ffffff;
+  --theme-toggle-active-icon: #0f172a;
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.site-nav {
+  background-color: var(--nav-bg);
+  border-color: var(--nav-border);
+}
+
+/* Subtle glowing background effect */
+.glow-bg {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.15) 0%,
+    rgba(9, 9, 11, 0) 70%
+  );
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: -1;
+  border-radius: 50%;
+}
+
+html[data-theme="light"] .glow-bg {
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.08) 0%,
+    rgba(248, 250, 252, 0) 70%
+  );
+}
+
+/* Header theme switch */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 9999px;
+  border: 1px solid var(--theme-toggle-border);
+  background: var(--theme-toggle-bg);
+  padding: 4px;
+}
+
+.theme-toggle__btn {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--theme-toggle-icon);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.theme-toggle__btn:hover {
+  transform: translateY(-1px);
+}
+
+.theme-toggle__btn.is-active {
+  background: var(--theme-toggle-active-bg);
+  color: var(--theme-toggle-active-icon);
+}
+
+/* Glassmorphism Card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+html[data-theme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow:
+    0 4px 6px -1px rgba(15, 23, 42, 0.02),
+    0 10px 15px -3px rgba(15, 23, 42, 0.02),
+    0 20px 25px -5px rgba(15, 23, 42, 0.02);
+}
+
+html[data-theme="light"] .glass-card:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow:
+    0 10px 15px -3px rgba(59, 130, 246, 0.05),
+    0 25px 50px -12px rgba(59, 130, 246, 0.1);
+}
+
+/* Premium typography overrides for light mode readability */
+html[data-theme="light"] .text-white {
+  color: #0f172a;
+}
+
+html[data-theme="light"] .hover\:text-white:hover {
+  color: #1e293b;
+}
+
+html[data-theme="light"] .text-gray-400 {
+  color: #475569; /* Slate 600 - Readable subtext */
+}
+
+html[data-theme="light"] .text-gray-500 {
+  color: #64748b; /* Slate 500 */
+}
+
+html[data-theme="light"] .text-blue-100 {
+  color: #e0e7ff; /* Keep download button subtext readable against blue */
+}
+
+html[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+html[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+html[data-theme="light"] .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.06);
+}
+
+html[data-theme="light"] .border-white\/5 {
+  border-color: rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="light"] .theme-keep-white,
+html[data-theme="light"] .theme-keep-white *,
+html[data-theme="light"] .theme-keep-white .text-blue-100 {
+  color: #ffffff;
+}
+
+/* Light mode specific element adjustments */
+html[data-theme="light"] .theme-invert {
+  filter: invert(1) opacity(0.85);
+}
+
+html[data-theme="light"] .theme-fade-bg {
+  background: linear-gradient(to top, var(--app-bg) 0%, transparent 100%) !important;
+}
+
+html[data-theme="light"] .theme-map-bg {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Make grid lines less harsh in light mode */
+html[data-theme="light"]
+  .bg-\[linear-gradient\(rgba\(255\,\255\,\255\,0\.03\)_1px\,\transparent_1px\)\,linear-gradient\(90deg\,rgba\(255\,\255\,\255\,0\.03\)_1px\,\transparent_1px\)\] {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.02) 1px, transparent 1px);
+}
+
+/* Animated gradient text */
+.gradient-text {
+  background: linear-gradient(to right, #60a5fa, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Fade in animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.delay-100 {
+  animation-delay: 100ms;
+}
+.delay-200 {
+  animation-delay: 200ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}

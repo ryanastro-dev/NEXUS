@@ -1,0 +1,61 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+}
+
+const { title = "NEXUS - Next-Gen Network Intelligence" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+
+    <script is:inline>
+      (() => {
+        const storageKey = "nexus-theme";
+        const valid = new Set(["light", "system", "dark"]);
+        let preference = "system";
+
+        try {
+          const stored = localStorage.getItem(storageKey);
+          if (stored && valid.has(stored)) {
+            preference = stored;
+          }
+        } catch {}
+
+        const prefersDark =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const resolved = preference === "system" ? (prefersDark ? "dark" : "light") : preference;
+
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.dataset.theme = resolved;
+      })();
+    </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+  </head>
+  <body class="antialiased overflow-x-hidden selection:bg-blue-500/30">
+    <div class="glow-bg"></div>
+    <slot />
+
+    <!-- Initialize Icons + Theme Toggle -->
+    <script>
+      import "../scripts/theme";
+    </script>
+  </body>
+</html>

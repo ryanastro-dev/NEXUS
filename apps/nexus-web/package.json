@@ -1,0 +1,27 @@
+{
+  "name": "nexus",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "check": "astro check",
+    "lint": "astro check",
+    "build": "astro build",
+    "preview": "astro preview",
+    "verify": "npm run check && npm run build",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.0",
+    "astro": "^5.17.1",
+    "lucide": "^0.575.0",
+    "tailwindcss": "^4.2.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "typescript": "^5.9.3"
+  }
+}

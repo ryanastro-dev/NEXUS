@@ -1,0 +1,734 @@
+---
+import Layout from "../layouts/Layout.astro";
+import {
+  createDownloadFallbackMap,
+  fetchLatestRelease,
+  findAssetUrl,
+  RELEASE_SELECTORS,
+  type DownloadKey,
+} from "../lib/releases";
+
+const downloadMap = createDownloadFallbackMap();
+let versionLabel = "v1.0.0";
+
+const data = await fetchLatestRelease();
+if (data) {
+  versionLabel = data.tag_name || versionLabel;
+  const assets = Array.isArray(data.assets) ? data.assets : [];
+
+  for (const key of Object.keys(RELEASE_SELECTORS) as DownloadKey[]) {
+    const assetUrl = findAssetUrl(assets, RELEASE_SELECTORS[key]);
+    if (assetUrl) {
+      downloadMap[key] = assetUrl;
+    }
+  }
+}
+---
+
+<Layout>
+  <!-- Navbar -->
+  <nav
+    class="site-nav fixed w-full z-50 top-0 transition-all duration-300 backdrop-blur-md border-b"
+  >
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a
+        href="/"
+        class="flex items-center gap-2 hover:opacity-80 transition-opacity"
+      >
+        <img src="/icon.png" alt="NEXUS Logo" class="w-8 h-8 object-contain" />
+        <span class="font-bold text-xl tracking-wide">NEXUS</span>
+      </a>
+      <div
+        class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400"
+      >
+        <a href="#features" class="hover:text-white transition-colors"
+          >Features</a
+        >
+        <button
+          type="button"
+          disabled
+          class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors cursor-not-allowed group bg-transparent border-0 p-0"
+        >
+          <span>Documentation</span>
+          <span
+            class="inline-flex items-center px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 uppercase tracking-widest group-hover:bg-blue-500/20 transition-colors shadow-sm"
+          >
+            Soon
+          </span>
+        </button>
+        <a
+          href="https://github.com/ryanastro-dev/nexus"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:text-white transition-colors flex items-center gap-1"
+        >
+          <i data-lucide="code-2" class="w-4 h-4"></i> GitHub
+        </a>
+      </div>
+      <div class="flex items-center gap-3">
+        <div
+          class="theme-toggle hidden md:inline-flex"
+          role="radiogroup"
+          aria-label="Theme mode"
+        >
+          <button
+            type="button"
+            data-theme-option="light"
+            class="theme-toggle__btn"
+            aria-label="Light theme"
+            aria-pressed="false"
+          >
+            <i data-lucide="sun" class="w-4 h-4"></i>
+          </button>
+          <button
+            type="button"
+            data-theme-option="system"
+            class="theme-toggle__btn"
+            aria-label="System theme"
+            aria-pressed="false"
+          >
+            <i data-lucide="monitor" class="w-4 h-4"></i>
+          </button>
+          <button
+            type="button"
+            data-theme-option="dark"
+            class="theme-toggle__btn"
+            aria-label="Dark theme"
+            aria-pressed="false"
+          >
+            <i data-lucide="moon-star" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <a
+          href="#download"
+          class="bg-white text-black px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition-colors"
+        >
+          Download
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section
+    class="pt-40 pb-20 px-6 max-w-7xl mx-auto text-center flex flex-col items-center"
+  >
+    <div
+      class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-mono mb-8 opacity-0 animate-fade-in-up"
+    >
+      <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+      <span data-version-label>NEXUS {versionLabel} is now live</span>
+    </div>
+
+    <h1
+      class="text-5xl md:text-7xl font-bold tracking-tight mb-6 opacity-0 animate-fade-in-up delay-100 max-w-4xl leading-tight"
+    >
+      Next-Gen Network <br />
+      <span class="gradient-text">Intelligence</span>
+    </h1>
+
+    <p
+      class="text-lg md:text-xl text-gray-400 max-w-2xl mb-12 opacity-0 animate-fade-in-up delay-200"
+    >
+      AI-powered real-time topology and passive security scanning in a
+      blazing-fast native desktop app.
+    </p>
+
+    <!-- Multi-Platform Download Buttons -->
+    <div
+      id="download"
+      class="flex flex-col items-center gap-6 opacity-0 animate-fade-in-up delay-300 w-full max-w-3xl mx-auto scroll-mt-32"
+    >
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+        <!-- Windows Button -->
+        <a
+          href={downloadMap["windows-exe"]}
+          data-download-key="windows-exe"
+          class="theme-keep-white bg-blue-600 hover:bg-blue-700 text-white py-4 px-5 rounded-2xl font-medium grid grid-cols-[3rem_1fr] items-center gap-3 text-left transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)]"
+        >
+          <span
+            class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 border border-white/20"
+          >
+            <svg viewBox="0 0 448 512" class="w-7 h-7" fill="currentColor"
+              ><path
+                d="M0 93.7l183.6-25.3v177.4H0V93.7zm0 324.6l183.6 25.3V268.4H0v149.9zm203.8 28L448 480V268.4H203.8v177.9zm0-380.6v180.1H448V32L203.8 65.7z"
+              ></path></svg
+            >
+          </span>
+          <div class="text-left leading-tight">
+            <div
+              class="text-[11px] text-blue-100 uppercase tracking-widest font-semibold"
+            >
+              Download for
+            </div>
+            <div class="font-bold text-xl md:text-2xl">Windows</div>
+            <div class="text-[11px] text-blue-100">x64 Setup (.exe)</div>
+          </div>
+        </a>
+
+        <!-- macOS Button -->
+        <a
+          href={downloadMap["macos-dmg"]}
+          data-download-key="macos-dmg"
+          class="bg-white/5 hover:bg-white/10 border border-white/10 text-white py-4 px-5 rounded-2xl font-medium grid grid-cols-[3rem_1fr] items-center gap-3 text-left transition-all hover:border-gray-400"
+        >
+          <span
+            class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 border border-white/10"
+          >
+            <svg viewBox="0 0 384 512" class="w-7 h-7" fill="currentColor"
+              ><path
+                d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"
+              ></path></svg
+            >
+          </span>
+          <div class="text-left leading-tight">
+            <div
+              class="text-[11px] text-gray-400 uppercase tracking-widest font-semibold"
+            >
+              Download for
+            </div>
+            <div class="font-bold text-xl md:text-2xl">macOS</div>
+            <div class="text-[11px] text-gray-400">Apple Silicon (.dmg)</div>
+          </div>
+        </a>
+
+        <!-- Linux Button -->
+        <a
+          href={downloadMap["linux-appimage"]}
+          data-download-key="linux-appimage"
+          class="bg-white/5 hover:bg-white/10 border border-white/10 text-white py-4 px-5 rounded-2xl font-medium grid grid-cols-[3rem_1fr] items-center gap-3 text-left transition-all hover:border-gray-400"
+        >
+          <span
+            class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 border border-white/10"
+          >
+            <img
+              src="/linux.svg"
+              alt="Linux penguin logo"
+              class="w-7 h-7 theme-invert"
+            />
+          </span>
+          <div class="text-left leading-tight">
+            <div
+              class="text-[11px] text-gray-400 uppercase tracking-widest font-semibold"
+            >
+              Download for
+            </div>
+            <div class="font-bold text-xl md:text-2xl">Linux</div>
+            <div class="text-[11px] text-gray-400">amd64 AppImage</div>
+          </div>
+        </a>
+      </div>
+
+      <div
+        class="w-full rounded-2xl border border-white/10 bg-white/[0.02] p-4"
+      >
+        <div
+          class="text-[11px] uppercase tracking-[0.2em] text-gray-400 text-left mb-3"
+        >
+          More Download Variants
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <a
+            href={downloadMap["windows-msi"]}
+            data-download-key="windows-msi"
+            class="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl px-4 py-3 text-left transition-colors hover:border-blue-400/40"
+          >
+            <div class="font-semibold text-sm">Windows MSI</div>
+            <div class="text-xs text-gray-400">x64 Installer (.msi)</div>
+          </a>
+          <a
+            href={downloadMap["macos-x64-tar"]}
+            data-download-key="macos-x64-tar"
+            class="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl px-4 py-3 text-left transition-colors hover:border-blue-400/40"
+          >
+            <div class="font-semibold text-sm">macOS Intel</div>
+            <div class="text-xs text-gray-400">
+              x64 App Bundle (.app.tar.gz)
+            </div>
+          </a>
+          <a
+            href={downloadMap["linux-deb"]}
+            data-download-key="linux-deb"
+            class="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl px-4 py-3 text-left transition-colors hover:border-blue-400/40"
+          >
+            <div class="font-semibold text-sm">Linux DEB</div>
+            <div class="text-xs text-gray-400">amd64 Package (.deb)</div>
+          </a>
+          <a
+            href={downloadMap["linux-rpm"]}
+            data-download-key="linux-rpm"
+            class="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl px-4 py-3 text-left transition-colors hover:border-blue-400/40"
+          >
+            <div class="font-semibold text-sm">Linux RPM</div>
+            <div class="text-xs text-gray-400">x86_64 Package (.rpm)</div>
+          </a>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        disabled
+        class="text-sm text-gray-400 hover:text-white flex items-center gap-3 mt-4 cursor-not-allowed transition-colors group bg-transparent border-0 p-0"
+      >
+        <div class="flex items-center gap-2">
+          <i data-lucide="book-open" class="w-4 h-4"></i>
+          <span>View Documentation & Installation Guide</span>
+        </div>
+        <span
+          class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-semibold text-gray-300 uppercase tracking-wider backdrop-blur-md transition-colors group-hover:border-white/20 shadow-sm"
+        >
+          <span
+            class="w-1.5 h-1.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]"
+          ></span>
+          Coming Soon
+        </span>
+      </button>
+    </div>
+
+    <script>
+      import {
+        fetchLatestRelease,
+        findAssetUrl,
+        RELEASE_SELECTORS,
+        RELEASES_LATEST_URL,
+      } from "../lib/releases";
+
+      (() => {
+        const updateVariantLinks = async () => {
+          try {
+            const data = await fetchLatestRelease();
+            if (!data) return;
+
+            const assets = Array.isArray(data.assets) ? data.assets : [];
+
+            Object.entries(RELEASE_SELECTORS).forEach(([key, patterns]) => {
+              const assetUrl = findAssetUrl(assets, patterns);
+              document
+                .querySelectorAll(`[data-download-key="${key}"]`)
+                .forEach((element) => {
+                  if (element instanceof HTMLAnchorElement) {
+                    element.href = assetUrl || RELEASES_LATEST_URL;
+                  }
+                });
+            });
+
+            const versionNode = document.querySelector("[data-version-label]");
+            if (versionNode instanceof HTMLElement && data.tag_name) {
+              versionNode.textContent = `NEXUS ${data.tag_name} is now live`;
+            }
+          } catch {}
+        };
+
+        void updateVariantLinks();
+      })();
+    </script>
+
+    <!-- App UI Mockup Preview -->
+    <div
+      class="mt-20 w-full max-w-5xl relative opacity-0 animate-fade-in-up delay-300"
+    >
+      <div
+        class="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent z-10 bottom-0 h-full theme-fade-bg"
+      >
+      </div>
+      <div
+        class="glass-card rounded-xl overflow-hidden border border-white/10 shadow-2xl"
+      >
+        <!-- Mac OS style window header -->
+        <div
+          class="h-10 border-b border-white/10 bg-white/5 flex items-center px-4 gap-2"
+        >
+          <div class="w-3 h-3 rounded-full bg-red-500"></div>
+          <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div class="w-3 h-3 rounded-full bg-green-500"></div>
+        </div>
+        <!-- Abstract App Content -->
+        <div class="p-6 grid grid-cols-12 gap-4 h-[400px]">
+          <!-- Sidebar -->
+          <div
+            class="col-span-3 border-r border-white/10 pr-4 flex flex-col gap-3"
+          >
+            <div class="h-8 bg-white/10 rounded w-full"></div>
+            <div class="h-8 bg-white/5 rounded w-3/4"></div>
+            <div class="h-8 bg-white/5 rounded w-5/6"></div>
+            <div class="h-8 bg-white/5 rounded w-full"></div>
+          </div>
+          <!-- Main Area (Topology style) -->
+          <div class="col-span-9 relative overflow-hidden">
+            <!-- Connecting Lines (Abstract) -->
+            <svg
+              class="absolute inset-0 w-full h-full z-10"
+              style="opacity: 0.4;"
+            >
+              <line
+                x1="50%"
+                y1="50%"
+                x2="20%"
+                y2="30%"
+                stroke="#3b82f6"
+                stroke-width="2"
+                stroke-dasharray="4 4"></line>
+              <line
+                x1="50%"
+                y1="50%"
+                x2="80%"
+                y2="75%"
+                stroke="#3b82f6"
+                stroke-width="2"></line>
+              <line
+                x1="50%"
+                y1="50%"
+                x2="75%"
+                y2="25%"
+                stroke="#ef4444"
+                stroke-width="2"></line>
+            </svg>
+
+            <!-- Abstract Nodes -->
+            <div
+              class="w-16 h-16 rounded-full bg-blue-500/20 border border-blue-500/50 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)] z-20"
+            >
+              <i data-lucide="router" class="text-blue-400"></i>
+            </div>
+            <div
+              class="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/50 absolute top-[30%] left-[20%] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-20"
+            >
+              <i data-lucide="laptop" class="text-green-400 w-5 h-5"></i>
+            </div>
+            <div
+              class="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/50 absolute top-[75%] left-[80%] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-20"
+            >
+              <i data-lucide="server" class="text-purple-400 w-5 h-5"></i>
+            </div>
+            <div
+              class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/50 absolute top-[25%] left-[75%] -translate-x-1/2 -translate-y-1/2 flex items-center justify-center animate-pulse z-20"
+            >
+              <i data-lucide="alert-triangle" class="text-red-400 w-5 h-5"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section (Bento Grid) -->
+  <section id="features" class="py-24 px-6 max-w-7xl mx-auto">
+    <div class="text-center mb-16">
+      <h2 class="text-3xl md:text-4xl font-bold mb-4">
+        Powerful Features, Minimal Interface
+      </h2>
+      <p class="text-gray-400 max-w-2xl mx-auto">
+        Built to provide essential security functions with an easy-to-use,
+        clutter-free interface.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Large Feature 1 -->
+      <div
+        class="glass-card md:col-span-2 rounded-2xl p-8 relative overflow-hidden group"
+      >
+        <div
+          class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20 transition-all group-hover:bg-blue-500/20"
+        >
+        </div>
+        <div class="relative z-10">
+          <div
+            class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center mb-6"
+          >
+            <i data-lucide="share-2" class="text-blue-400"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-3">Live Network Topology</h3>
+          <p class="text-gray-400 mb-6 max-w-md">
+            Visualize all connected devices in your network through a real-time,
+            interactive map.
+          </p>
+          <div
+            class="h-40 rounded-lg bg-[#000]/50 theme-map-bg border border-white/5 relative overflow-hidden flex items-center justify-center group-hover:border-blue-500/30 transition-colors duration-500"
+          >
+            <!-- Grid Background -->
+            <div
+              class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:16px_16px]"
+            >
+            </div>
+
+            <!-- Connecting Lines -->
+            <svg
+              class="absolute inset-0 w-full h-full z-10"
+              style="opacity: 0.5;"
+            >
+              <line
+                x1="25%"
+                y1="35%"
+                x2="50%"
+                y2="50%"
+                stroke="#3b82f6"
+                stroke-width="1.5"
+                stroke-dasharray="2 2"
+                class="animate-pulse"></line>
+              <line
+                x1="75%"
+                y1="25%"
+                x2="50%"
+                y2="50%"
+                stroke="#8b5cf6"
+                stroke-width="1.5"></line>
+              <line
+                x1="30%"
+                y1="75%"
+                x2="50%"
+                y2="50%"
+                stroke="#3b82f6"
+                stroke-width="1.5"></line>
+              <line
+                x1="70%"
+                y1="70%"
+                x2="50%"
+                y2="50%"
+                stroke="#3b82f6"
+                stroke-width="1.5"></line>
+              <line
+                x1="75%"
+                y1="25%"
+                x2="70%"
+                y2="70%"
+                stroke="#8b5cf6"
+                stroke-width="1"
+                stroke-opacity="0.3"></line>
+            </svg>
+
+            <!-- Nodes -->
+            <!-- Center Node (Router/Gateway) -->
+            <div
+              class="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/50 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.4)] z-20"
+            >
+              <div class="w-2.5 h-2.5 bg-blue-400 rounded-full animate-pulse">
+              </div>
+            </div>
+
+            <!-- Peripheral Nodes -->
+            <div
+              class="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500/50 absolute top-[35%] left-[25%] -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center"
+            >
+              <div class="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+            </div>
+
+            <div
+              class="w-5 h-5 rounded-full bg-purple-500/20 border border-purple-500/50 absolute top-[25%] left-[75%] -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center shadow-[0_0_10px_rgba(139,92,246,0.3)]"
+            >
+              <div class="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+            </div>
+
+            <div
+              class="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500/50 absolute top-[75%] left-[30%] -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center"
+            >
+              <div class="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+            </div>
+
+            <div
+              class="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500/50 absolute top-[70%] left-[70%] -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center delay-75"
+            >
+              <div class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse">
+              </div>
+            </div>
+
+            <!-- Glow overlay -->
+            <div
+              class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"
+            >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="glass-card rounded-2xl p-8 relative overflow-hidden group">
+        <div
+          class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition-all group-hover:bg-purple-500/20"
+        >
+        </div>
+        <div class="relative z-10">
+          <div
+            class="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center mb-6"
+          >
+            <i data-lucide="bot" class="text-purple-400"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">AI Engine</h3>
+          <p class="text-gray-400 text-sm">
+            Automatically analyze and receive recommendations for
+            vulnerabilities using integrated LLMs.
+          </p>
+        </div>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="glass-card rounded-2xl p-8 relative overflow-hidden group">
+        <div
+          class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition-all group-hover:bg-green-500/20"
+        >
+        </div>
+        <div class="relative z-10">
+          <div
+            class="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-6"
+          >
+            <i data-lucide="eye" class="text-green-400"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Passive Scanning</h3>
+          <p class="text-gray-400 text-sm">
+            Monitor ARP and mDNS traffic with zero overhead, ensuring zero
+            impact on your network performance.
+          </p>
+        </div>
+      </div>
+
+      <!-- Feature 4 -->
+      <div
+        class="glass-card md:col-span-2 rounded-2xl p-8 relative overflow-hidden group flex flex-col justify-between"
+      >
+        <div
+          class="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-20 -mt-20 transition-all group-hover:bg-orange-500/20"
+        >
+        </div>
+        <div class="relative z-10">
+          <div class="flex items-center justify-between mb-6">
+            <div
+              class="w-12 h-12 rounded-lg bg-orange-500/20 flex items-center justify-center"
+            >
+              <i data-lucide="zap" class="text-orange-400"></i>
+            </div>
+            <div class="flex gap-2">
+              <div
+                class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-mono text-gray-300 shadow-sm backdrop-blur-md"
+              >
+                <img
+                  src="https://cdn.simpleicons.org/rust/white"
+                  class="w-3.5 h-3.5"
+                  alt="Rust"
+                />
+                <span>Rust</span>
+              </div>
+              <div
+                class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-mono text-gray-300 shadow-sm backdrop-blur-md"
+              >
+                <img
+                  src="https://cdn.simpleicons.org/react/61DAFB"
+                  class="w-3.5 h-3.5"
+                  alt="React"
+                />
+                <span>React</span>
+              </div>
+              <div
+                class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-xs font-mono text-gray-300 shadow-sm backdrop-blur-md"
+              >
+                <img
+                  src="https://cdn.simpleicons.org/tauri/FFC131"
+                  class="w-3.5 h-3.5"
+                  alt="Tauri"
+                />
+                <span>Tauri</span>
+              </div>
+            </div>
+          </div>
+          <h3 class="text-2xl font-bold mb-3">Native Performance</h3>
+          <p class="text-gray-400 max-w-md">
+            Powered by a Rust backend, ensuring minimal CPU/RAM usage and
+            seamless cross-platform operation.
+          </p>
+        </div>
+      </div>
+
+      <!-- Feature 5 -->
+      <div class="glass-card rounded-2xl p-8 relative overflow-hidden group">
+        <div
+          class="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition-all group-hover:bg-rose-500/20"
+        >
+        </div>
+        <div class="relative z-10 flex flex-col h-full">
+          <div
+            class="w-12 h-12 rounded-lg bg-rose-500/20 flex items-center justify-center mb-6"
+          >
+            <i data-lucide="bell-ring" class="text-rose-400"></i>
+          </div>
+          <div class="mt-auto">
+            <h3 class="text-xl font-bold mb-3">Smart Alerts</h3>
+            <p class="text-gray-400 text-sm">
+              Get instantly notified when unauthorized devices join or critical
+              nodes go offline.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 6 -->
+      <div
+        class="glass-card md:col-span-2 rounded-2xl p-8 relative overflow-hidden group"
+      >
+        <div
+          class="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -mr-20 -mt-20 transition-all group-hover:bg-cyan-500/20"
+        >
+        </div>
+        <div
+          class="relative z-10 w-full flex flex-col md:flex-row gap-8 items-center h-full"
+        >
+          <div class="flex-1 flex flex-col justify-center">
+            <div
+              class="w-12 h-12 rounded-lg bg-cyan-500/20 flex items-center justify-center mb-6"
+            >
+              <i data-lucide="bar-chart-3" class="text-cyan-400"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-3">Deep Insights & Logs</h3>
+            <p class="text-gray-400">
+              Track device uptime, packet drops, and bandwidth changes over time
+              with persistent database logging.
+            </p>
+          </div>
+          <div
+            class="flex-1 w-full bg-[#000]/50 theme-map-bg border border-white/5 rounded-xl h-40 flex items-end px-6 pt-6 gap-3 opacity-90 backdrop-blur-sm relative overflow-hidden"
+          >
+            <!-- Grid lines -->
+            <div class="absolute inset-x-0 bottom-4 border-t border-white/5">
+            </div>
+            <div class="absolute inset-x-0 bottom-12 border-t border-white/5">
+            </div>
+            <div class="absolute inset-x-0 bottom-20 border-t border-white/5">
+            </div>
+
+            <!-- Mock Chart -->
+            <div
+              class="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-t-sm h-[40%] transition-all duration-500 group-hover:h-[45%] relative z-10"
+            >
+            </div>
+            <div
+              class="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-t-sm h-[60%] transition-all duration-500 group-hover:h-[65%] relative z-10"
+            >
+            </div>
+            <div
+              class="flex-1 bg-gradient-to-t from-cyan-400/80 to-cyan-300 drop-shadow-[0_0_15px_rgba(6,182,212,0.6)] rounded-t-md h-[90%] transition-all duration-500 group-hover:h-[100%] z-20"
+            >
+            </div>
+            <div
+              class="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-t-sm h-[70%] transition-all duration-500 group-hover:h-[75%] relative z-10"
+            >
+            </div>
+            <div
+              class="flex-1 bg-gradient-to-t from-cyan-500/60 to-cyan-400/80 rounded-t-sm h-[50%] transition-all duration-500 group-hover:h-[55%] relative z-10"
+            >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer
+    class="border-t border-white/10 py-12 text-center text-gray-500 text-sm"
+  >
+    <div class="flex items-center justify-center gap-2 mb-4">
+      <img src="/icon.png" alt="NEXUS Logo" class="w-6 h-6 object-contain" />
+      <span class="font-bold text-white tracking-wide">NEXUS</span>
+    </div>
+    <p>© 2026 Ryan Astro Dev. All rights reserved.</p>
+  </footer>
+</Layout>
