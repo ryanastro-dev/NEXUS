@@ -1,3 +1,4 @@
+import { SETTINGS_UPDATED_EVENT } from '../../lib/events/settings-sync';
 import { DEFAULT_SETTINGS, SETTINGS_KEY, type LocalSettings } from './constants';
 
 export function loadSettings(): LocalSettings {
@@ -15,6 +16,13 @@ export function loadSettings(): LocalSettings {
 export function saveSettingsToStorage(settings: LocalSettings): boolean {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent(SETTINGS_UPDATED_EVENT, {
+          detail: settings,
+        }),
+      );
+    }
     return true;
   } catch (error) {
     console.error('Failed to save settings:', error);

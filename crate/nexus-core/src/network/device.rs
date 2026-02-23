@@ -417,22 +417,27 @@ pub fn calculate_risk_score(
         DeviceType::Unknown => 20u16, // Unknown devices are concerning
     };
 
-    // Add risk for open ports
+    // Add risk for open ports.
+    // Unknown/dynamic ports are capped to avoid false-positive F grades on high-port workloads.
+    let mut unknown_port_penalty = 0u16;
     for &port in open_ports {
-        score += match port {
-            21 => 15u16,          // FTP - unencrypted
-            23 => 20u16,          // Telnet - very insecure
-            25 => 5u16,           // SMTP
-            53 => 5u16,           // DNS
-            80 => 5u16,           // HTTP
-            139 | 445 => 15u16,   // SMB - often targeted
-            443 => 2u16,          // HTTPS - relatively safe
-            3389 => 15u16,        // RDP - often targeted
-            5900..=5910 => 15u16, // VNC
-            8080 | 8443 => 5u16,  // Alt HTTP/HTTPS
-            _ => 2u16,
-        };
+        match port {
+            21 => score += 15u16,          // FTP - unencrypted
+            23 => score += 20u16,          // Telnet - very insecure
+            25 => score += 5u16,           // SMTP
+            53 => score += 5u16,           // DNS
+            80 => score += 5u16,           // HTTP
+            139 | 445 => score += 15u16,   // SMB - often targeted
+            443 => score += 2u16,          // HTTPS - relatively safe
+            3389 => score += 15u16,        // RDP - often targeted
+            5900..=5910 => score += 15u16, // VNC
+            8080 | 8443 => score += 5u16,  // Alt HTTP/HTTPS
+            _ => {
+                unknown_port_penalty += unknown_port_risk_penalty(port);
+            }
+        }
     }
+    score += unknown_port_penalty.min(20);
 
     // Randomized MAC slightly increases uncertainty
     if is_randomized_mac {
@@ -441,6 +446,15 @@ pub fn calculate_risk_score(
 
     // Cap at 100
     score.min(100) as u8
+}
+
+fn unknown_port_risk_penalty(port: u16) -> u16 {
+    match port {
+        1..=1023 => 2u16,      // uncommon privileged/service ports
+        1024..=49151 => 1u16,  // registered service ports
+        49152..=65535 => 0u16, // ephemeral ports
+        _ => 0u16,
+    }
 }
 
 /// Helper function to check if string contains any of the patterns
@@ -576,6 +590,20 @@ mod tests {
             true, // randomized MAC
         );
         assert_eq!(score, 100);
+    }
+
+    #[test]
+    fn test_calculate_risk_score_unknown_port_penalty_is_capped() {
+        let noisy_registered_ports: Vec<u16> = (1024..1124).collect();
+        let score = calculate_risk_score(DeviceType::Unknown, &noisy_registered_ports, false);
+        assert_eq!(score, 40);
+    }
+
+    #[test]
+    fn test_calculate_risk_score_ephemeral_ports_do_not_trigger_false_positive() {
+        let ephemeral_ports: Vec<u16> = (49152..49252).collect();
+        let score = calculate_risk_score(DeviceType::Pc, &ephemeral_ports, false);
+        assert!(score <= 20);
     }
 
     #[test]

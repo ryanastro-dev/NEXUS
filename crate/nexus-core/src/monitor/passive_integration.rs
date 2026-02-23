@@ -3,6 +3,7 @@
 //! This module provides helper functions to integrate passive discovery
 //! into the background monitor
 
+use crate::config::arp_passive_channel_capacity;
 use crate::monitor::events::{DeviceSnapshot, NetworkEvent};
 use crate::scanner::passive::mdns::PassiveDevice;
 use crate::scanner::passive::{ArpEvent, ArpMonitor, PassiveScanner};
@@ -48,7 +49,12 @@ pub async fn start_passive_listeners(
 async fn try_start_arp_monitor(
     interface: &NetworkInterface,
 ) -> Result<mpsc::Receiver<ArpEvent>, Box<dyn std::error::Error>> {
-    let (tx, rx) = mpsc::channel(100);
+    let channel_capacity = arp_passive_channel_capacity();
+    let (tx, rx) = mpsc::channel(channel_capacity);
+    tracing::debug!(
+        "[MONITOR] ARP passive channel capacity: {}",
+        channel_capacity
+    );
     let monitor = ArpMonitor::new(interface.clone());
 
     tokio::spawn(async move {

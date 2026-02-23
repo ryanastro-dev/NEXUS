@@ -107,6 +107,16 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             label TEXT
         );
 
+        -- SNMP uptime continuity state: persisted raw uptime with wrap/reboot tracking.
+        CREATE TABLE IF NOT EXISTS snmp_uptime_state (
+            device_key TEXT PRIMARY KEY,
+            last_raw_uptime_seconds INTEGER NOT NULL,
+            wrap_count INTEGER NOT NULL DEFAULT 0,
+            reboot_count INTEGER NOT NULL DEFAULT 0,
+            continuous_uptime_seconds INTEGER NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
         -- Indexes for performance
         CREATE INDEX IF NOT EXISTS idx_scans_time ON scans(scan_time);
         CREATE INDEX IF NOT EXISTS idx_devices_mac ON devices(mac);
@@ -118,6 +128,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_cve_vendor ON cve_cache(vendor);
         CREATE INDEX IF NOT EXISTS idx_cve_severity ON cve_cache(severity);
         CREATE INDEX IF NOT EXISTS idx_telemetry_metric_time ON telemetry_samples(metric_key, captured_at);
+        CREATE INDEX IF NOT EXISTS idx_snmp_uptime_updated ON snmp_uptime_state(updated_at);
         "#,
     )
     .context("Failed to create database tables")?;
@@ -227,6 +238,7 @@ pub fn drop_tables(conn: &Connection) -> Result<()> {
         DROP TABLE IF EXISTS devices;
         DROP TABLE IF EXISTS scans;
         DROP TABLE IF EXISTS telemetry_samples;
+        DROP TABLE IF EXISTS snmp_uptime_state;
         "#,
     )
     .context("Failed to drop tables")?;
@@ -257,6 +269,7 @@ mod tests {
         assert!(tables.contains(&"device_history".to_string()));
         assert!(tables.contains(&"alerts".to_string()));
         assert!(tables.contains(&"telemetry_samples".to_string()));
+        assert!(tables.contains(&"snmp_uptime_state".to_string()));
     }
 
     #[test]

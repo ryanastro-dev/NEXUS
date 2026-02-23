@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use super::types::{Alert, AlertSeverity, AlertType, HIGH_RISK_THRESHOLD, SUSPICIOUS_PORTS};
 use crate::HostInfo;
-use crate::config::came_online_stale_minutes;
+use crate::config::{came_online_max_stale_minutes, came_online_stale_minutes};
 use crate::database::DeviceRecord;
 
 fn append_security_alerts(current_hosts: &[HostInfo], alerts: &mut Vec<Alert>) {
@@ -62,6 +62,7 @@ pub fn detect_alerts(known_devices: &[DeviceRecord], current_hosts: &[HostInfo])
     let mut alerts = Vec::new();
     let now = Utc::now();
     let stale_threshold_minutes = came_online_stale_minutes();
+    let max_stale_minutes = came_online_max_stale_minutes();
 
     // Build lookup maps
     let known_macs: HashMap<&str, &DeviceRecord> =
@@ -74,7 +75,14 @@ pub fn detect_alerts(known_devices: &[DeviceRecord], current_hosts: &[HostInfo])
     for host in current_hosts {
         if let Some(known) = known_macs.get(host.mac.as_str()) {
             let stale_minutes = now.signed_duration_since(known.last_seen).num_minutes();
-            if stale_minutes >= stale_threshold_minutes {
+            if stale_minutes < 0 {
+                tracing::warn!(
+                    device_mac = %host.mac,
+                    last_seen = %known.last_seen,
+                    "Skipping came-online alert due to negative staleness (clock skew?)"
+                );
+            } else if stale_minutes >= stale_threshold_minutes && stale_minutes <= max_stale_minutes
+            {
                 let hostname_str = host.hostname.as_deref().unwrap_or("Unknown");
                 alerts.push(
                     Alert::new(
@@ -206,6 +214,53 @@ mod tests {
     #[test]
     fn does_not_emit_device_came_online_for_recently_seen_device() {
         let known = vec![known_device("AA:BB:CC:DD:EE:01", "192.168.1.10", 5)];
+        let current = vec![current_host("AA:BB:CC:DD:EE:01", "192.168.1.10")];
+
+        let alerts = detect_alerts(&known, &current);
+
+        assert!(
+            !alerts
+                .iter()
+                .any(|a| matches!(a.alert_type, AlertType::DeviceCameOnline))
+        );
+    }
+
+    #[test]
+    fn does_not_emit_device_came_online_for_future_last_seen_clock_skew() {
+        let now = Utc::now();
+        let known = vec![DeviceRecord {
+            id: 1,
+            mac: "AA:BB:CC:DD:EE:01".to_string(),
+            first_seen: now - Duration::days(1),
+            last_seen: now + Duration::minutes(2),
+            last_ip: Some("192.168.1.10".to_string()),
+            vendor: Some("TestVendor".to_string()),
+            risk_score: 0,
+            device_type: Some("UNKNOWN".to_string()),
+            hostname: Some("test-host".to_string()),
+            os_guess: None,
+            custom_name: None,
+            notes: None,
+            security_grade: None,
+        }];
+        let current = vec![current_host("AA:BB:CC:DD:EE:01", "192.168.1.10")];
+
+        let alerts = detect_alerts(&known, &current);
+
+        assert!(
+            !alerts
+                .iter()
+                .any(|a| matches!(a.alert_type, AlertType::DeviceCameOnline))
+        );
+    }
+
+    #[test]
+    fn does_not_emit_device_came_online_for_extremely_stale_known_device() {
+        let known = vec![known_device(
+            "AA:BB:CC:DD:EE:01",
+            "192.168.1.10",
+            30 * 24 * 3,
+        )];
         let current = vec![current_host("AA:BB:CC:DD:EE:01", "192.168.1.10")];
 
         let alerts = detect_alerts(&known, &current);

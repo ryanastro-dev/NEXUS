@@ -23,6 +23,7 @@ import {
   ALERTS_UNREAD_COUNT_EVENT,
   type AlertsUnreadCountDetail,
 } from "./lib/events/alerts-sync";
+import { SETTINGS_UPDATED_EVENT } from "./lib/events/settings-sync";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const TopologyView = lazy(() => import("./pages/TopologyView"));
@@ -149,88 +150,109 @@ function AppContent() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  useEffect(() => {
-    try {
-      const rawSettings = localStorage.getItem("netmapper-settings");
-      if (!rawSettings) {
-        return;
+  const applyRuntimeFromRawSettings = useCallback(
+    (rawSettings: string | null) => {
+      try {
+        if (!rawSettings) {
+          return null;
+        }
+
+        const parsed = JSON.parse(rawSettings);
+        const snmpEnabled = parsed?.snmpEnabled === true;
+        const snmpCommunity =
+          typeof parsed?.snmpCommunity === "string" && parsed.snmpCommunity.trim().length > 0
+            ? parsed.snmpCommunity.trim()
+            : "public";
+        const monitoringInterval = Number(parsed?.monitoringInterval);
+        const monitoringEnabled = parsed?.monitoringEnabled === true;
+        const preferredInterface =
+          typeof parsed?.preferredInterface === "string" && parsed.preferredInterface.trim().length > 0
+            ? parsed.preferredInterface.trim()
+            : undefined;
+        const tcpPorts = String(parsed?.tcpPorts ?? "")
+          .split(",")
+          .map((port) => Number.parseInt(port.trim(), 10))
+          .filter((port) => Number.isFinite(port) && port > 0 && port <= 65535);
+        const aiModeRaw = typeof parsed?.aiMode === "string" ? parsed.aiMode : "disabled";
+        const aiMode =
+          aiModeRaw === "local" ||
+          aiModeRaw === "cloud" ||
+          aiModeRaw === "hybrid_auto" ||
+          aiModeRaw === "disabled"
+            ? aiModeRaw
+            : "disabled";
+        const aiTimeout = Number(parsed?.aiTimeoutMs);
+        const aiEnabled = parsed?.aiEnabled === true;
+        const ollamaEndpoint =
+          typeof parsed?.ollamaEndpoint === "string" && parsed.ollamaEndpoint.trim().length > 0
+            ? parsed.ollamaEndpoint.trim()
+            : "http://127.0.0.1:11434";
+        const ollamaModel =
+          typeof parsed?.ollamaModel === "string" && parsed.ollamaModel.trim().length > 0
+            ? parsed.ollamaModel.trim()
+            : "qwen3:8b";
+        const geminiEndpoint =
+          typeof parsed?.geminiEndpoint === "string" && parsed.geminiEndpoint.trim().length > 0
+            ? parsed.geminiEndpoint.trim()
+            : "https://generativelanguage.googleapis.com";
+        const geminiModel =
+          typeof parsed?.geminiModel === "string" && parsed.geminiModel.trim().length > 0
+            ? parsed.geminiModel.trim()
+            : "gemini-2.5-flash";
+        const geminiApiKey =
+          typeof parsed?.geminiApiKey === "string" && parsed.geminiApiKey.trim().length > 0
+            ? parsed.geminiApiKey.trim()
+            : null;
+        const cloudAllowSensitive = parsed?.cloudAllowSensitive === true;
+
+        void tauriClient
+          .applyRuntimeSettings(
+            snmpEnabled,
+            snmpCommunity,
+            tcpPorts,
+            Number.isFinite(monitoringInterval) && monitoringInterval > 0
+              ? monitoringInterval
+              : undefined,
+          )
+          .catch(() => {
+            // Keep runtime settings apply resilient if bridge is unavailable.
+          });
+
+        void tauriClient
+          .applyAiRuntimeSettings({
+            enabled: aiEnabled,
+            mode: aiEnabled ? aiMode : "disabled",
+            timeout_ms: Number.isFinite(aiTimeout) ? aiTimeout : 8000,
+            ollama_endpoint: ollamaEndpoint,
+            ollama_model: ollamaModel,
+            gemini_endpoint: geminiEndpoint,
+            gemini_model: geminiModel,
+            gemini_api_key: geminiApiKey,
+            cloud_allow_sensitive: cloudAllowSensitive,
+          })
+          .catch(() => {
+            // Keep AI settings apply resilient if bridge is unavailable.
+          });
+
+        return {
+          monitoringEnabled,
+          monitoringInterval:
+            Number.isFinite(monitoringInterval) && monitoringInterval > 0
+              ? monitoringInterval
+              : undefined,
+          preferredInterface,
+        };
+      } catch {
+        // Keep startup resilient when local settings payload is malformed.
+        return null;
       }
+    },
+    [],
+  );
 
-      const parsed = JSON.parse(rawSettings);
-      const snmpEnabled = parsed?.snmpEnabled === true;
-      const snmpCommunity =
-        typeof parsed?.snmpCommunity === "string" && parsed.snmpCommunity.trim().length > 0
-          ? parsed.snmpCommunity.trim()
-          : "public";
-      const monitoringInterval = Number(parsed?.monitoringInterval);
-      const tcpPorts = String(parsed?.tcpPorts ?? "")
-        .split(",")
-        .map((port) => Number.parseInt(port.trim(), 10))
-        .filter((port) => Number.isFinite(port) && port > 0 && port <= 65535);
-      const aiModeRaw = typeof parsed?.aiMode === "string" ? parsed.aiMode : "disabled";
-      const aiMode =
-        aiModeRaw === "local" ||
-        aiModeRaw === "cloud" ||
-        aiModeRaw === "hybrid_auto" ||
-        aiModeRaw === "disabled"
-          ? aiModeRaw
-          : "disabled";
-      const aiTimeout = Number(parsed?.aiTimeoutMs);
-      const aiEnabled = parsed?.aiEnabled === true;
-      const ollamaEndpoint =
-        typeof parsed?.ollamaEndpoint === "string" && parsed.ollamaEndpoint.trim().length > 0
-          ? parsed.ollamaEndpoint.trim()
-          : "http://127.0.0.1:11434";
-      const ollamaModel =
-        typeof parsed?.ollamaModel === "string" && parsed.ollamaModel.trim().length > 0
-          ? parsed.ollamaModel.trim()
-          : "qwen3:8b";
-      const geminiEndpoint =
-        typeof parsed?.geminiEndpoint === "string" && parsed.geminiEndpoint.trim().length > 0
-          ? parsed.geminiEndpoint.trim()
-          : "https://generativelanguage.googleapis.com";
-      const geminiModel =
-        typeof parsed?.geminiModel === "string" && parsed.geminiModel.trim().length > 0
-          ? parsed.geminiModel.trim()
-          : "gemini-2.5-flash";
-      const geminiApiKey =
-        typeof parsed?.geminiApiKey === "string" && parsed.geminiApiKey.trim().length > 0
-          ? parsed.geminiApiKey.trim()
-          : null;
-      const cloudAllowSensitive = parsed?.cloudAllowSensitive === true;
-
-      void tauriClient
-        .applyRuntimeSettings(
-          snmpEnabled,
-          snmpCommunity,
-          tcpPorts,
-          Number.isFinite(monitoringInterval) && monitoringInterval > 0
-            ? monitoringInterval
-            : undefined,
-        )
-        .catch(() => {
-          // Keep startup resilient if runtime bridge is unavailable.
-        });
-
-      void tauriClient
-        .applyAiRuntimeSettings({
-          enabled: aiEnabled,
-          mode: aiEnabled ? aiMode : "disabled",
-          timeout_ms: Number.isFinite(aiTimeout) ? aiTimeout : 8000,
-          ollama_endpoint: ollamaEndpoint,
-          ollama_model: ollamaModel,
-          gemini_endpoint: geminiEndpoint,
-          gemini_model: geminiModel,
-          gemini_api_key: geminiApiKey,
-          cloud_allow_sensitive: cloudAllowSensitive,
-        })
-        .catch(() => {
-          // Keep startup resilient if AI runtime bridge is unavailable.
-        });
-    } catch {
-      // Keep startup resilient when local settings payload is malformed.
-    }
-  }, []);
+  useEffect(() => {
+    void applyRuntimeFromRawSettings(localStorage.getItem("netmapper-settings"));
+  }, [applyRuntimeFromRawSettings]);
 
   useEffect(() => {
     let shouldStopOnUnmount = false;
@@ -272,6 +294,42 @@ function AppContent() {
       }
     };
   }, [monitoring.startMonitoring, monitoring.stopMonitoring]);
+
+  useEffect(() => {
+    const applyFromStorage = () => {
+      const snapshot = applyRuntimeFromRawSettings(localStorage.getItem("netmapper-settings"));
+      if (!snapshot) {
+        return;
+      }
+
+      if (snapshot.monitoringEnabled) {
+        autoStartedMonitorRef.current = true;
+        void monitoring.startMonitoring(snapshot.monitoringInterval, snapshot.preferredInterface);
+      } else if (autoStartedMonitorRef.current) {
+        autoStartedMonitorRef.current = false;
+        void monitoring.stopMonitoring();
+      }
+    };
+
+    const onSettingsUpdated = (_event: Event) => {
+      applyFromStorage();
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== "netmapper-settings") {
+        return;
+      }
+      applyFromStorage();
+    };
+
+    window.addEventListener(SETTINGS_UPDATED_EVENT, onSettingsUpdated);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener(SETTINGS_UPDATED_EVENT, onSettingsUpdated);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [applyRuntimeFromRawSettings, monitoring.startMonitoring, monitoring.stopMonitoring]);
 
   useEffect(() => {
     const handleRefreshHotkeys = (event: KeyboardEvent) => {

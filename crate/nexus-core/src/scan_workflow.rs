@@ -4,6 +4,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use crate::app::{AppContext, AppEvent, LoadTestSummary};
+use crate::database::{Database, queries};
 use crate::{
     HostInfo, InterfaceInfo, NeighborInfo, ScanResult, active_arp_scan, calculate_risk_score,
     calculate_subnet_ips, dns_scan, guess_os_from_ttl, icmp_scan, infer_device_type,
@@ -174,7 +175,7 @@ pub(crate) async fn scan_network(
         .collect();
 
     let snmp_is_enabled = snmp_enabled();
-    let snmp_data = if snmp_is_enabled {
+    let mut snmp_data = if snmp_is_enabled {
         ensure_not_cancelled(context, "scan-snmp")?;
         emit_scan_phase(context, "snmp", 65);
         match snmp_enrich(&host_ips, cancel_token.clone()).await {
@@ -198,6 +199,10 @@ pub(crate) async fn scan_network(
     } else {
         std::collections::HashMap::new()
     };
+
+    if snmp_is_enabled {
+        apply_snmp_uptime_continuity(context, &arp_hosts, &mut snmp_data);
+    }
 
     // Phase 5: DNS reverse lookup
     ensure_not_cancelled(context, "scan-dns")?;
@@ -338,6 +343,65 @@ pub(crate) async fn scan_network(
         scan_duration_ms: scan_duration.as_millis() as u64,
         active_hosts,
     })
+}
+
+fn apply_snmp_uptime_continuity(
+    context: Option<&AppContext>,
+    arp_hosts: &std::collections::HashMap<Ipv4Addr, pnet::util::MacAddr>,
+    snmp_data: &mut std::collections::HashMap<Ipv4Addr, crate::SnmpData>,
+) {
+    if snmp_data.is_empty() {
+        return;
+    }
+
+    let Some(context) = context else {
+        return;
+    };
+
+    let db = match Database::new(context.db_path().to_path_buf()) {
+        Ok(db) => db,
+        Err(error) => {
+            tracing::warn!(
+                "Failed to open database for SNMP uptime continuity model: {}",
+                error
+            );
+            return;
+        }
+    };
+
+    let conn = db.connection();
+    let conn = match conn.lock() {
+        Ok(conn) => conn,
+        Err(_) => {
+            tracing::warn!("Database lock poisoned; skipping SNMP uptime continuity update");
+            return;
+        }
+    };
+
+    for (ip, data) in snmp_data.iter_mut() {
+        let Some(raw_uptime_seconds) = data.uptime_seconds else {
+            continue;
+        };
+
+        let device_key = arp_hosts
+            .get(ip)
+            .map(|mac| format!("{}", mac).to_ascii_uppercase())
+            .unwrap_or_else(|| ip.to_string());
+
+        match queries::apply_snmp_uptime_continuity(&conn, &device_key, raw_uptime_seconds) {
+            Ok(continuous_uptime_seconds) => {
+                data.uptime_seconds = Some(continuous_uptime_seconds);
+            }
+            Err(error) => {
+                tracing::warn!(
+                    device_key = %device_key,
+                    ip = %ip,
+                    "Failed to update SNMP uptime continuity: {}",
+                    error
+                );
+            }
+        }
+    }
 }
 
 fn emit_scan_phase(context: Option<&AppContext>, phase: &str, progress_pct: u8) {

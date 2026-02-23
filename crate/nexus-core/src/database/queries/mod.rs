@@ -10,6 +10,7 @@ mod scan;
 mod security;
 mod stats;
 mod telemetry;
+mod uptime;
 
 pub use alerts::{
     AlertInsert, clear_all_alerts, get_unread_alerts, insert_alert, insert_alert_if_not_exists,
@@ -21,6 +22,7 @@ pub use scan::{get_recent_scans, insert_scan};
 pub use security::{lookup_port_warnings, lookup_vulnerabilities};
 pub use stats::{get_latest_scan_hosts, get_network_stats};
 pub use telemetry::{get_recent_telemetry, insert_telemetry_sample};
+pub use uptime::apply_snmp_uptime_continuity;
 
 #[cfg(test)]
 mod tests;

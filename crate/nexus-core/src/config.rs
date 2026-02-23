@@ -67,6 +67,13 @@ pub const MAX_MONITOR_INTERVAL: u64 = 3600;
 /// Minutes without sightings before a known device is considered "came back online" when seen again.
 pub const CAME_ONLINE_STALE_MINUTES: i64 = 30;
 
+/// Maximum stale window (minutes) to emit "came online" alerts.
+/// Helps suppress clock-jump / long-resume alert storms.
+pub const CAME_ONLINE_MAX_STALE_MINUTES: i64 = 720;
+
+/// ARP passive monitor event queue capacity.
+pub const ARP_PASSIVE_CHANNEL_CAPACITY: usize = 4096;
+
 fn env_var(name: &str) -> Option<String> {
     std::env::var(name)
         .ok()
@@ -274,5 +281,27 @@ pub fn came_online_stale_minutes() -> i64 {
         CAME_ONLINE_STALE_MINUTES,
         1,
         10_080,
+    )
+}
+
+/// Runtime-tunable max stale window for "came online" alerts (minutes).
+/// Env: `NEXUS_CAME_ONLINE_MAX_STALE_MINUTES`
+pub fn came_online_max_stale_minutes() -> i64 {
+    env_parse_i64(
+        "NEXUS_CAME_ONLINE_MAX_STALE_MINUTES",
+        CAME_ONLINE_MAX_STALE_MINUTES,
+        30,
+        43_200,
+    )
+}
+
+/// Runtime-tunable ARP passive monitor channel capacity.
+/// Env: `NEXUS_ARP_PASSIVE_CHANNEL_CAPACITY`
+pub fn arp_passive_channel_capacity() -> usize {
+    env_parse_usize(
+        "NEXUS_ARP_PASSIVE_CHANNEL_CAPACITY",
+        ARP_PASSIVE_CHANNEL_CAPACITY,
+        256,
+        65_536,
     )
 }

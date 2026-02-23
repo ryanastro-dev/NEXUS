@@ -2,8 +2,8 @@ use crate::database::Database;
 use crate::models::{HostInfo, ScanResult};
 
 use super::{
-    get_network_stats, get_recent_scans, get_recent_telemetry, insert_scan,
-    insert_telemetry_sample, normalize_legacy_fields,
+    apply_snmp_uptime_continuity, get_network_stats, get_recent_scans, get_recent_telemetry,
+    insert_scan, insert_telemetry_sample, normalize_legacy_fields,
 };
 
 #[test]
@@ -176,4 +176,33 @@ fn test_normalize_legacy_fields_canonicalizes_device_type_and_grade() {
         )
         .unwrap();
     assert_eq!(normalized_grade, "B");
+}
+
+#[test]
+fn test_snmp_uptime_continuity_detects_wrap_and_keeps_monotonic_uptime() {
+    let db = Database::in_memory().unwrap();
+    let conn = db.connection();
+    let conn = conn.lock().unwrap();
+
+    let near_wrap = ((u32::MAX as u64) / 100) - 60;
+    let first = apply_snmp_uptime_continuity(&conn, "AA:BB:CC:DD:EE:FF", near_wrap).unwrap();
+    let second = apply_snmp_uptime_continuity(&conn, "AA:BB:CC:DD:EE:FF", 120).unwrap();
+
+    assert_eq!(first, near_wrap);
+    assert!(
+        second > first,
+        "continuous uptime should increase across SNMP wrap"
+    );
+}
+
+#[test]
+fn test_snmp_uptime_continuity_resets_on_reboot_like_drop() {
+    let db = Database::in_memory().unwrap();
+    let conn = db.connection();
+    let conn = conn.lock().unwrap();
+
+    let _ = apply_snmp_uptime_continuity(&conn, "AA:BB:CC:DD:EE:10", 40_000).unwrap();
+    let after_drop = apply_snmp_uptime_continuity(&conn, "AA:BB:CC:DD:EE:10", 90).unwrap();
+
+    assert_eq!(after_drop, 90);
 }

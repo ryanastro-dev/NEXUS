@@ -59,6 +59,8 @@ impl ArpMonitor {
                 _ => return Err("Unsupported channel type".to_string()),
             };
 
+            let mut dropped_on_full = 0u64;
+
             // Listen for ARP packets
             loop {
                 match rx.next() {
@@ -92,10 +94,23 @@ impl ArpMonitor {
                                 event.target_ip
                             );
 
-                            // Send event from blocking thread.
-                            if tx.blocking_send(event).is_err() {
-                                tracing::warn!("ARP monitoring channel closed");
-                                break;
+                            // Non-blocking send from packet thread. If the queue is full, drop
+                            // newest ARP events instead of stalling capture and losing OS-buffered packets.
+                            match tx.try_send(event) {
+                                Ok(()) => {}
+                                Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
+                                    dropped_on_full += 1;
+                                    if dropped_on_full == 1 || dropped_on_full % 500 == 0 {
+                                        tracing::warn!(
+                                            dropped_events = dropped_on_full,
+                                            "ARP passive queue full; dropping newest events"
+                                        );
+                                    }
+                                }
+                                Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
+                                    tracing::warn!("ARP monitoring channel closed");
+                                    break;
+                                }
                             }
                         }
                     }
