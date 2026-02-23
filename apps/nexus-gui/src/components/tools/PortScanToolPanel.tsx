@@ -3,6 +3,7 @@ import { Hash, Loader2, Play } from "lucide-react";
 
 import { tauriClient } from "../../lib/api/tauri-client";
 import type { PortScanResult } from "../../lib/api/types";
+import { Tooltip } from "../common/Tooltip";
 
 const CARD =
   "rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65";
@@ -85,23 +86,25 @@ export default function PortScanToolPanel() {
             </div>
           </div>
 
-          <button
-            onClick={() => void handleScan()}
-            disabled={loading || !target.trim()}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Scanning...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4" />
-                Start Scan
-              </>
-            )}
-          </button>
+          <Tooltip content="Please enter a valid target IP" active={!target.trim()}>
+            <button
+              onClick={() => void handleScan()}
+              disabled={loading || !target.trim()}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  Start Scan
+                </>
+              )}
+            </button>
+          </Tooltip>
         </div>
       </div>
 

@@ -60,7 +60,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 15,
       open_ports: [80, 443],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'router.local',
+      hostname: 'Deco-X90-Mesh-Router',
     },
     {
       ip: '192.168.1.2',
@@ -73,7 +73,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 10,
       open_ports: [22, 443],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'switch-01',
+      hostname: 'Cisco-Catalyst-9200',
     },
     {
       ip: '192.168.1.10',
@@ -86,8 +86,8 @@ export const mockScanResult: ScanResult = {
       risk_score: 35,
       open_ports: [22, 80, 443, 3389],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'file-server',
-      system_description: 'Windows Server 2022',
+      hostname: 'Synology-NAS-DS923+',
+      system_description: 'Synology DiskStation Manager 7.2',
     },
     {
       ip: '192.168.1.20',
@@ -100,7 +100,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 12,
       open_ports: [],
       discovery_method: 'ARP+ICMP',
-      hostname: 'MacBook-Pro',
+      hostname: 'MacBook-Pro-M3-Max',
     },
     {
       ip: '192.168.1.21',
@@ -113,7 +113,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 25,
       open_ports: [445, 3389],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'DESKTOP-USER01',
+      hostname: 'Alienware-Aurora-R16',
     },
     {
       ip: '192.168.1.30',
@@ -125,7 +125,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 5,
       open_ports: [],
       discovery_method: 'ARP+ICMP',
-      hostname: 'Galaxy-S24',
+      hostname: 'Galaxy-S24-Ultra',
     },
     {
       ip: '192.168.1.31',
@@ -137,7 +137,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 5,
       open_ports: [],
       discovery_method: 'ARP+ICMP',
-      hostname: 'iPhone-Ryan',
+      hostname: 'iPhone-15-Pro-Max',
     },
     {
       ip: '192.168.1.40',
@@ -149,7 +149,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 55,
       open_ports: [80, 554, 8080],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'cam-entrance',
+      hostname: 'Ring-Stick-Up-Cam-Pro',
     },
     {
       ip: '192.168.1.41',
@@ -161,7 +161,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 55,
       open_ports: [80, 554],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'cam-backyard',
+      hostname: 'Nest-Cam-Outdoor',
     },
     {
       ip: '192.168.1.50',
@@ -173,7 +173,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 20,
       open_ports: [80, 631, 9100],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'Canon-LBP',
+      hostname: 'HP-Color-LaserJet-Pro',
     },
     {
       ip: '192.168.1.60',
@@ -185,7 +185,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 45,
       open_ports: [80],
       discovery_method: 'ARP+ICMP+TCP',
-      hostname: 'smart-plug-01',
+      hostname: 'Philips-Hue-Bridge',
     },
     {
       ip: '192.168.1.100',
@@ -196,7 +196,7 @@ export const mockScanResult: ScanResult = {
       risk_score: 0,
       open_ports: [],
       discovery_method: 'LOCAL',
-      hostname: 'my-computer',
+      hostname: 'NEXUS-Command-Center',
     },
   ],
 };

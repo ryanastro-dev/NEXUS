@@ -52,18 +52,27 @@ export default function Tools() {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-all ${
-                    active
-                      ? "bg-gradient-to-r from-accent-blue to-accent-sapphire text-white shadow-lg shadow-accent-blue/30"
-                      : "bg-bg-secondary/70 text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
+                <div key={tab.id} className="relative flex">
+                  {active && (
+                    <motion.div
+                      layoutId="toolsTabs"
+                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-accent-blue to-accent-sapphire shadow-lg shadow-accent-blue/30"
+                      initial={false}
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <button
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative z-10 flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors ${
+                      active
+                        ? "text-white"
+                        : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                </div>
               );
             })}
           </div>

@@ -71,8 +71,11 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
         </h2>
         <div className="flex items-center gap-2">
           {status.is_running && (
-            <span className="flex items-center gap-1 text-xs text-accent-green">
-              <span className="w-1.5 h-1.5 bg-accent-green rounded-full animate-pulse" />
+            <span className="flex items-center gap-1.5 text-xs text-accent-green">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-green opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-green" />
+              </span>
               Active
             </span>
           )}

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getCurrentWindow, type Theme as TauriTheme } from '@tauri-apps/api/window';
+import { setTheme as setAppTheme } from '@tauri-apps/api/app';
 import { isTauri } from '../lib/runtime/is-tauri';
 
 type Theme = 'dark' | 'light';
@@ -133,10 +134,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     const appWindow = getCurrentWindow();
-    const windowTheme: TauriTheme | null = themeMode === 'system' ? null : theme;
+    const nativeTheme: TauriTheme | null = themeMode === 'system' ? null : theme;
 
-    void appWindow.setTheme(windowTheme).catch(() => {
+    void appWindow.setTheme(nativeTheme).catch(() => {
       // Keep web theme behavior even if native theme sync is unavailable.
+    });
+
+    void setAppTheme(nativeTheme).catch(() => {
+      // Keep web theme behavior even if app-level native theme sync is unavailable.
     });
   }, [theme, themeMode]);
 

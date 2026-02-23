@@ -7,7 +7,7 @@ const DEFAULT_AI_TIMEOUT_MS: u64 = 8000;
 const DEFAULT_OLLAMA_ENDPOINT: &str = "http://127.0.0.1:11434";
 const DEFAULT_OLLAMA_MODEL: &str = "qwen3:8b";
 const DEFAULT_GEMINI_ENDPOINT: &str = "https://generativelanguage.googleapis.com";
-const DEFAULT_GEMINI_MODEL: &str = "gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-pro";
 
 /// Runtime AI settings (env-driven).
 #[derive(Debug, Clone, Serialize, Deserialize)]

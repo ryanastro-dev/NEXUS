@@ -46,4 +46,5 @@ export interface VulnerabilityStats {
   secure: number;
 }
 
-export type VulnerabilityFilter = 'all' | 'critical' | 'high' | 'medium';
+export type VulnerabilityFilter = 'all' | 'critical' | 'high' | 'medium' | 'secure';
+

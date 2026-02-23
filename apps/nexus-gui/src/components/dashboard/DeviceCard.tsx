@@ -109,12 +109,18 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
           </div>
         </div>
         <motion.div 
-          className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${status.color}/20 ${status.textColor}`}
+          className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${status.color}/20 ${status.textColor}`}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.1 }}
         >
-          ● {status.text}
+          <span className="relative flex h-2 w-2">
+            {isOnline && (
+              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${status.color}`} />
+            )}
+            <span className={`relative inline-flex h-2 w-2 rounded-full ${status.color}`} />
+          </span>
+          {status.text}
         </motion.div>
       </div>
 

@@ -26,6 +26,15 @@ fn close_splash_window(app: &tauri::AppHandle) {
     }
 }
 
+fn should_keep_running_in_background(app: &tauri::AppHandle) -> bool {
+    let monitor_state = app.state::<MonitorState>();
+    monitor_state
+        .monitor
+        .try_lock()
+        .map(|monitor| monitor.is_running())
+        .unwrap_or(false)
+}
+
 fn main() {
     // Initialize structured logging system
     if let Err(e) = nexus_core::logging::init_logging() {
@@ -65,6 +74,24 @@ fn main() {
                 focus_main_window(&app_handle);
                 close_splash_window(&app_handle);
             });
+
+            if let Some(main_window) = app.get_webview_window("main") {
+                let app_handle_for_close = app.handle().clone();
+                main_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        if should_keep_running_in_background(&app_handle_for_close) {
+                            tracing::info!(
+                                "Close intercepted while monitoring is active; app moved to background"
+                            );
+                            api.prevent_close();
+                            if let Some(window) = app_handle_for_close.get_webview_window("main") {
+                                let _ = window.hide();
+                            }
+                        }
+                    }
+                });
+            }
+
             Ok(())
         })
         .manage(app_state)

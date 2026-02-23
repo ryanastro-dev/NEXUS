@@ -65,7 +65,6 @@ export function AiEngineSection({
   const showLocalConfig = aiEnabled && (aiMode === 'local' || aiMode === 'hybrid_auto');
   const showCloudConfig = aiEnabled && (aiMode === 'cloud' || aiMode === 'hybrid_auto');
   const aiModeOptions = [
-    { value: 'disabled', label: 'Disabled' },
     { value: 'local', label: 'Local (Ollama)' },
     { value: 'cloud', label: 'Cloud (Gemini)' },
     { value: 'hybrid_auto', label: 'Hybrid Auto' },
@@ -176,7 +175,7 @@ export function AiEngineSection({
                     value={geminiModel}
                     onChange={(event) => onGeminiModelChange(event.target.value)}
                     className="w-full rounded-lg border border-theme bg-bg-tertiary px-3 py-2 text-sm text-text-primary transition-colors focus:border-accent-blue focus:outline-none"
-                    placeholder="gemini-2.5-flash"
+                    placeholder="gemini-3.1-pro"
                   />
                 </div>
 

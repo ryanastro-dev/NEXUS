@@ -13,17 +13,7 @@ body,
 }
 
 /* ===== Scrollbar Customization ===== */
-/* Hide scrollbars globally */
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-*::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
+/* Scrollbars are styled based on theme (see bottom of file) */
 
 /* ===== Base Styles ===== */
 
@@ -40,7 +30,7 @@ body,
   --color-primary: #6366f1; /* Indigo - Primary brand color */
   --color-primary-hover: #4f46e5;
   --color-primary-light: #e0e7ff;
-  
+
   --color-accent-blue: #3b82f6;
   --color-accent-green: #10b981;
   --color-accent-red: #ef4444;
@@ -93,14 +83,18 @@ body,
   --glass-bg: rgba(15, 23, 42, 0.75);
   --glass-border: rgba(71, 85, 105, 0.3);
   --glass-hover: rgba(71, 85, 105, 0.15);
-  
+
   /* Professional Gradients - Muted & Sophisticated */
   --gradient-slate: linear-gradient(135deg, #475569 0%, #334155 100%);
   --gradient-indigo: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
   --gradient-teal: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
   --gradient-violet: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-  --gradient-mesh: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.08), transparent 50%);
-  
+  --gradient-mesh: radial-gradient(
+    ellipse at top,
+    rgba(14, 165, 233, 0.08),
+    transparent 50%
+  );
+
   /* Enterprise Accent Colors */
   --color-accent-navy: #1e40af;
   --color-accent-indigo: #0284c7;
@@ -108,18 +102,18 @@ body,
   --color-accent-violet: #0ea5e9;
   --color-accent-amber: #d97706;
   --color-accent-rose: #e11d48;
-  
+
   /* Professional Status Colors - Muted */
   --color-status-success: #059669;
   --color-status-warning: #d97706;
   --color-status-error: #dc2626;
   --color-status-info: #0284c7;
-  
+
   /* Enhanced Glow Shadows - Subtle */
   --shadow-glow-green: 0 0 24px rgba(5, 150, 105, 0.25);
   --shadow-glow-indigo: 0 0 24px rgba(14, 165, 233, 0.25);
   --shadow-glow-teal: 0 0 24px rgba(13, 148, 136, 0.25);
-  
+
   /* Backdrop Blur */
   --blur-glass: 20px;
 }
@@ -131,14 +125,18 @@ body,
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(148, 163, 184, 0.3);
   --glass-hover: rgba(148, 163, 184, 0.15);
-  
+
   /* Light Mode Gradients */
   --gradient-slate: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
   --gradient-indigo: linear-gradient(135deg, #7dd3fc 0%, #bfdbfe 100%);
   --gradient-teal: linear-gradient(135deg, #5eead4 0%, #99f6e4 100%);
   --gradient-violet: linear-gradient(135deg, #bae6fd 0%, #ccfbf1 100%);
-  --gradient-mesh: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.05), transparent 50%);
-  
+  --gradient-mesh: radial-gradient(
+    ellipse at top,
+    rgba(14, 165, 233, 0.05),
+    transparent 50%
+  );
+
   /* Light Mode Accent Colors */
   --color-accent-navy: #1e40af;
   --color-accent-indigo: #0369a1;
@@ -146,19 +144,18 @@ body,
   --color-accent-violet: #0284c7;
   --color-accent-amber: #b45309;
   --color-accent-rose: #be123c;
-  
+
   /* Light Mode Status Colors */
   --color-status-success: #047857;
   --color-status-warning: #b45309;
   --color-status-error: #b91c1c;
   --color-status-info: #0369a1;
-  
+
   /* Light Mode Glow Shadows - Very Subtle */
   --shadow-glow-green: 0 0 16px rgba(15, 118, 110, 0.15);
   --shadow-glow-indigo: 0 0 16px rgba(2, 132, 199, 0.15);
   --shadow-glow-teal: 0 0 16px rgba(15, 118, 110, 0.15);
 }
-
 
 /* ================= DARK THEME (Default - Luxury) ================= */
 :root,
@@ -551,46 +548,16 @@ svg {
   animation: subtle-pulse 3s ease-in-out infinite;
 }
 
-/* Scrollbar styling - Dark */
-.dark::-webkit-scrollbar,
-:root::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Hide scrollbar globally but allow scrolling */
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
-.dark::-webkit-scrollbar-track,
-:root::-webkit-scrollbar-track {
-  background: var(--color-bg-secondary);
-}
-
-.dark::-webkit-scrollbar-thumb,
-:root::-webkit-scrollbar-thumb {
-  background: var(--color-bg-tertiary);
-  border-radius: 4px;
-}
-
-.dark::-webkit-scrollbar-thumb:hover,
-:root::-webkit-scrollbar-thumb:hover {
-  background: var(--color-bg-hover);
-}
-
-/* Scrollbar styling - Light */
-.light::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.light::-webkit-scrollbar-track {
-  background: var(--color-bg-tertiary);
-}
-
-.light::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-.light::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+* {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 /* React Flow theme overrides */
@@ -653,7 +620,8 @@ svg {
 
 /* ================= CUSTOM ANIMATIONS ================= */
 @keyframes pulse-slow {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

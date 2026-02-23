@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Lock, Unlock, Zap, Grid3x3, Share2, FileText, Loader2 } from 'lucide-react';
+import { useAiStatus } from '../../hooks/useAiStatus';
 
 export type MappingDesign = 'default' | 'cyber' | 'mesh';
 
@@ -21,8 +22,11 @@ export default function TopologyControls({
   isGeneratingReport = false,
 }: TopologyControlsProps) {
   
+  const { settings } = useAiStatus();
+  const isAiDisabled = !settings?.enabled || settings?.mode === 'disabled';
+
   const getButtonClass = (isActive: boolean, isLock?: boolean) => {
-    const base = 'flex items-center justify-center w-8 h-8 rounded-lg border-none cursor-pointer transition-all duration-200';
+    const base = 'flex items-center justify-center w-8 h-8 rounded-lg border-none cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
     
     if (isLock && isActive) {
       return `${base} bg-orange-500/20 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400`;
@@ -76,8 +80,8 @@ export default function TopologyControls({
       {onGenerateReport && (
         <button
           onClick={onGenerateReport}
-          disabled={isGeneratingReport}
-          title="Generate network report"
+          disabled={isGeneratingReport || isAiDisabled}
+          title={isAiDisabled ? "AI Engine must be enabled to generate report" : "Generate network report"}
           className={getButtonClass(false)}
         >
           {isGeneratingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}

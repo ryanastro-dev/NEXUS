@@ -1,7 +1,7 @@
 use nexus_core::{database::queries, list_valid_interfaces, MonitoringStatus, NetworkEvent};
 use tauri::Emitter;
 
-use super::shared::get_db_connection;
+use super::shared::{get_db_connection, persist_monitor_event_alert};
 use super::state::{AppState, MonitorState};
 use super::types::RuntimeDiagnostics;
 
@@ -21,6 +21,12 @@ pub async fn start_monitoring(
     let callback_db_conn = db_conn.clone();
     let callback = move |event: NetworkEvent| {
         let _ = app_handle.emit("network-event", &event);
+
+        if let Ok(conn) = callback_db_conn.lock() {
+            if let Err(error) = persist_monitor_event_alert(&conn, &event) {
+                eprintln!("[WARN] Failed to persist monitor event alert: {}", error);
+            }
+        }
 
         if let NetworkEvent::ScanCompleted {
             scan_number,

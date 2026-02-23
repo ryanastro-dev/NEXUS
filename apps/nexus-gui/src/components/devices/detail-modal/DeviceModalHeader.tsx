@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import { Loader2, ShieldAlert, X } from 'lucide-react';
+import { useAiStatus } from '../../../hooks/useAiStatus';
 
 interface DeviceModalHeaderProps {
   isDark: boolean;
@@ -20,6 +21,9 @@ export function DeviceModalHeader({
   isAnalyzingSecurity = false,
   onClose,
 }: DeviceModalHeaderProps) {
+  const { settings } = useAiStatus();
+  const isAiDisabled = !settings?.enabled || settings?.mode === 'disabled';
+
   return (
     <div
       className={clsx(
@@ -42,7 +46,8 @@ export function DeviceModalHeader({
         {onAnalyzeSecurity && (
           <button
             onClick={onAnalyzeSecurity}
-            disabled={isAnalyzingSecurity}
+            disabled={isAnalyzingSecurity || isAiDisabled}
+            title={isAiDisabled ? "AI Engine must be enabled to analyze vulnerabilities" : "Analyze Vulnerability"}
             className={clsx(
               'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors',
               isDark

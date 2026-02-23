@@ -1,6 +1,6 @@
 use nexus_core::{
     database::queries, Alert as RuntimeAlert, AlertSeverity as DbAlertSeverity,
-    AlertType as DbAlertType, DeviceRecord,
+    AlertType as DbAlertType, DeviceRecord, NetworkEvent,
 };
 
 use super::super::state::AppState;
@@ -121,4 +121,104 @@ pub(crate) fn persist_alerts(state: &tauri::State<'_, AppState>, detected_alerts
             error
         ),
     }
+}
+
+pub(crate) fn persist_monitor_event_alert(
+    conn: &rusqlite::Connection,
+    event: &NetworkEvent,
+) -> Result<(), String> {
+    let (alert_type, device_mac, device_ip, dedupe_key, message, severity, dedupe_window_minutes) =
+        match event {
+            NetworkEvent::NewDeviceDiscovered {
+                ip,
+                mac,
+                hostname,
+                device_type,
+            } => {
+                let display_name = hostname
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or(device_type);
+                (
+                    DbAlertType::NewDevice,
+                    Some(mac.as_str()),
+                    Some(ip.as_str()),
+                    format!("monitor:new-device:{mac}"),
+                    format!("New device discovered: {display_name} ({ip})"),
+                    DbAlertSeverity::Warning,
+                    30,
+                )
+            }
+            NetworkEvent::DeviceWentOffline {
+                mac,
+                last_ip,
+                hostname,
+            } => {
+                let display_name = hostname
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or(mac);
+                (
+                    DbAlertType::DeviceOffline,
+                    Some(mac.as_str()),
+                    Some(last_ip.as_str()),
+                    format!("monitor:device-offline:{mac}"),
+                    format!("Device offline: {display_name} ({last_ip})"),
+                    DbAlertSeverity::Info,
+                    10,
+                )
+            }
+            NetworkEvent::DeviceCameOnline { mac, ip, hostname } => {
+                let display_name = hostname
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or(mac);
+                (
+                    DbAlertType::DeviceOnline,
+                    Some(mac.as_str()),
+                    Some(ip.as_str()),
+                    format!("monitor:device-online:{mac}"),
+                    format!("Device online: {display_name} ({ip})"),
+                    DbAlertSeverity::Info,
+                    10,
+                )
+            }
+            NetworkEvent::DeviceIpChanged {
+                mac,
+                old_ip,
+                new_ip,
+            } => (
+                DbAlertType::IpChange,
+                Some(mac.as_str()),
+                Some(new_ip.as_str()),
+                format!("monitor:ip-change:{mac}:{new_ip}"),
+                format!("IP changed for {mac}: {old_ip} -> {new_ip}"),
+                DbAlertSeverity::Warning,
+                15,
+            ),
+            NetworkEvent::MonitoringError { message } => (
+                DbAlertType::Custom,
+                None,
+                None,
+                format!("monitor:error:{message}"),
+                format!("Monitoring error: {message}"),
+                DbAlertSeverity::Error,
+                5,
+            ),
+            _ => return Ok(()),
+        };
+
+    let alert_insert = queries::AlertInsert {
+        alert_type,
+        device_id: None,
+        device_mac,
+        device_ip,
+        dedupe_key: None,
+        message: &message,
+        severity,
+    };
+
+    queries::insert_alert_if_not_exists(conn, &alert_insert, &dedupe_key, dedupe_window_minutes)
+        .map(|_| ())
+        .map_err(|error| format!("Failed to persist monitor event alert: {}", error))
 }

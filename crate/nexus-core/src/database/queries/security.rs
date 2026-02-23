@@ -10,7 +10,7 @@ pub fn lookup_vulnerabilities(
         r#"
         SELECT cve_id, description, severity, cvss_score
         FROM cve_cache
-        WHERE LOWER(vendor) = LOWER(?1) OR vendor = '*'
+        WHERE LOWER(vendor) = LOWER(?1)
         ORDER BY cvss_score DESC NULLS LAST
         "#,
     )?;
