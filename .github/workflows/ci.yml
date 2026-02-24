@@ -47,6 +47,13 @@ jobs:
             libpcap-dev \
             patchelf
 
+      - name: Prepare frontend dist placeholder for Tauri context
+        run: |
+          mkdir -p apps/nexus-gui/dist
+          if [ ! -f apps/nexus-gui/dist/index.html ]; then
+            printf '<!doctype html><title>NEXUS</title>' > apps/nexus-gui/dist/index.html
+          fi
+
       - name: Cargo fmt (check)
         run: cargo fmt --all -- --check
 

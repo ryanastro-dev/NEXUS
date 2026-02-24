@@ -49,13 +49,42 @@ function Ensure-TauriFrontendDist {
   }
 }
 
+function Test-NpcapRuntimeAvailable {
+  if (-not $IsWindows) {
+    return $true
+  }
+
+  $candidates = @(
+    "$env:SystemRoot\System32\Npcap\wpcap.dll",
+    "$env:SystemRoot\System32\Npcap\Packet.dll",
+    "$env:SystemRoot\System32\wpcap.dll",
+    "$env:SystemRoot\System32\Packet.dll",
+    "$env:SystemRoot\SysWOW64\wpcap.dll",
+    "$env:SystemRoot\SysWOW64\Packet.dll"
+  )
+
+  foreach ($candidate in $candidates) {
+    if (Test-Path $candidate) {
+      return $true
+    }
+  }
+
+  return $false
+}
 Ensure-TauriFrontendDist
 Run-Step -Name "Rust workspace check" -Command "cargo check --workspace"
 Run-Step -Name "Frontend lint" -Command "npm --prefix apps/nexus-gui run lint"
 Run-Step -Name "Frontend unit tests" -Command "npm --prefix apps/nexus-gui run test"
 Run-Step -Name "Desktop frontend build" -Command "npm --prefix apps/nexus-gui run build"
 Run-Step -Name "Alert dedupe integration" -Command "cargo test --workspace --test alerts_dedupe_integration -- --nocapture"
-Run-Step -Name "App dispatch integration" -Command "cargo test --workspace --test app_dispatch_integration -- --nocapture"
+
+if ($IsWindows -and -not (Test-NpcapRuntimeAvailable)) {
+  Write-Warning "Npcap runtime DLLs were not found. Skipping App dispatch integration in smoke run."
+  $warnings += "App dispatch integration (Npcap runtime missing)"
+} else {
+  Run-Step -Name "App dispatch integration" -Command "cargo test --workspace --test app_dispatch_integration -- --nocapture"
+}
+
 Run-Step -Name "Monitor lifecycle smoke (ignored test)" -Command "cargo test --workspace --test monitor_sequence_smoke -- --ignored --nocapture" -AllowFailure
 
 Write-Host ""
