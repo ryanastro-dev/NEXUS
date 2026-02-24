@@ -4,6 +4,8 @@ $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $root
 
 $warnings = @()
+$isWindowsHost = ($env:OS -eq 'Windows_NT')
+$dllMissingExitCodes = @(-1073741515, 3221225781)
 
 function Run-Step {
   param(
@@ -35,6 +37,36 @@ function Run-Step {
   }
 }
 
+function Run-StepWithDllGuard {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Name,
+    [Parameter(Mandatory = $true)]
+    [string]$Command
+  )
+
+  Write-Host ""
+  Write-Host "==> $Name" -ForegroundColor Cyan
+  Write-Host "    $Command" -ForegroundColor DarkGray
+
+  $global:LASTEXITCODE = 0
+  Invoke-Expression $Command
+
+  if ($global:LASTEXITCODE -eq 0) {
+    Write-Host "[OK] $Name" -ForegroundColor Green
+    return
+  }
+
+  $exitCode = [int64]$global:LASTEXITCODE
+  if ($isWindowsHost -and ($dllMissingExitCodes -contains $exitCode)) {
+    Write-Warning "$Name skipped (non-blocking): Windows runtime DLL dependency missing (exit=$exitCode)."
+    $script:warnings += "$Name (runtime DLL missing)"
+    return
+  }
+
+  throw "Command exited with code $global:LASTEXITCODE"
+}
+
 function Ensure-TauriFrontendDist {
   $distDir = Join-Path $root 'apps/nexus-gui/dist'
   $indexPath = Join-Path $distDir 'index.html'
@@ -49,42 +81,13 @@ function Ensure-TauriFrontendDist {
   }
 }
 
-function Test-NpcapRuntimeAvailable {
-  if (-not $IsWindows) {
-    return $true
-  }
-
-  $candidates = @(
-    "$env:SystemRoot\System32\Npcap\wpcap.dll",
-    "$env:SystemRoot\System32\Npcap\Packet.dll",
-    "$env:SystemRoot\System32\wpcap.dll",
-    "$env:SystemRoot\System32\Packet.dll",
-    "$env:SystemRoot\SysWOW64\wpcap.dll",
-    "$env:SystemRoot\SysWOW64\Packet.dll"
-  )
-
-  foreach ($candidate in $candidates) {
-    if (Test-Path $candidate) {
-      return $true
-    }
-  }
-
-  return $false
-}
 Ensure-TauriFrontendDist
 Run-Step -Name "Rust workspace check" -Command "cargo check --workspace"
 Run-Step -Name "Frontend lint" -Command "npm --prefix apps/nexus-gui run lint"
 Run-Step -Name "Frontend unit tests" -Command "npm --prefix apps/nexus-gui run test"
 Run-Step -Name "Desktop frontend build" -Command "npm --prefix apps/nexus-gui run build"
 Run-Step -Name "Alert dedupe integration" -Command "cargo test --workspace --test alerts_dedupe_integration -- --nocapture"
-
-if ($IsWindows -and -not (Test-NpcapRuntimeAvailable)) {
-  Write-Warning "Npcap runtime DLLs were not found. Skipping App dispatch integration in smoke run."
-  $warnings += "App dispatch integration (Npcap runtime missing)"
-} else {
-  Run-Step -Name "App dispatch integration" -Command "cargo test --workspace --test app_dispatch_integration -- --nocapture"
-}
-
+Run-StepWithDllGuard -Name "App dispatch integration" -Command "cargo test --workspace --test app_dispatch_integration -- --nocapture"
 Run-Step -Name "Monitor lifecycle smoke (ignored test)" -Command "cargo test --workspace --test monitor_sequence_smoke -- --ignored --nocapture" -AllowFailure
 
 Write-Host ""
