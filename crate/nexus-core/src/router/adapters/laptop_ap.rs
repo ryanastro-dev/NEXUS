@@ -184,6 +184,7 @@ impl LaptopApRouterAdapter {
         }
     }
 
+    #[cfg(target_os = "windows")]
     fn blocked_rule_name(mac: &str, direction: &str) -> String {
         let compact: String = mac.chars().filter(|ch| ch.is_ascii_hexdigit()).collect();
         format!(
