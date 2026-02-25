@@ -63,6 +63,7 @@ pub fn calculate_security_grade(host: &HostInfo) -> String {
 mod tests {
     use super::*;
     use crate::models::{PortWarning, VulnerabilityInfo};
+    use crate::network::DeviceType;
 
     #[test]
     fn test_grade_a_no_issues() {
@@ -74,7 +75,7 @@ mod tests {
             response_time_ms: Some(10),
             ttl: Some(64),
             os_guess: Some("Linux".to_string()),
-            device_type: "ROUTER".to_string(),
+            device_type: DeviceType::Router,
             risk_score: 0,
             open_ports: vec![],
             discovery_method: "ARP".to_string(),
@@ -84,7 +85,7 @@ mod tests {
             neighbors: vec![],
             vulnerabilities: vec![],
             port_warnings: vec![],
-            security_grade: String::new(),
+            security_grade: SecurityGrade::Unknown,
         };
 
         assert_eq!(calculate_security_grade(&host), "A");
@@ -101,7 +102,7 @@ mod tests {
             response_time_ms: Some(10),
             ttl: Some(64),
             os_guess: Some("Linux".to_string()),
-            device_type: "ROUTER".to_string(),
+            device_type: DeviceType::Router,
             risk_score: 50,
             open_ports: vec![23, 21],
             discovery_method: "ARP".to_string(),
@@ -111,7 +112,7 @@ mod tests {
             neighbors: vec![],
             vulnerabilities: vec![],
             port_warnings: vec![],
-            security_grade: String::new(),
+            security_grade: SecurityGrade::Unknown,
         };
 
         // Add critical vulnerabilities

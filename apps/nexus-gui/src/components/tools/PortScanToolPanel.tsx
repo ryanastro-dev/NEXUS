@@ -3,12 +3,15 @@ import { Hash, Loader2, Play } from "lucide-react";
 
 import { tauriClient } from "../../lib/api/tauri-client";
 import type { PortScanResult } from "../../lib/api/types";
+import { useLanguage } from "../../hooks/useLanguage";
+import { PANEL_CARD } from "../../lib/ui-classes";
 import { Tooltip } from "../common/Tooltip";
 
-const CARD =
-  "rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65";
+const CARD = PANEL_CARD;
 
 export default function PortScanToolPanel() {
+  const { copy } = useLanguage();
+  const portScanCopy = copy.tools.portScan;
   const [target, setTarget] = useState("");
   const [startPort, setStartPort] = useState("1");
   const [endPort, setEndPort] = useState("1000");
@@ -44,17 +47,17 @@ export default function PortScanToolPanel() {
       <div className={`${CARD} h-fit p-4`}>
         <div className="mb-3 flex items-center gap-2">
           <Hash className="h-4 w-4 text-accent-blue" />
-          <h2 className="text-base font-bold text-text-primary">Configuration</h2>
+          <h2 className="text-base font-bold text-text-primary">{portScanCopy.configuration}</h2>
         </div>
 
         <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">
-              Target IP
+              {portScanCopy.targetIp}
             </label>
             <input
               type="text"
-              placeholder="192.168.1.1"
+              placeholder={portScanCopy.targetPlaceholder}
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               className={inputClass}
@@ -64,7 +67,7 @@ export default function PortScanToolPanel() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">
-                Start Port
+                {portScanCopy.startPort}
               </label>
               <input
                 type="number"
@@ -75,7 +78,7 @@ export default function PortScanToolPanel() {
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">
-                End Port
+                {portScanCopy.endPort}
               </label>
               <input
                 type="number"
@@ -86,7 +89,7 @@ export default function PortScanToolPanel() {
             </div>
           </div>
 
-          <Tooltip content="Please enter a valid target IP" active={!target.trim()}>
+          <Tooltip content={portScanCopy.invalidTargetHint} active={!target.trim()}>
             <button
               onClick={() => void handleScan()}
               disabled={loading || !target.trim()}
@@ -95,12 +98,12 @@ export default function PortScanToolPanel() {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Scanning...
+                  {portScanCopy.running}
                 </>
               ) : (
                 <>
                   <Play className="h-4 w-4" />
-                  Start Scan
+                  {portScanCopy.start}
                 </>
               )}
             </button>
@@ -110,12 +113,14 @@ export default function PortScanToolPanel() {
 
       <div className={`${CARD} h-fit p-4`}>
         <h3 className="mb-2 text-sm font-semibold text-text-primary">
-          Results {openPorts.length > 0 && `(${openPorts.length} open)`}
+          {portScanCopy.results}{' '}
+          {openPorts.length > 0 &&
+            portScanCopy.openCount.replace('{count}', String(openPorts.length))}
         </h3>
         <div className="h-[208px] space-y-1 overflow-y-auto">
           {openPorts.length === 0 && !loading && (
             <div className="flex h-full items-center justify-center text-xs text-text-muted">
-              No open ports found
+              {portScanCopy.noOpenPorts}
             </div>
           )}
           {openPorts.map((r) => (
@@ -124,10 +129,12 @@ export default function PortScanToolPanel() {
               className="flex items-center justify-between rounded border border-accent-green/30 bg-accent-green/10 p-2 text-xs"
             >
               <span className="font-mono font-bold text-accent-green">Port {r.port}</span>
-              <span className="text-accent-green">{r.service || "Unknown"}</span>
+              <span className="text-accent-green">{r.service || portScanCopy.unknownService}</span>
             </div>
           ))}
-          {loading && <div className="py-4 text-center text-xs text-text-muted">Scanning...</div>}
+          {loading && (
+            <div className="py-4 text-center text-xs text-text-muted">{portScanCopy.running}</div>
+          )}
         </div>
       </div>
     </div>

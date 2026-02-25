@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Bell, Cpu } from 'lucide-react';
 
 import type { UseMonitoringReturn } from '../../hooks/useMonitoring';
+import { useLanguage } from '../../hooks/useLanguage';
 import { CARD } from './constants';
 import type { DeviceTypeDatum } from './types';
 import { eventIcon, eventLabel } from './events';
@@ -20,6 +21,8 @@ export function DashboardActivitySection({
   monitor,
   deviceTypeData,
 }: DashboardActivitySectionProps) {
+  const { copy } = useLanguage();
+  const activityCopy = copy.dashboard.activity;
   const [clearedCount, setClearedCount] = useState(0);
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function DashboardActivitySection({
     <section className="grid grid-cols-1 gap-3 xl:grid-cols-12">
       <div className={`${CARD} p-4 xl:col-span-5`}>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-text-primary sm:text-lg">Device Composition</h2>
+          <h2 className="text-base font-bold text-text-primary sm:text-lg">{activityCopy.deviceComposition}</h2>
           <Cpu className="h-4 w-4 text-cyan-500 sm:h-5 sm:w-5" />
         </div>
         <div className="h-56 sm:h-60">
@@ -51,17 +54,17 @@ export function DashboardActivitySection({
 
       <div className={`${CARD} p-4 xl:col-span-7`}>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-text-primary sm:text-lg">Live Activity Stream</h2>
+          <h2 className="text-base font-bold text-text-primary sm:text-lg">{activityCopy.liveActivityStream}</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setClearedCount(monitor.events.length)}
               disabled={visibleEvents.length === 0}
               className="rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              Clear View
+              {activityCopy.clearView}
             </button>
             <div className="rounded-full bg-cyan-100 px-2 py-1 text-[11px] font-semibold text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">
-              {monitor.status.is_running ? 'Live' : 'Paused'}
+              {monitor.status.is_running ? activityCopy.live : activityCopy.paused}
             </div>
           </div>
         </div>
@@ -76,7 +79,7 @@ export function DashboardActivitySection({
           {renderedEvents.length === 0 ? (
             <div className="flex min-h-36 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300/80 text-sm text-text-muted dark:border-slate-700">
               <Bell className="h-5 w-5" />
-              <p>No recent events captured</p>
+              <p>{activityCopy.noRecentEvents}</p>
             </div>
           ) : (
             renderedEvents.map((event, idx) => (
@@ -86,8 +89,10 @@ export function DashboardActivitySection({
               >
                 {eventIcon(event)}
                 <div className="min-w-0">
-                  <p className="text-[13px] leading-snug text-text-primary">{eventLabel(event)}</p>
-                  <p className="text-xs text-text-muted">Event #{visibleEvents.length - idx}</p>
+                  <p className="text-[13px] leading-snug text-text-primary">{eventLabel(event, activityCopy)}</p>
+                  <p className="text-xs text-text-muted">
+                    {activityCopy.eventPrefix} #{visibleEvents.length - idx}
+                  </p>
                 </div>
               </div>
             ))

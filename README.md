@@ -4,14 +4,14 @@
 
 **Smart Network Topology Mapper & Health Monitor**
 
-`v0.1.1`
+`v0.1.3`
 
 A cross-platform desktop application for real-time network discovery, interactive topology visualization, continuous health monitoring, and AI-powered security analysis.
 
 Built with **Rust** · **Tauri v2** · **React 19** · **TypeScript** · **SQLite**
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](#verification)
-[![Version](https://img.shields.io/badge/version-0.1.0-6366f1)](#changelog)
+[![Version](https://img.shields.io/badge/version-0.1.3-6366f1)](#changelog)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](#requirements)
 [![Rust](https://img.shields.io/badge/rust-stable-orange)](#tech-stack)
 [![License](https://img.shields.io/badge/license-academic-blue)](#license)
@@ -23,6 +23,25 @@ Built with **Rust** · **Tauri v2** · **React 19** · **TypeScript** · **SQLit
 ## What is NEXUS?
 
 **NEXUS** is a high-performance network intelligence platform that discovers every device on your local network, maps their connections in an interactive topology graph, and continuously monitors for changes — all from a single native desktop application. It combines multi-protocol scanning (ARP, ICMP, TCP, SNMP, mDNS), security vulnerability assessment with A–F grading, and AI-powered analysis into one unified tool.
+
+---
+
+## Changelog
+
+### v0.1.3 (February 2026)
+
+- Upgraded Rust workspace consistency to **Edition 2024** with **rust-version 1.93** for `nexus-core` and Tauri backend crates.
+- Added **router provider control surface** with provider defaults and runtime actions for:
+  - Mock provider (local validation)
+  - Laptop AP fallback
+  - MikroTik RouterOS API transport (`8728/8729` flow)
+  - Cisco SSH/NETCONF command execution layer (`22/830` flow)
+- Added **persistent `tauri dev` port fallback wrapper** (`apps/nexus-gui/scripts/tauri-cli.mjs`) to auto-resolve frontend port conflicts.
+- Added **frontend i18n quality gate** (`npm run smoke:i18n`) and wired it into GitHub Actions.
+- Stabilized cross-page runtime sync via **Zustand stores** for monitoring events, topology/device updates, and shared drill-down state.
+- Expanded localization architecture to domain-based copy modules with `en` + `my` splits.
+- Added pre-generated **Showcase PDF export** flow and upgraded report layout support in the PDF engine.
+- Enabled SQLite production pragmas including **WAL mode** and added related storage-level tests.
 
 ---
 
@@ -46,6 +65,7 @@ Background monitor loop with configurable intervals and live event streaming.
 
 - **Device lifecycle events** — New, Offline, Back Online, IP Changed, Open Port Detected
 - **Live push to UI** — Tauri event channels deliver updates instantly
+- **Cross-page runtime sync** — Zustand-backed host/runtime stores keep Topology, Devices, Vulnerabilities, Alerts, and Reports aligned
 - **Alert deduplication** — Smart composite dedupe keys prevent noise
 - **Read/unread workflow** — Mark individual or bulk alerts
 - **Auto-start** — Configurable auto-monitoring on app launch
@@ -87,6 +107,24 @@ Multiple export formats with native OS save dialogs.
 - **JSON** — Structured scan and topology data
 - **PDF Scan Report** — Device inventory, statistics, and summary
 - **PDF Security Report** — Health scores, grades, and recommendations
+- **Pre-Generated Showcase PDF** — Offline demo-ready branded report with KPI/chart block
+
+### 🛜 Router Control
+
+Provider-based admin control from one page with capability-aware actions.
+
+- **Provider switching** — Mock, Laptop AP fallback, MikroTik, Cisco
+- **Provider defaults** — Auto-fill ports (`MikroTik 8728`, `Cisco 22`)
+- **Client actions** — List clients, block/unblock flows, policy action dispatch
+- **Capability matrix** — Runtime provider support visibility before actions
+
+### 🌐 App Localization
+
+Domain-split bilingual copy architecture with runtime language switching.
+
+- **Languages** — English (`en`) and Myanmar (`my`)
+- **Maintainable structure** — Domain-wise split + per-language files to reduce merge conflicts
+- **Runtime toggle** — Persisted language preference with instant UI copy updates
 
 ### 🧰 Built-in Tools
 
@@ -98,7 +136,7 @@ Network utilities accessible from a unified tabbed interface.
 
 ### 🎨 Desktop Experience
 
-Premium native application with 9 full pages.
+Premium native application with 10 full pages.
 
 - **Mission Control design** — Consistent premium design language
 - **Dark / Light theme** — Sophisticated palettes, instant toggle
@@ -109,6 +147,7 @@ Premium native application with 9 full pages.
 - **Framer Motion** — Page transitions and micro-animations
 - **Virtualized lists** — Performant rendering of large device lists
 - **Demo mode** — Pre-loaded mock data for presentations
+- **Global drill-down UX** — Unified device details modal reused across topology, devices, and vulnerabilities
 
 ---
 
@@ -151,7 +190,7 @@ Premium native application with 9 full pages.
 | **Database**      | SQLite (rusqlite)     | Local storage with AES-256-GCM encryption            |
 | **Networking**    | pnet, surge-ping      | Raw packets, ICMP, SNMP, mDNS                        |
 | **Encryption**    | aes-gcm + argon2      | AES-256-GCM with Argon2id key derivation             |
-| **CI/CD**         | GitHub Actions        | Cross-platform builds via tauri-action               |
+| **CI/CD**         | GitHub Actions        | Rust quality, frontend i18n smoke, and Windows runtime smoke gates |
 
 ---
 
@@ -171,10 +210,11 @@ Premium native application with 9 full pages.
 │       └── logging/           # Structured tracing
 ├── apps/nexus-gui/        # Desktop application
 │   ├── src/                   # React frontend
-│   │   ├── pages/             # 9 page components
+│   │   ├── pages/             # Dashboard, topology, devices, alerts, vulnerabilities, tools, router, reports, settings, demo
 │   │   ├── components/        # UI component library
 │   │   ├── hooks/             # useScan, useMonitoring, etc.
-│   │   └── lib/api/           # Typed Tauri client
+│   │   ├── store/             # Zustand runtime stores
+│   │   └── lib/               # API client, i18n copy, events, runtime helpers
 │   └── src-tauri/             # Tauri backend bridge
 │       ├── src/commands/      # IPC command handlers
 │       └── tauri.conf.json    # App configuration
@@ -190,7 +230,7 @@ Premium native application with 9 full pages.
 | **Runtime**    | [Npcap](https://npcap.com/) (WinPcap compat mode) | `libpcap-dev`                              | `libpcap` (pre-installed) |
 | **Build**      | MSVC Build Tools                                  | `build-essential`, `libwebkit2gtk-4.1-dev` | Xcode CLI Tools           |
 | **Privileges** | Run as Administrator                              | `sudo` or `cap_net_raw`                    | `sudo`                    |
-| **Common**     | Rust stable, Node.js 18+, npm                     |                                            |                           |
+| **Common**     | Rust stable, Node.js 22+ (24.x recommended), npm  |                                            |                           |
 
 ---
 
@@ -211,7 +251,33 @@ cargo test -p nexus-core --all-targets
 
 ```bash
 npm --prefix apps/nexus-gui run dev
-# → http://localhost:1420
+# → default http://localhost:1420 (tauri wrapper auto-fallbacks if occupied)
+```
+
+---
+
+## Development Commands
+
+```bash
+# Frontend lint + i18n tests + production build
+npm --prefix apps/nexus-gui run smoke:i18n
+
+# Full frontend smoke
+npm --prefix apps/nexus-gui run smoke:frontend
+
+# Desktop runtime smoke script
+npm --prefix apps/nexus-gui run smoke:runtime
+
+# Tauri dev with automatic free-port selection (1420-1423 by default)
+npm --prefix apps/nexus-gui run tauri dev
+```
+
+Optional port candidates override:
+
+```bash
+# Windows PowerShell example
+$env:NEXUS_TAURI_DEV_PORTS="1420,1421,3000,3001"
+npm --prefix apps/nexus-gui run tauri dev
 ```
 
 ---
@@ -234,10 +300,10 @@ npm run tauri build
 ## Verification
 
 ```bash
-cargo check --all-targets          # Type checking
-cargo clippy --all-targets         # Linting
-cargo test --all-targets           # Unit + integration tests
-npm --prefix apps/nexus-gui run build   # Frontend build
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+npm --prefix apps/nexus-gui run smoke:i18n
 ```
 
 ---
@@ -254,11 +320,12 @@ npm --prefix apps/nexus-gui run build   # Frontend build
 
 ## CI/CD
 
-Automated cross-platform builds via **GitHub Actions** + `tauri-action`.
+Automated quality gates via **GitHub Actions**.
 
-- **Trigger:** Push version tag (`v*`)
-- **Platforms:** Windows (x64), Linux (x64), macOS (Intel + Apple Silicon)
-- **Artifacts:** Installers uploaded to GitHub Release
+- **Rust quality gate (Linux):** `fmt` + `clippy -D warnings` + workspace tests
+- **Frontend quality gate (Linux):** `npm run smoke:i18n` + frontend unit tests
+- **Windows link check:** Npcap SDK + workspace build/test (`--no-run`)
+- **Windows runtime smoke:** desktop smoke script for runtime-level regression checks
 
 ---
 
@@ -276,6 +343,17 @@ This project is developed for academic and research purposes at Technological Un
 ## 📖 ပရောဂျက်အကြောင်း အကျဉ်းချုပ်
 
 **NEXUS** သည် Local Network ထဲရှိ စက်ပစ္စည်းအားလုံးကို ရှာဖွေ၊ မြေပုံရေးဆွဲ၊ စောင့်ကြည့်စစ်ဆေး၊ နှင့် လုံခြုံရေးအားနည်းချက်များ ပိုင်းခြားခွဲခြမ်းစိတ်ဖြာနိုင်သော Cross-platform Desktop Application တစ်ခုဖြစ်ပါသည်။ **Rust**, **Tauri v2**, **React 19**, **TypeScript** နှင့် **SQLite** တို့ဖြင့် တည်ဆောက်ထားပါသည်။
+
+---
+
+## 🔄 v0.1.3 Update Highlights
+
+- Rust workspace ကို **Edition 2024 / rust-version 1.93** အထိ consistency update ပြုလုပ်ထားပါသည်။
+- Router Control တွင် **Mock / Laptop AP / MikroTik / Cisco** provider များကို support လုပ်ထားပါသည်။
+- `tauri dev` အတွက် frontend port conflict ဖြစ်လျှင် auto fallback လုပ်နိုင်သော wrapper (`scripts/tauri-cli.mjs`) ထည့်သွင်းထားပါသည်။
+- Frontend i18n quality gate (`smoke:i18n`) ကို CI ထဲသို့ချိတ်ထားပါသည်။
+- English / Myanmar app copy ကို domain-wise + language-wise split ဖွဲ့စည်းထားပါသည်။
+- Pre-generated Showcase PDF export နှင့် SQLite WAL mode တို့ကို ထည့်သွင်းထားပါသည်။
 
 ---
 

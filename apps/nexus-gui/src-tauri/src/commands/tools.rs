@@ -2,6 +2,8 @@ use std::time::Instant;
 
 use nexus_core::{guess_os_from_ttl, lookup_vendor_info};
 
+use super::CommandResult;
+
 /// Ping result with latency and TTL information.
 #[derive(serde::Serialize)]
 pub struct PingResult {
@@ -14,7 +16,7 @@ pub struct PingResult {
 
 /// Ping a single host.
 #[tauri::command]
-pub async fn ping_host(target: String, count: u32) -> Result<Vec<PingResult>, String> {
+pub async fn ping_host(target: String, count: u32) -> CommandResult<Vec<PingResult>> {
     use std::net::{IpAddr, ToSocketAddrs};
     use std::time::Duration;
 
@@ -29,10 +31,10 @@ pub async fn ping_host(target: String, count: u32) -> Result<Vec<PingResult>, St
                 if let Some(socket_addr) = addrs.next() {
                     socket_addr.ip()
                 } else {
-                    return Err("Could not resolve hostname".to_string());
+                    return Err("Could not resolve hostname".into());
                 }
             }
-            Err(_) => return Err("Invalid IP address or hostname".to_string()),
+            Err(_) => return Err("Invalid IP address or hostname".into()),
         }
     };
 
@@ -109,7 +111,7 @@ pub struct PortScanResult {
 
 /// Scan ports on a target host.
 #[tauri::command]
-pub async fn scan_ports(target: String, ports: Vec<u16>) -> Result<Vec<PortScanResult>, String> {
+pub async fn scan_ports(target: String, ports: Vec<u16>) -> CommandResult<Vec<PortScanResult>> {
     use std::net::{IpAddr, ToSocketAddrs};
     use std::time::Duration;
 
@@ -124,10 +126,10 @@ pub async fn scan_ports(target: String, ports: Vec<u16>) -> Result<Vec<PortScanR
                 if let Some(socket_addr) = addrs.next() {
                     socket_addr.ip()
                 } else {
-                    return Err("Could not resolve hostname".to_string());
+                    return Err("Could not resolve hostname".into());
                 }
             }
-            Err(_) => return Err("Invalid IP address or hostname".to_string()),
+            Err(_) => return Err("Invalid IP address or hostname".into()),
         }
     };
 
@@ -187,7 +189,7 @@ pub struct VendorLookupResult {
 
 /// Look up vendor for a MAC address.
 #[tauri::command]
-pub fn lookup_mac_vendor(mac: String) -> Result<VendorLookupResult, String> {
+pub fn lookup_mac_vendor(mac: String) -> CommandResult<VendorLookupResult> {
     let vendor_info = lookup_vendor_info(&mac);
 
     Ok(VendorLookupResult {

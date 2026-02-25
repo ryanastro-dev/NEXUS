@@ -13,6 +13,8 @@ import { HostInfo, useScanContext } from '../hooks/useScan';
 import { useTheme } from '../hooks/useTheme';
 import { getMappingTheme } from '../lib/mapping-themes';
 import { generateTopologyLayout } from '../lib/topology-layout';
+import { useDeviceDetailStore } from '../store/device-detail-store';
+import { useNetworkRuntimeStore } from '../store/network-runtime-store';
 import {
   TopologyAssistantOverlay,
   TopologyCanvas,
@@ -28,6 +30,19 @@ interface TopologyViewProps {
 
 interface TopologyNodeData {
   responseTime?: number;
+}
+
+const TOPOLOGY_AUTO_PLAY_INTERVAL_MS = 7000;
+const TOPOLOGY_DESIGN_SEQUENCE: MappingDesign[] = ['default', 'cyber', 'mesh'];
+
+function nextMappingDesign(current: MappingDesign): MappingDesign {
+  const currentIndex = TOPOLOGY_DESIGN_SEQUENCE.indexOf(current);
+  if (currentIndex === -1) {
+    return TOPOLOGY_DESIGN_SEQUENCE[0];
+  }
+
+  const nextIndex = (currentIndex + 1) % TOPOLOGY_DESIGN_SEQUENCE.length;
+  return TOPOLOGY_DESIGN_SEQUENCE[nextIndex];
 }
 
 function buildFallbackHost(target: TroubleshootTarget): HostInfo {
@@ -47,6 +62,8 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { scanResult, isScanning, tauriAvailable, scan, scanProgress, scanPhase } = useScanContext();
+  const runtimeHostsByMac = useNetworkRuntimeStore((state) => state.hostsByMac);
+  const openDeviceDetails = useDeviceDetailStore((state) => state.openDeviceDetails);
   const {
     isGeneratingReport,
     networkReport,
@@ -70,8 +87,17 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     if (saved === 'cyber' || saved === 'mesh') return saved;
     return 'default';
   });
+  const [isAutoPlay, setIsAutoPlay] = useState(() => {
+    const saved = localStorage.getItem('topology-auto-play');
+    return saved === 'true';
+  });
   const [scanElapsedSeconds, setScanElapsedSeconds] = useState(0);
   const activeStageIndex = useMemo(() => phaseToStageIndex(scanPhase), [scanPhase]);
+  const runtimeHosts = useMemo(() => Object.values(runtimeHostsByMac), [runtimeHostsByMac]);
+  const topologyHosts = useMemo(
+    () => (runtimeHosts.length > 0 ? runtimeHosts : (scanResult?.active_hosts ?? [])),
+    [runtimeHosts, scanResult?.active_hosts],
+  );
 
   useEffect(() => {
     if (!isScanning) {
@@ -88,12 +114,33 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     };
   }, [isScanning]);
 
+  useEffect(() => {
+    if (!isAutoPlay) {
+      return;
+    }
+    if (isScanning || topologyHosts.length === 0) {
+      return;
+    }
+
+    const autoPlayTimer = window.setInterval(() => {
+      setMappingDesign((currentDesign) => {
+        const nextDesign = nextMappingDesign(currentDesign);
+        localStorage.setItem('topology-design', nextDesign);
+        return nextDesign;
+      });
+    }, TOPOLOGY_AUTO_PLAY_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(autoPlayTimer);
+    };
+  }, [isAutoPlay, isScanning, topologyHosts.length]);
+
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
-    if (!scanResult?.active_hosts || scanResult.active_hosts.length === 0) {
+    if (topologyHosts.length === 0) {
       return { nodes: [], edges: [] };
     }
-    return generateTopologyLayout(scanResult.active_hosts);
-  }, [scanResult]);
+    return generateTopologyLayout(topologyHosts);
+  }, [topologyHosts]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -105,13 +152,15 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
-      if (!scanResult?.active_hosts) return;
-      const device = scanResult.active_hosts.find((host) => host.ip === node.id);
+      if (topologyHosts.length === 0) return;
+      const device = topologyHosts.find((host) => host.ip === node.id);
       if (device && onDeviceClick) {
         onDeviceClick(device);
+      } else if (device) {
+        openDeviceDetails(device);
       }
     },
-    [onDeviceClick, scanResult],
+    [onDeviceClick, openDeviceDetails, topologyHosts],
   );
 
   const handleLockToggle = useCallback(() => {
@@ -125,19 +174,29 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
   const handleDesignChange = useCallback((design: MappingDesign) => {
     setMappingDesign(design);
     localStorage.setItem('topology-design', design);
+    setIsAutoPlay(false);
+    localStorage.setItem('topology-auto-play', 'false');
+  }, []);
+
+  const handleAutoPlayToggle = useCallback(() => {
+    setIsAutoPlay((previous) => {
+      const next = !previous;
+      localStorage.setItem('topology-auto-play', String(next));
+      return next;
+    });
   }, []);
 
   const themeConfig = useMemo(() => getMappingTheme(mappingDesign, isDark), [mappingDesign, isDark]);
 
   const handleGenerateReport = useCallback(() => {
-    const hosts = scanResult?.active_hosts;
+    const hosts = topologyHosts.length > 0 ? topologyHosts : undefined;
     const subnet = scanResult?.subnet;
     void generateNetworkReport(hosts, subnet);
-  }, [generateNetworkReport, scanResult?.active_hosts, scanResult?.subnet]);
+  }, [generateNetworkReport, topologyHosts, scanResult?.subnet]);
 
   const handleTroubleshootOffline = useCallback(
     (target: TroubleshootTarget) => {
-      const matchedHost = scanResult?.active_hosts.find((host) => {
+      const matchedHost = topologyHosts.find((host) => {
         const byMac = target.mac && host.mac.toLowerCase() === target.mac.toLowerCase();
         const byIp = target.ip && host.ip === target.ip;
         return Boolean(byMac || byIp);
@@ -146,7 +205,7 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
       const host = matchedHost ?? buildFallbackHost(target);
       void troubleshootDevice(host, ['Device transitioned to offline state in monitor event stream.']);
     },
-    [scanResult?.active_hosts, troubleshootDevice],
+    [topologyHosts, troubleshootDevice],
   );
 
   // Safe cast for ReactFlow node-type registry compatibility across custom node components.
@@ -191,10 +250,10 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     });
   }, [edgeColor, edges, mappingDesign, nodes, themeConfig]);
 
-  const hasScanData = Boolean(scanResult && scanResult.active_hosts.length > 0);
+  const hasScanData = topologyHosts.length > 0;
 
   let topologyContent: ReactNode;
-  if (!scanResult && !isScanning) {
+  if (!hasScanData && !isScanning) {
     topologyContent = (
       <TopologyEmptyState
         bgColor={bgColor}
@@ -234,6 +293,8 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
         nodeTypes={nodeTypes}
         onLockToggle={handleLockToggle}
         onDesignChange={handleDesignChange}
+        isAutoPlay={isAutoPlay}
+        onAutoPlayToggle={handleAutoPlayToggle}
         onGenerateReport={handleGenerateReport}
         isGeneratingReport={isGeneratingReport}
         assistantOverlay={

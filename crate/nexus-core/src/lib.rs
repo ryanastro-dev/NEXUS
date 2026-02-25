@@ -25,6 +25,7 @@ pub mod logging;
 pub mod models;
 pub mod monitor;
 pub mod network;
+pub mod router;
 mod scan_workflow;
 pub mod scanner;
 
@@ -59,9 +60,13 @@ pub use network::{
     find_valid_interface, infer_device_type, is_local_subnet, is_special_address,
     list_valid_interfaces, lookup_vendor, lookup_vendor_info,
 };
+pub use router::{
+    RouterActionResult, RouterCapabilities, RouterClient, RouterConfig, RouterPolicyAction,
+    RouterPolicyRequest, RouterProviderKind, RouterService, RouterStatus,
+};
 pub use scanner::{
-    IcmpResult, SnmpData, SnmpNeighbor, active_arp_scan, guess_os_from_ttl, icmp_scan, snmp_enrich,
-    tcp_probe_scan,
+    ArpReceiverLifecycleMetrics, IcmpResult, SnmpData, SnmpNeighbor, active_arp_scan,
+    arp_receiver_lifecycle_metrics, guess_os_from_ttl, icmp_scan, snmp_enrich, tcp_probe_scan,
 };
 
 // Re-export logging macros for use across crate

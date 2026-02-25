@@ -1,12 +1,13 @@
 import clsx from 'clsx';
 import { Loader2, ShieldAlert, X } from 'lucide-react';
-import { useAiStatus } from '../../../hooks/useAiStatus';
+import { useLanguage } from '../../../hooks/useLanguage';
 
 interface DeviceModalHeaderProps {
   isDark: boolean;
   isOnline: boolean;
   title: string;
   subtitle: string;
+  isAiDisabled: boolean;
   onAnalyzeSecurity?: () => void;
   isAnalyzingSecurity?: boolean;
   onClose: () => void;
@@ -17,12 +18,13 @@ export function DeviceModalHeader({
   isOnline,
   title,
   subtitle,
+  isAiDisabled,
   onAnalyzeSecurity,
   isAnalyzingSecurity = false,
   onClose,
 }: DeviceModalHeaderProps) {
-  const { settings } = useAiStatus();
-  const isAiDisabled = !settings?.enabled || settings?.mode === 'disabled';
+  const { copy } = useLanguage();
+  const modalCopy = copy.devices.modal;
 
   return (
     <div
@@ -47,7 +49,7 @@ export function DeviceModalHeader({
           <button
             onClick={onAnalyzeSecurity}
             disabled={isAnalyzingSecurity || isAiDisabled}
-            title={isAiDisabled ? "AI Engine must be enabled to analyze vulnerabilities" : "Analyze Vulnerability"}
+            title={isAiDisabled ? modalCopy.header.aiDisabledHint : modalCopy.header.runAiRemediation}
             className={clsx(
               'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors',
               isDark
@@ -60,7 +62,9 @@ export function DeviceModalHeader({
             ) : (
               <ShieldAlert className="h-3.5 w-3.5" />
             )}
-            <span>{isAnalyzingSecurity ? 'Analyzing...' : 'Analyze Vulnerability'}</span>
+            <span>
+              {isAnalyzingSecurity ? modalCopy.header.analyzing : modalCopy.header.runAiRemediation}
+            </span>
           </button>
         )}
 

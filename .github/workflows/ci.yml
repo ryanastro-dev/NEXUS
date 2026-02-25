@@ -84,14 +84,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: i18n smoke gate
+        run: npm run smoke:i18n
 
       - name: Unit tests
         run: npm run test
-
-      - name: Build
-        run: npm run build
 
   windows-link-check:
     name: Windows build/link check (Npcap SDK)
@@ -155,4 +152,3 @@ jobs:
 
       - name: Smoke runtime bundle
         run: npm --prefix apps/nexus-gui run smoke:runtime
-

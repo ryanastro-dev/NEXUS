@@ -1,5 +1,7 @@
 //! Configuration constants for the Network Topology Mapper
 
+use std::collections::HashMap;
+use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 
 /// Maximum concurrent ping operations (increased for speed)
@@ -32,12 +34,21 @@ pub const ARP_IDLE_TIMEOUT_MS: u64 = 800;
 /// Number of ARP scan rounds
 pub const ARP_ROUNDS: u8 = 2;
 
+/// Maximum deferred ARP receiver join handles retained for best-effort cleanup.
+pub const ARP_DEFERRED_RECEIVER_HANDLE_CAP: usize = 64;
+
+/// Warning threshold for deferred ARP receiver handles.
+pub const ARP_DEFERRED_RECEIVER_WARN_THRESHOLD: usize = 16;
+
 /// TCP probe timeout (reduced from 500ms)
 pub const TCP_PROBE_TIMEOUT: Duration = Duration::from_millis(300);
 
 /// Common ports to probe for host detection (reduced list for speed)
 /// Full list: [22, 80, 443, 445, 8080, 3389, 5353, 62078]
 pub const TCP_PROBE_PORTS: &[u16] = &[22, 80, 443, 445, 3389];
+
+/// Global TCP probe scheduling rate limit (probes per second, 0 disables pacing).
+pub const TCP_RATE_LIMIT_PER_SEC: usize = 0;
 
 // ====== SNMP Configuration (Optional Feature) ======
 
@@ -74,11 +85,90 @@ pub const CAME_ONLINE_MAX_STALE_MINUTES: i64 = 720;
 /// ARP passive monitor event queue capacity.
 pub const ARP_PASSIVE_CHANNEL_CAPACITY: usize = 4096;
 
+/// Health score component weights (must sum to 100 for default profile).
+pub const HEALTH_SECURITY_WEIGHT: u8 = 40;
+pub const HEALTH_STABILITY_WEIGHT: u8 = 30;
+pub const HEALTH_COMPLIANCE_WEIGHT: u8 = 30;
+
+/// AI insights cache TTL in seconds.
+pub const AI_CACHE_TTL_SECONDS: u64 = 300;
+
+static RUNTIME_ENV_OVERRIDES: OnceLock<RwLock<HashMap<String, String>>> = OnceLock::new();
+
+fn runtime_overrides() -> &'static RwLock<HashMap<String, String>> {
+    RUNTIME_ENV_OVERRIDES.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn normalize_env_value(value: String) -> Option<String> {
+    let trimmed = value.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+/// Set a runtime-only config override used by dynamic config readers.
+/// This does not mutate process environment variables.
+pub fn set_runtime_override<K, V>(key: K, value: V)
+where
+    K: Into<String>,
+    V: Into<String>,
+{
+    let key = key.into();
+    let Some(value) = normalize_env_value(value.into()) else {
+        remove_runtime_override(&key);
+        return;
+    };
+
+    match runtime_overrides().write() {
+        Ok(mut guard) => {
+            guard.insert(key, value);
+        }
+        Err(poisoned) => {
+            poisoned.into_inner().insert(key, value);
+        }
+    }
+}
+
+/// Remove a runtime-only config override.
+pub fn remove_runtime_override(key: &str) {
+    match runtime_overrides().write() {
+        Ok(mut guard) => {
+            guard.remove(key);
+        }
+        Err(poisoned) => {
+            poisoned.into_inner().remove(key);
+        }
+    }
+}
+
+/// Clear all runtime-only config overrides.
+pub fn clear_runtime_overrides() {
+    match runtime_overrides().write() {
+        Ok(mut guard) => {
+            guard.clear();
+        }
+        Err(poisoned) => {
+            poisoned.into_inner().clear();
+        }
+    }
+}
+
+/// Read an environment variable with runtime override precedence.
+pub fn runtime_env_var(name: &str) -> Option<String> {
+    let override_value = match runtime_overrides().read() {
+        Ok(guard) => guard.get(name).cloned(),
+        Err(poisoned) => poisoned.into_inner().get(name).cloned(),
+    };
+
+    override_value
+        .and_then(normalize_env_value)
+        .or_else(|| std::env::var(name).ok().and_then(normalize_env_value))
+}
+
 fn env_var(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
+    runtime_env_var(name)
 }
 
 fn env_parse_u64(name: &str, default: u64, min: u64, max: u64) -> u64 {
@@ -184,6 +274,29 @@ pub fn arp_rounds() -> u8 {
     env_parse_u8("NEXUS_ARP_ROUNDS", ARP_ROUNDS, 1, 5)
 }
 
+/// Runtime-tunable deferred ARP receiver join-handle cap.
+/// Env: `NEXUS_ARP_DEFERRED_RECEIVER_HANDLE_CAP`
+pub fn arp_deferred_receiver_handle_cap() -> usize {
+    env_parse_usize(
+        "NEXUS_ARP_DEFERRED_RECEIVER_HANDLE_CAP",
+        ARP_DEFERRED_RECEIVER_HANDLE_CAP,
+        1,
+        4096,
+    )
+}
+
+/// Runtime-tunable warning threshold for deferred ARP receiver handles.
+/// Env: `NEXUS_ARP_DEFERRED_RECEIVER_WARN_THRESHOLD`
+pub fn arp_deferred_receiver_warn_threshold() -> usize {
+    env_parse_usize(
+        "NEXUS_ARP_DEFERRED_RECEIVER_WARN_THRESHOLD",
+        ARP_DEFERRED_RECEIVER_WARN_THRESHOLD,
+        1,
+        4096,
+    )
+    .min(arp_deferred_receiver_handle_cap())
+}
+
 /// Runtime-tunable TCP connect timeout.
 /// Env: `NEXUS_TCP_PROBE_TIMEOUT_MS`
 pub fn tcp_probe_timeout() -> Duration {
@@ -209,6 +322,15 @@ pub fn tcp_probe_ports() -> Vec<u16> {
         }
     }
     TCP_PROBE_PORTS.to_vec()
+}
+
+/// Runtime-tunable TCP probe scheduler pacing in probes/second.
+/// Env: `NEXUS_TCP_RATE_LIMIT_PER_SEC` (0 disables pacing)
+pub fn tcp_rate_limit_per_sec() -> usize {
+    match env_var("NEXUS_TCP_RATE_LIMIT_PER_SEC").and_then(|v| v.parse::<usize>().ok()) {
+        Some(v) => v.min(20_000),
+        None => TCP_RATE_LIMIT_PER_SEC,
+    }
 }
 
 /// Runtime-tunable SNMP feature switch.
@@ -303,5 +425,99 @@ pub fn arp_passive_channel_capacity() -> usize {
         ARP_PASSIVE_CHANNEL_CAPACITY,
         256,
         65_536,
+    )
+}
+
+fn normalize_health_weights(security: u8, stability: u8, compliance: u8) -> (u8, u8, u8) {
+    let raw_security = security as u16;
+    let raw_stability = stability as u16;
+    let raw_compliance = compliance as u16;
+    let sum = raw_security + raw_stability + raw_compliance;
+
+    if sum == 0 {
+        return (
+            HEALTH_SECURITY_WEIGHT,
+            HEALTH_STABILITY_WEIGHT,
+            HEALTH_COMPLIANCE_WEIGHT,
+        );
+    }
+    if sum == 100 {
+        return (security, stability, compliance);
+    }
+
+    let mut normalized = [
+        ((raw_security * 100 + (sum / 2)) / sum) as i16,
+        ((raw_stability * 100 + (sum / 2)) / sum) as i16,
+        ((raw_compliance * 100 + (sum / 2)) / sum) as i16,
+    ];
+
+    let mut total = normalized[0] + normalized[1] + normalized[2];
+    while total < 100 {
+        let idx = normalized
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, value)| **value)
+            .map(|(idx, _)| idx)
+            .unwrap_or(0);
+        normalized[idx] += 1;
+        total += 1;
+    }
+    while total > 100 {
+        let idx = normalized
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, value)| **value)
+            .map(|(idx, _)| idx)
+            .unwrap_or(0);
+        if normalized[idx] > 0 {
+            normalized[idx] -= 1;
+            total -= 1;
+        } else {
+            break;
+        }
+    }
+
+    (
+        normalized[0].max(0) as u8,
+        normalized[1].max(0) as u8,
+        normalized[2].max(0) as u8,
+    )
+}
+
+/// Runtime-tunable health score component weights.
+/// Env:
+/// - `NEXUS_HEALTH_SECURITY_WEIGHT`
+/// - `NEXUS_HEALTH_STABILITY_WEIGHT`
+/// - `NEXUS_HEALTH_COMPLIANCE_WEIGHT`
+pub fn health_component_weights() -> (u8, u8, u8) {
+    let security = env_parse_u8(
+        "NEXUS_HEALTH_SECURITY_WEIGHT",
+        HEALTH_SECURITY_WEIGHT,
+        0,
+        100,
+    );
+    let stability = env_parse_u8(
+        "NEXUS_HEALTH_STABILITY_WEIGHT",
+        HEALTH_STABILITY_WEIGHT,
+        0,
+        100,
+    );
+    let compliance = env_parse_u8(
+        "NEXUS_HEALTH_COMPLIANCE_WEIGHT",
+        HEALTH_COMPLIANCE_WEIGHT,
+        0,
+        100,
+    );
+    normalize_health_weights(security, stability, compliance)
+}
+
+/// Runtime-tunable AI overlay cache TTL.
+/// Env: `NEXUS_AI_CACHE_TTL_SECONDS`
+pub fn ai_cache_ttl_seconds() -> u64 {
+    env_parse_u64(
+        "NEXUS_AI_CACHE_TTL_SECONDS",
+        AI_CACHE_TTL_SECONDS,
+        5,
+        86_400,
     )
 }

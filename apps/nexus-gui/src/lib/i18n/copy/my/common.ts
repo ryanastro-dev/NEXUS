@@ -1,0 +1,93 @@
+import type { CommonCopy } from '../types';
+
+export const COMMON_COPY_MY: CommonCopy = {
+      select: {
+        defaultPlaceholder: 'ရွေးချယ်စရာတစ်ခု ရွေးပါ',
+        searchPlaceholder: 'ရှာဖွေပါ...',
+        noOptionsFound: 'ရွေးချယ်စရာ မတွေ့ပါ',
+      },
+      scanProgress: {
+        scanning: 'စကင်လုပ်နေသည်...',
+        initializing: 'စတင်ပြင်ဆင်နေသည်...',
+        devicesFound: 'စက်များတွေ့ရှိ',
+        phases: {
+          arpDiscovery: 'ARP ရှာဖွေမှု',
+          icmpPing: 'ICMP Ping',
+          tcpProbe: 'TCP Probe',
+          dnsLookup: 'DNS ရှာဖွေမှု',
+        },
+      },
+      monitoringPanel: {
+        title: 'Real-time စောင့်ကြည့်မှု',
+        active: 'လုပ်ဆောင်နေသည်',
+        intervalSeconds: '{seconds} စက္ကန့်',
+        intervalMinute: '၁ မိနစ်',
+        intervalMinutes: '{minutes} မိနစ်',
+        stopLiveMonitor: 'Live Monitor ရပ်ရန်',
+        startLiveMonitor: 'Live Monitor စတင်ရန်',
+        scans: 'စကင်',
+        online: 'Online',
+        total: 'စုစုပေါင်း',
+        recentEvents: 'မကြာသေးမီ Event များ',
+        clear: 'ရှင်းမည်',
+        noEventsYet: 'Event မရှိသေးပါ။ Live Monitor စတင်ပြီး live update များကြည့်ပါ။',
+      },
+      alertPanel: {
+        title: 'သတိပေးချက်များ',
+        clearAll: 'အားလုံးရှင်းမည်',
+        loadingAlerts: 'သတိပေးချက်များကို ဖတ်နေသည်...',
+        noNewAlerts: 'အသစ်သတိပေးချက် မရှိပါ',
+        caughtUp: 'သင့်အတွက် အားလုံး နောက်ဆုံးအခြေအနေဖြစ်နေပါပြီ!',
+        devicePrefix: 'စက်',
+        justNow: 'ယခုလေးတင်',
+        minutesAgo: '{count}မိနစ်က',
+        hoursAgo: '{count}နာရီက',
+        daysAgo: '{count}ရက်က',
+      },
+      recentEventsPanel: {
+        title: 'မကြာသေးမီ Event များ',
+        subtitle: 'နောက်ဆုံး network activity နှင့် alerts',
+        noRecentEvents: 'မကြာသေးမီ event မရှိပါ',
+      },
+      bandwidthChart: {
+        title: 'Bandwidth အသုံးပြုမှု',
+        subtitle: '၂၄ နာရီ စွမ်းဆောင်ရည် စောင့်ကြည့်မှု',
+        live: 'Live',
+        noTelemetry: 'Bandwidth telemetry မရရှိပါ',
+        peak: 'အမြင့်ဆုံး',
+        average: 'ပျမ်းမျှ',
+        current: 'လက်ရှိ',
+        unitMbps: 'Mbps',
+      },
+      latencyChart: {
+        title: 'ပျမ်းမျှ Latency',
+        subtitle: '၂၄ နာရီ တုန့်ပြန်ချိန်',
+        noTelemetry: 'Latency telemetry မရရှိပါ',
+        min: 'အနည်းဆုံး',
+        average: 'ပျမ်းမျှ',
+        max: 'အများဆုံး',
+        unitMs: 'ms',
+      },
+      labels: {
+        unknown: 'မသိ',
+      },
+      accessibility: {
+        userMenu: 'အသုံးပြုသူ မီနူး',
+        breadcrumb: 'လမ်းကြောင်းပြ အမှတ်အသား',
+        quickActionsMenu: 'အမြန်လုပ်ဆောင်ချက် မီနူး',
+      },
+      adminProfile: {
+        defaultName: 'အက်ဒမင် အသုံးပြုသူ',
+        proLicense: 'Pro လိုင်စင်',
+      },
+      routerFallback: {
+        routeFailedTitle: 'Route ကို မဖော်ပြနိုင်ပါ',
+        routeFailedMessage:
+          'ဤစာမျက်နှာကို NEXUS မဖော်ပြနိုင်ပါ။ ပြန်ကြိုးစားနိုင်သလို desktop app ကို ပြန်ဖွင့်နိုင်သည်။',
+        retryRoute: 'Route ပြန်ကြိုးစားမည်',
+        routeGuard: 'Route Guard',
+        pageNotFound: 'စာမျက်နှာ မတွေ့ပါ',
+        routeNotFoundMessage: 'တောင်းဆိုထားသော route ကို ဤ build တွင် မတွေ့ပါ။',
+        goToDashboard: 'Dashboard သို့ သွားမည်',
+      },
+    };

@@ -3,6 +3,7 @@
 //! Listens to ARP broadcasts without sending packets
 //! Captures MAC addresses and IP assignments
 
+use anyhow::Result;
 use pnet::datalink::{self, Channel, NetworkInterface};
 use pnet::packet::Packet;
 use pnet::packet::arp::{ArpOperations, ArpPacket};
@@ -34,10 +35,7 @@ impl ArpMonitor {
     /// Start monitoring ARP traffic (passive listening)
     ///
     /// Sends captured ARP events through the channel
-    pub async fn start_monitoring(
-        &self,
-        tx: mpsc::Sender<ArpEvent>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start_monitoring(&self, tx: mpsc::Sender<ArpEvent>) -> Result<()> {
         let interface_name = self.interface.name.clone();
         let interface = self.interface.clone();
 

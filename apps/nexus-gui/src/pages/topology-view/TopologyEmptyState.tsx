@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Activity, Network, Play, Shield, WifiOff } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface TopologyEmptyStateProps {
   bgColor: string;
@@ -14,6 +15,8 @@ export function TopologyEmptyState({
   isDark,
   onScan,
 }: TopologyEmptyStateProps) {
+  const { copy } = useLanguage();
+  const topologyCopy = copy.topology;
   const cardSurfaceClass = isDark
     ? 'border-slate-700/70 bg-slate-950/72 shadow-[0_30px_80px_-35px_rgba(2,6,23,0.95)]'
     : 'border-slate-200/80 bg-white/78 shadow-[0_28px_70px_-34px_rgba(15,23,42,0.28)]';
@@ -31,18 +34,18 @@ export function TopologyEmptyState({
   const featureCards = [
     {
       icon: Activity,
-      title: 'Discovery',
-      detail: 'ARP + ICMP + TCP fingerprinting for topology baseline.',
+      title: topologyCopy.emptyState.featureDiscoveryTitle,
+      detail: topologyCopy.emptyState.featureDiscoveryDetail,
     },
     {
       icon: Shield,
-      title: 'Risk Overlay',
-      detail: 'Device types and latency-driven edge health mapping.',
+      title: topologyCopy.emptyState.featureRiskTitle,
+      detail: topologyCopy.emptyState.featureRiskDetail,
     },
     {
       icon: Network,
-      title: 'Controls',
-      detail: 'Pan, zoom, lock nodes, and switch visual design modes.',
+      title: topologyCopy.emptyState.featureControlsTitle,
+      detail: topologyCopy.emptyState.featureControlsDetail,
     },
   ];
 
@@ -77,14 +80,13 @@ export function TopologyEmptyState({
                   className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${badgeClass}`}
                 >
                   <Network className="h-3.5 w-3.5" />
-                  Topology Intelligence
+                  {topologyCopy.emptyState.badge}
                 </div>
                 <h2 className={`text-2xl font-black leading-tight sm:text-4xl ${titleClass}`}>
-                  Network map is ready to initialize
+                  {topologyCopy.emptyState.title}
                 </h2>
                 <p className={`max-w-2xl text-sm sm:text-base ${bodyClass}`}>
-                  Run a discovery cycle to build live node relationships, risk overlays, and
-                  traffic-aware edge paths.
+                  {topologyCopy.emptyState.description}
                 </p>
               </div>
 
@@ -129,7 +131,7 @@ export function TopologyEmptyState({
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-900/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Play className="h-4 w-4" />
-                Start Discovery
+                {topologyCopy.emptyState.startDiscovery}
               </button>
             </div>
 
@@ -141,8 +143,7 @@ export function TopologyEmptyState({
                     : 'border-amber-400/50 bg-amber-50 text-amber-700'
                 }`}
               >
-                Tauri runtime unavailable. Start with{' '}
-                <span className="font-mono">npm run tauri dev</span> to enable discovery.
+                {topologyCopy.emptyState.tauriUnavailable}
               </p>
             )}
         </motion.section>

@@ -1,15 +1,15 @@
 use nexus_core::{
-    execute_command_typed, AiCheckReport, AiSettings, AppCommand, AppCommandResult, AppContext,
-    AppEvent, HybridInsightsResult,
+    AiCheckReport, AiSettings, AppCommand, AppCommandResult, AppContext, AppEvent,
+    HybridInsightsResult, execute_command_typed,
 };
 use tauri::Emitter;
 
 use super::shared::{app_context_from_state_with_events, get_db_connection, lock_db_connection};
-use super::state::AppState;
+use super::{AppState, CommandResult};
 
 /// Get network health score from current scan.
 #[tauri::command]
-pub fn get_network_health(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+pub fn get_network_health(state: tauri::State<'_, AppState>) -> CommandResult<serde_json::Value> {
     let conn = get_db_connection(&state)?;
     let conn = lock_db_connection(&conn)?;
 
@@ -34,7 +34,7 @@ pub fn get_network_health(state: tauri::State<'_, AppState>) -> Result<serde_jso
 #[tauri::command]
 pub fn get_device_distribution(
     state: tauri::State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
+) -> CommandResult<serde_json::Value> {
     let conn = get_db_connection(&state)?;
     let conn = lock_db_connection(&conn)?;
 
@@ -58,7 +58,7 @@ pub fn get_device_distribution(
 
 /// Get AI runtime settings sourced from environment variables.
 #[tauri::command]
-pub fn get_ai_settings() -> Result<AiSettings, String> {
+pub fn get_ai_settings() -> CommandResult<AiSettings> {
     Ok(AiSettings::from_env())
 }
 
@@ -81,7 +81,7 @@ fn attach_engine_event_hook(context: AppContext, app: &tauri::AppHandle) -> AppC
 
 /// Run AI provider diagnostics for local/cloud configuration.
 #[tauri::command]
-pub async fn ai_check(app: tauri::AppHandle) -> Result<AiCheckReport, String> {
+pub async fn ai_check(app: tauri::AppHandle) -> CommandResult<AiCheckReport> {
     let context = attach_engine_event_hook(AppContext::from_env(), &app);
     let result = execute_command_typed(AppCommand::AiCheck, &context)
         .await
@@ -89,7 +89,7 @@ pub async fn ai_check(app: tauri::AppHandle) -> Result<AiCheckReport, String> {
 
     match result {
         AppCommandResult::AiCheck(report) => Ok(report),
-        _ => Err("Unexpected AI check response shape".to_string()),
+        _ => Err("Unexpected AI check response shape".into()),
     }
 }
 
@@ -98,7 +98,7 @@ pub async fn ai_check(app: tauri::AppHandle) -> Result<AiCheckReport, String> {
 pub async fn ai_insights(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
-) -> Result<HybridInsightsResult, String> {
+) -> CommandResult<HybridInsightsResult> {
     let context = app_context_from_state_with_events(&state, &app)?;
     let result = execute_command_typed(AppCommand::AiInsights, &context)
         .await
@@ -106,6 +106,6 @@ pub async fn ai_insights(
 
     match result {
         AppCommandResult::AiInsights(insights) => Ok(insights),
-        _ => Err("Unexpected AI insights response shape".to_string()),
+        _ => Err("Unexpected AI insights response shape".into()),
     }
 }

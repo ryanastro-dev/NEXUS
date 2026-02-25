@@ -280,6 +280,79 @@ export interface MonitoringStatus {
   devices_total: number;
 }
 
+export interface MonitorDeviceSnapshot {
+  mac: string;
+  ip: string;
+  hostname?: string;
+  device_type: string;
+  is_online: boolean;
+}
+
+export interface MonitorSnapshot {
+  is_running: boolean;
+  scan_count: number;
+  captured_at: string;
+  devices: MonitorDeviceSnapshot[];
+}
+
+export type RouterProviderKind = "mock" | "laptop_ap" | "mikrotik" | "cisco";
+
+export interface RouterConfigInput {
+  provider: RouterProviderKind | string;
+  address?: string | null;
+  username?: string | null;
+  password?: string | null;
+  port?: number | null;
+}
+
+export interface RouterCapabilities {
+  list_clients: boolean;
+  block_client: boolean;
+  unblock_client: boolean;
+  apply_policy: boolean;
+  traffic_stats: boolean;
+  qos: boolean;
+  vlan: boolean;
+  dhcp_leases: boolean;
+}
+
+export interface RouterStatus {
+  provider: RouterProviderKind;
+  connected: boolean;
+  address?: string | null;
+  model?: string | null;
+  firmware_version?: string | null;
+  note?: string | null;
+}
+
+export interface RouterClient {
+  mac: string;
+  ip?: string | null;
+  hostname?: string | null;
+  interface_name?: string | null;
+  signal_dbm?: number | null;
+  rx_mbps?: number | null;
+  tx_mbps?: number | null;
+  blocked: boolean;
+}
+
+export type RouterPolicyAction =
+  | "allow"
+  | "deny"
+  | "limit_bandwidth"
+  | "prioritize";
+
+export interface RouterPolicyInput {
+  target: string;
+  action: RouterPolicyAction | string;
+  value?: string | null;
+}
+
+export interface RouterActionResult {
+  success: boolean;
+  message: string;
+}
+
 export interface VulnerabilityDbStatus {
   cve_total: number;
   embedded_cve_total: number;
@@ -300,7 +373,18 @@ export interface RuntimeDiagnostics {
   interfaces: string[];
   icmp_client_available: boolean;
   monitor_running: boolean;
+  arp_receiver_lifecycle?: ArpReceiverLifecycleDiagnostics | null;
   warnings: string[];
+}
+
+export interface ArpReceiverLifecycleDiagnostics {
+  current_deferred_handles: number;
+  deferred_high_watermark: number;
+  total_deferred_handles: number;
+  total_reaped_handles: number;
+  dropped_over_cap: number;
+  cap: number;
+  warning_threshold: number;
 }
 
 export interface TelemetrySample {

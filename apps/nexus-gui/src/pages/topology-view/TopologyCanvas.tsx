@@ -35,6 +35,8 @@ interface TopologyCanvasProps {
   nodeTypes: NodeTypes;
   onLockToggle: () => void;
   onDesignChange: (design: MappingDesign) => void;
+  isAutoPlay?: boolean;
+  onAutoPlayToggle?: () => void;
   onGenerateReport?: () => void;
   isGeneratingReport?: boolean;
   assistantOverlay?: ReactNode;
@@ -57,6 +59,8 @@ export function TopologyCanvas({
   nodeTypes,
   onLockToggle,
   onDesignChange,
+  isAutoPlay = false,
+  onAutoPlayToggle,
   onGenerateReport,
   isGeneratingReport = false,
   assistantOverlay,
@@ -75,6 +79,8 @@ export function TopologyCanvas({
           onLockToggle={onLockToggle}
           mappingDesign={mappingDesign}
           onDesignChange={onDesignChange}
+          isAutoPlay={isAutoPlay}
+          onAutoPlayToggle={onAutoPlayToggle}
           onGenerateReport={onGenerateReport}
           isGeneratingReport={isGeneratingReport}
         />

@@ -1,4 +1,5 @@
 import type { AiMode } from "../../lib/api/types";
+import { PANEL_CARD } from "../../lib/ui-classes";
 
 export interface LocalSettings {
   snmpEnabled: boolean;
@@ -10,6 +11,7 @@ export interface LocalSettings {
   monitoringInterval: number;
   aiEnabled: boolean;
   aiMode: AiMode;
+  autoAiOnDeviceOpen: boolean;
   aiTimeoutMs: number;
   ollamaEndpoint: string;
   ollamaModel: string;
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: LocalSettings = {
   monitoringInterval: 60,
   aiEnabled: false,
   aiMode: "disabled",
+  autoAiOnDeviceOpen: true,
   aiTimeoutMs: 8000,
   ollamaEndpoint: "http://127.0.0.1:11434",
   ollamaModel: "qwen3:8b",
@@ -40,5 +43,4 @@ export const DEFAULT_SETTINGS: LocalSettings = {
 
 export const SETTINGS_KEY = "netmapper-settings";
 export const VULN_DB_SYNC_KEY = "netmapper-vuln-last-sync";
-export const PANEL =
-  "rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65";
+export const PANEL = PANEL_CARD;

@@ -1,5 +1,6 @@
 import { User, MoreVertical } from 'lucide-react';
 import clsx from 'clsx';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface AdminProfileProps {
   avatar?: string;
@@ -10,10 +11,16 @@ interface AdminProfileProps {
 
 export default function AdminProfile({ 
   avatar, 
-  name = "Admin User", 
-  license = "Pro License",
+  name,
+  license,
   isCollapsed = false,
 }: AdminProfileProps) {
+  const { copy } = useLanguage();
+  const adminCopy = copy.common.adminProfile;
+  const accessibilityCopy = copy.common.accessibility;
+  const resolvedName = name ?? adminCopy.defaultName;
+  const resolvedLicense = license ?? adminCopy.proLicense;
+
   return (
     <div className="mt-auto h-[88px] border-t border-theme p-3">
       <div className={clsx('relative flex h-full items-center', isCollapsed ? 'justify-center' : 'justify-start')}>
@@ -22,7 +29,7 @@ export default function AdminProfile({
           {avatar ? (
             <img 
               src={avatar} 
-              alt={name}
+              alt={resolvedName}
               className="h-9 w-9 rounded-full object-cover border-2 border-bg-tertiary"
             />
           ) : (
@@ -38,8 +45,8 @@ export default function AdminProfile({
             <div className="absolute left-full ml-2 bottom-0 px-3 py-2 bg-bg-elevated border border-theme rounded-md
                             opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none
                             whitespace-nowrap text-sm shadow-lg z-50">
-              <p className="text-text-primary font-semibold">{name}</p>
-              <span className="text-xs text-accent-blue">{license}</span>
+              <p className="text-text-primary font-semibold">{resolvedName}</p>
+              <span className="text-xs text-accent-blue">{resolvedLicense}</span>
             </div>
           )}
         </div>
@@ -54,16 +61,16 @@ export default function AdminProfile({
         >
           <div className="min-w-0">
             <p className="text-[13px] font-semibold text-text-primary truncate">
-              {name}
+              {resolvedName}
             </p>
             <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium bg-accent-blue/10 text-accent-blue">
-              {license}
+              {resolvedLicense}
             </span>
           </div>
 
           <button
             className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-bg-hover"
-            aria-label="User menu"
+            aria-label={accessibilityCopy.userMenu}
           >
             <MoreVertical className="h-4 w-4 text-text-secondary" />
           </button>

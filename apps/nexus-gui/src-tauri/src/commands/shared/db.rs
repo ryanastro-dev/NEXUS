@@ -6,11 +6,7 @@ use super::super::types::VulnerabilityDbStatus;
 pub(crate) fn get_db_connection(
     state: &tauri::State<'_, AppState>,
 ) -> Result<Arc<Mutex<rusqlite::Connection>>, String> {
-    let db = state
-        .db
-        .lock()
-        .map_err(|_| "Database state lock poisoned".to_string())?;
-    Ok(db.connection())
+    Ok(state.db.connection())
 }
 
 pub(crate) fn lock_db_connection(

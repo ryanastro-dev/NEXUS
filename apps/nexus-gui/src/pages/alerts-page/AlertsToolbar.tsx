@@ -1,5 +1,6 @@
 import { CheckCircle, Trash2 } from 'lucide-react';
 
+import { useLanguage } from '../../hooks/useLanguage';
 import { CARD, type AlertFilter, type AlertStats } from './constants';
 
 interface AlertsToolbarProps {
@@ -42,6 +43,9 @@ export function AlertsToolbar({
   onMarkAllAsRead,
   onClearAll,
 }: AlertsToolbarProps) {
+  const { copy } = useLanguage();
+  const alertsCopy = copy.alerts;
+
   return (
     <div className={`${CARD} p-3`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -49,25 +53,25 @@ export function AlertsToolbar({
           <FilterButton
             active={filter === 'critical'}
             activeClass="bg-accent-red"
-            label="Critical"
+            label={alertsCopy.toolbar.critical}
             onClick={() => onFilterChange('critical')}
           />
           <FilterButton
             active={filter === 'warnings'}
             activeClass="bg-accent-amber"
-            label="Warnings"
+            label={alertsCopy.toolbar.warnings}
             onClick={() => onFilterChange('warnings')}
           />
           <FilterButton
             active={filter === 'info'}
             activeClass="bg-accent-blue"
-            label="Info"
+            label={alertsCopy.toolbar.info}
             onClick={() => onFilterChange('info')}
           />
           <FilterButton
             active={filter === 'unread'}
             activeClass="bg-accent-teal"
-            label="Unread"
+            label={alertsCopy.toolbar.unread}
             onClick={() => onFilterChange('unread')}
           />
         </div>
@@ -79,7 +83,7 @@ export function AlertsToolbar({
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CheckCircle className="h-4 w-4" />
-            Mark all read
+            {alertsCopy.toolbar.markAllRead}
           </button>
           <button
             onClick={onClearAll}
@@ -87,7 +91,7 @@ export function AlertsToolbar({
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-text-secondary transition-all hover:bg-accent-red/10 hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
-            Clear all
+            {alertsCopy.toolbar.clearAll}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Clock, Eye } from 'lucide-react';
 
+import { useLanguage } from '../../hooks/useLanguage';
 import type { AlertRecord } from '../../lib/api/types';
 import { CARD } from './constants';
 import { formatAlertRelativeDate, formatAlertTypeLabel, getAlertConfig } from './utils';
@@ -20,6 +21,9 @@ export function AlertsList({
   onMarkAsRead,
   fillHeight = false,
 }: AlertsListProps) {
+  const { copy, locale } = useLanguage();
+  const alertsCopy = copy.alerts;
+
   if (loading) {
     return (
       <div
@@ -28,7 +32,7 @@ export function AlertsList({
         }`}
       >
         <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-accent-blue border-t-transparent" />
-        <p className="text-text-muted">Loading alerts...</p>
+        <p className="text-text-muted">{alertsCopy.list.loading}</p>
       </div>
     );
   }
@@ -41,11 +45,13 @@ export function AlertsList({
         }`}
       >
         <CheckCircle className="mx-auto mb-3 h-14 w-14 text-accent-green" />
-        <h3 className="mb-1.5 text-lg font-bold text-text-primary sm:text-xl">All Clear!</h3>
+        <h3 className="mb-1.5 text-lg font-bold text-text-primary sm:text-xl">
+          {alertsCopy.list.allClearTitle}
+        </h3>
         <p className="text-text-muted">
           {alerts.length === 0
-            ? 'No alerts yet. Your network is being monitored.'
-            : 'No alerts match your current filter.'}
+            ? alertsCopy.list.noAlertsYet
+            : alertsCopy.list.noFilterMatch}
         </p>
       </div>
     );
@@ -80,13 +86,13 @@ export function AlertsList({
                       </h3>
                       {!alert.is_read && (
                         <span className="rounded bg-accent-blue/20 px-1.5 py-0.5 text-xs font-bold text-accent-blue">
-                          NEW
+                          {alertsCopy.list.new}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-text-muted">
                       <Clock className="h-3.5 w-3.5" />
-                      {formatAlertRelativeDate(alert.created_at)}
+                      {formatAlertRelativeDate(alert.created_at, locale, alertsCopy.relativeTime)}
                     </div>
                   </div>
 
@@ -114,7 +120,7 @@ export function AlertsList({
                         className="ml-auto flex items-center gap-1 rounded-lg bg-bg-tertiary px-2 py-1 text-xs text-text-secondary transition-all hover:bg-bg-hover hover:text-text-primary"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        Mark as Read
+                        {alertsCopy.list.markAsRead}
                       </button>
                     )}
                   </div>

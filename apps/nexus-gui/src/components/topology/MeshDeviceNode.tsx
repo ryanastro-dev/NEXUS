@@ -12,9 +12,11 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
 
 function MeshDeviceNode({ data, selected }: NodeProps<any>) {
   const { theme } = useTheme();
+  const { copy } = useLanguage();
   const isDark = theme === 'dark';
 
   // Theme-aware colors
@@ -119,7 +121,7 @@ function MeshDeviceNode({ data, selected }: NodeProps<any>) {
               marginBottom: 2,
             }}
           >
-            {data.label || 'Unknown'}
+            {data.label || copy.common.labels.unknown}
           </div>
           <div
             style={{

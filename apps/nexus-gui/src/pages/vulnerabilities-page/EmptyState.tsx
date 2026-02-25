@@ -2,6 +2,7 @@ import { Shield } from 'lucide-react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 
+import { useLanguage } from '../../hooks/useLanguage';
 import { CARD } from './constants';
 import type { VulnerabilityFilter } from './types';
 
@@ -16,13 +17,17 @@ export function VulnerabilitiesEmptyState({
   filter,
   className,
 }: VulnerabilitiesEmptyStateProps) {
+  const { copy } = useLanguage();
+  const vulnerabilitiesCopy = copy.vulnerabilities;
   const isFiltered = filter !== 'all';
-  const title = isFiltered ? 'No vulnerabilities in this filter' : 'No vulnerabilities found';
+  const title = isFiltered
+    ? vulnerabilitiesCopy.listEmpty.filteredTitle
+    : vulnerabilitiesCopy.listEmpty.defaultTitle;
   const description = isFiltered
-    ? 'Try another risk filter to inspect additional devices.'
+    ? vulnerabilitiesCopy.listEmpty.filteredDescription
     : hasScanResult
-      ? 'No known vulnerabilities or security warnings were detected.'
-      : 'Run a scan to build vulnerability and port-risk visibility for discovered assets.';
+      ? vulnerabilitiesCopy.listEmpty.noFindings
+      : vulnerabilitiesCopy.listEmpty.noScanData;
 
   return (
     <motion.div

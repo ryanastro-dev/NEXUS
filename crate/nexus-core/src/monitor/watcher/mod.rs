@@ -326,6 +326,14 @@ impl BackgroundMonitor {
     pub async fn selected_interface(&self) -> Option<String> {
         self.selected_interface_name.lock().await.clone()
     }
+
+    /// Snapshot of devices considered online by the active monitoring session.
+    pub async fn online_snapshot(&self) -> Vec<DeviceSnapshot> {
+        let previous = self.previous_devices.lock().await;
+        let mut devices: Vec<DeviceSnapshot> = previous.values().cloned().collect();
+        devices.sort_by(|left, right| left.mac.cmp(&right.mac));
+        devices
+    }
 }
 
 impl Default for BackgroundMonitor {

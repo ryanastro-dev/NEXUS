@@ -1,6 +1,6 @@
 use nexus_core::{
-    database::queries, Alert as RuntimeAlert, AlertSeverity as DbAlertSeverity,
-    AlertType as DbAlertType, DeviceRecord, NetworkEvent,
+    Alert as RuntimeAlert, AlertSeverity as DbAlertSeverity, AlertType as DbAlertType,
+    DeviceRecord, NetworkEvent, database::queries,
 };
 
 use super::super::state::AppState;

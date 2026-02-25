@@ -20,10 +20,10 @@ export function formatUptime(seconds: number): string {
   return `${minutes}m`;
 }
 
-export function formatDateTime(value: string): string {
+export function formatDateTime(value: string, locale = 'en-US'): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     return value;
   }
-  return parsed.toLocaleString();
+  return parsed.toLocaleString(locale);
 }

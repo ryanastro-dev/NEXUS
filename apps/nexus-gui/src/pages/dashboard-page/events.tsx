@@ -2,30 +2,70 @@ import { Activity, AlertTriangle, CheckCircle2, WifiOff } from 'lucide-react';
 
 import type { NetworkEventType } from '../../hooks/useMonitoring';
 
-export function eventLabel(event: NetworkEventType): string {
+export interface DashboardActivityEventCopy {
+  eventUnknown: string;
+  eventMonitoringStarted: string;
+  eventMonitoringStopped: string;
+  eventScanStarted: string;
+  eventScanProgress: string;
+  eventScanCompleted: string;
+  eventNewDevice: string;
+  eventDeviceOffline: string;
+  eventDeviceOnline: string;
+  eventIpChanged: string;
+  eventErrorPrefix: string;
+}
+
+function formatTemplate(template: string, replacements: Record<string, string | number>): string {
+  return Object.entries(replacements).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
+
+export function eventLabel(event: NetworkEventType, copy: DashboardActivityEventCopy): string {
   switch (event.type) {
     case 'MonitoringStarted':
-      return `Monitoring started (${event.data.interval_seconds}s interval)`;
+      return formatTemplate(copy.eventMonitoringStarted, {
+        seconds: event.data.interval_seconds,
+      });
     case 'MonitoringStopped':
-      return 'Monitoring stopped';
+      return copy.eventMonitoringStopped;
     case 'ScanStarted':
-      return `Scan #${event.data.scan_number} started`;
+      return formatTemplate(copy.eventScanStarted, {
+        scanNumber: event.data.scan_number,
+      });
     case 'ScanProgress':
-      return `${event.data.phase}: ${event.data.message}`;
+      return formatTemplate(copy.eventScanProgress, {
+        phase: event.data.phase,
+        message: event.data.message,
+      });
     case 'ScanCompleted':
-      return `Scan #${event.data.scan_number} completed (${event.data.hosts_found} hosts)`;
+      return formatTemplate(copy.eventScanCompleted, {
+        scanNumber: event.data.scan_number,
+        hostsFound: event.data.hosts_found,
+      });
     case 'NewDeviceDiscovered':
-      return `New device ${event.data.hostname || event.data.ip}`;
+      return formatTemplate(copy.eventNewDevice, {
+        target: event.data.hostname || event.data.ip,
+      });
     case 'DeviceWentOffline':
-      return `Device offline ${event.data.hostname || event.data.last_ip}`;
+      return formatTemplate(copy.eventDeviceOffline, {
+        target: event.data.hostname || event.data.last_ip,
+      });
     case 'DeviceCameOnline':
-      return `Device online ${event.data.hostname || event.data.ip}`;
+      return formatTemplate(copy.eventDeviceOnline, {
+        target: event.data.hostname || event.data.ip,
+      });
     case 'DeviceIpChanged':
-      return `IP changed ${event.data.old_ip} -> ${event.data.new_ip}`;
+      return formatTemplate(copy.eventIpChanged, {
+        oldIp: event.data.old_ip,
+        newIp: event.data.new_ip,
+      });
     case 'MonitoringError':
-      return `Error: ${event.data.message}`;
+      return `${copy.eventErrorPrefix}: ${event.data.message}`;
     default:
-      return 'Unknown event';
+      return copy.eventUnknown;
   }
 }
 

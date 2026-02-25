@@ -57,8 +57,8 @@ pub fn insert_scan(conn: &Connection, result: &ScanResult) -> Result<i64> {
 }
 
 fn upsert_device_from_host(conn: &Connection, host: &HostInfo, scan_id: i64) -> Result<i64> {
-    let normalized_device_type = normalize_device_type(&host.device_type);
-    let normalized_security_grade = normalize_security_grade(&host.security_grade);
+    let normalized_device_type = normalize_device_type(host.device_type.as_str());
+    let normalized_security_grade = normalize_security_grade(host.security_grade.as_str());
 
     let existing_device_id: Option<i64> = conn
         .query_row(

@@ -13,8 +13,9 @@ mod telemetry;
 mod uptime;
 
 pub use alerts::{
-    AlertInsert, clear_all_alerts, get_unread_alerts, insert_alert, insert_alert_if_not_exists,
-    insert_alert_with_dedupe_key, mark_alert_read, mark_all_alerts_read,
+    AlertInsert, clear_all_alerts, get_recent_alerts, get_unread_alerts, insert_alert,
+    insert_alert_if_not_exists, insert_alert_with_dedupe_key, mark_alert_read,
+    mark_all_alerts_read,
 };
 pub use devices::{get_all_devices, get_device_by_mac, get_device_history, update_device_name};
 pub use maintenance::normalize_legacy_fields;

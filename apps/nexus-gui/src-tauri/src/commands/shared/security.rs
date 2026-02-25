@@ -1,7 +1,7 @@
 use nexus_core::{
-    database::queries::lookup_port_warnings,
-    insights::{calculate_security_grade, filter_vulnerabilities_by_context},
     ScanResult,
+    database::queries::lookup_port_warnings,
+    insights::{calculate_security_grade_enum, filter_vulnerabilities_by_context},
 };
 
 use super::super::state::AppState;
@@ -19,7 +19,7 @@ pub(crate) fn enrich_scan_result_security(
                 error
             );
             for host in &mut scan_result.active_hosts {
-                host.security_grade = calculate_security_grade(host);
+                host.security_grade = calculate_security_grade_enum(host);
             }
             return;
         }
@@ -33,7 +33,7 @@ pub(crate) fn enrich_scan_result_security(
                 error
             );
             for host in &mut scan_result.active_hosts {
-                host.security_grade = calculate_security_grade(host);
+                host.security_grade = calculate_security_grade_enum(host);
             }
             return;
         }
@@ -42,28 +42,25 @@ pub(crate) fn enrich_scan_result_security(
     for host in &mut scan_result.active_hosts {
         let open_ports = host.open_ports.clone();
         let vulnerabilities = if let Some(vendor) = host.vendor.as_deref() {
-            filter_vulnerabilities_by_context(&conn, vendor, &host.device_type, &open_ports)
+            filter_vulnerabilities_by_context(&conn, vendor, host.device_type.as_str(), &open_ports)
                 .unwrap_or_default()
         } else {
             let mut vulns = Vec::new();
-            if open_ports.contains(&23) {
-                if let Ok(mut telnet) =
+            if open_ports.contains(&23)
+                && let Ok(mut telnet) =
                     filter_vulnerabilities_by_context(&conn, "", "Unknown", &[23])
-                {
-                    vulns.append(&mut telnet);
-                }
+            {
+                vulns.append(&mut telnet);
             }
-            if open_ports.contains(&21) {
-                if let Ok(mut ftp) = filter_vulnerabilities_by_context(&conn, "", "Unknown", &[21])
-                {
-                    vulns.append(&mut ftp);
-                }
+            if open_ports.contains(&21)
+                && let Ok(mut ftp) = filter_vulnerabilities_by_context(&conn, "", "Unknown", &[21])
+            {
+                vulns.append(&mut ftp);
             }
-            if open_ports.contains(&80) {
-                if let Ok(mut http) = filter_vulnerabilities_by_context(&conn, "", "Unknown", &[80])
-                {
-                    vulns.append(&mut http);
-                }
+            if open_ports.contains(&80)
+                && let Ok(mut http) = filter_vulnerabilities_by_context(&conn, "", "Unknown", &[80])
+            {
+                vulns.append(&mut http);
             }
             vulns
         };
@@ -76,6 +73,6 @@ pub(crate) fn enrich_scan_result_security(
 
         host.vulnerabilities = vulnerabilities;
         host.port_warnings = port_warnings;
-        host.security_grade = calculate_security_grade(host);
+        host.security_grade = calculate_security_grade_enum(host);
     }
 }

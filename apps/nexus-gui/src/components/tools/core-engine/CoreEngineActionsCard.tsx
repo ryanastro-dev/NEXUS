@@ -1,5 +1,6 @@
 import { Cpu, Gauge, Loader2, Play, Shield } from 'lucide-react';
 
+import { useLanguage } from '../../../hooks/useLanguage';
 import Select from '../../common/Select';
 import { CARD } from './constants';
 
@@ -14,6 +15,9 @@ interface CoreEngineActionsCardProps {
   loadConcurrency: number;
   onLoadConcurrencyChange: (value: number) => void;
   loadLoading: boolean;
+  aiReadinessLoading: boolean;
+  aiReady: boolean | null;
+  aiReadinessMessage: string | null;
   onScanWithAi: () => void;
   onAiInsights: () => void;
   onLoadTest: () => void;
@@ -30,26 +34,40 @@ export function CoreEngineActionsCard({
   loadConcurrency,
   onLoadConcurrencyChange,
   loadLoading,
+  aiReadinessLoading,
+  aiReady,
+  aiReadinessMessage,
   onScanWithAi,
   onAiInsights,
   onLoadTest,
 }: CoreEngineActionsCardProps) {
+  const { copy } = useLanguage();
+  const coreEngineCopy = copy.tools.coreEngine;
   const inputClass =
     'h-11 w-full rounded-xl border border-theme bg-bg-tertiary px-3 text-sm text-text-primary focus:border-accent-blue focus:outline-none';
   const interfaceOptions = [
-    { value: '', label: 'Auto detect' },
+    { value: '', label: coreEngineCopy.autoDetect },
     ...interfaces.map((iface) => ({ value: iface, label: iface })),
   ];
+  const scanWithAiDisabled = scanLoading || aiReadinessLoading || aiReady === false;
+  const scanWithAiHint =
+    aiReadinessLoading
+      ? coreEngineCopy.readinessChecking
+      : aiReady === false
+        ? aiReadinessMessage ?? coreEngineCopy.readinessNotReady
+        : null;
 
   return (
     <div className={`${CARD} space-y-4 p-4`}>
       <div className="flex items-center gap-2">
         <Cpu className="h-4 w-4 text-accent-blue" />
-        <h2 className="text-base font-bold text-text-primary">Core Engine Actions</h2>
+        <h2 className="text-base font-bold text-text-primary">{coreEngineCopy.actionsTitle}</h2>
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">Interface</label>
+        <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">
+          {coreEngineCopy.interface}
+        </label>
         <Select
           options={interfaceOptions}
           value={selectedInterface}
@@ -62,21 +80,29 @@ export function CoreEngineActionsCard({
       <div className="space-y-2">
         <button
           onClick={onScanWithAi}
-          disabled={scanLoading}
+          disabled={scanWithAiDisabled}
           className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 text-sm font-bold text-white shadow-lg shadow-accent-blue/30 transition-all hover:brightness-110 disabled:opacity-50"
         >
           {scanLoading ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Scanning...
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4" />
-              Scan with AI
-            </>
-          )}
-        </button>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {coreEngineCopy.scanning}
+              </>
+            ) : aiReadinessLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {coreEngineCopy.checkingAi}
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                {coreEngineCopy.scanWithAi}
+              </>
+            )}
+          </button>
+        {scanWithAiHint && (
+          <p className="text-[11px] text-accent-amber">{scanWithAiHint}</p>
+        )}
 
         <button
           onClick={onAiInsights}
@@ -85,26 +111,28 @@ export function CoreEngineActionsCard({
         >
           {insightsLoading ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Shield className="h-4 w-4" />
-              AI Insights (Latest Scan)
-            </>
-          )}
-        </button>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {coreEngineCopy.generating}
+              </>
+            ) : (
+              <>
+                <Shield className="h-4 w-4" />
+                {coreEngineCopy.aiInsights}
+              </>
+            )}
+          </button>
       </div>
 
       <div className="space-y-2 rounded-xl border border-theme bg-bg-tertiary/40 p-3">
         <div className="flex items-center gap-2">
           <Gauge className="h-4 w-4 text-accent-blue" />
-          <p className="text-sm font-semibold text-text-primary">Load Test</p>
+          <p className="text-sm font-semibold text-text-primary">{coreEngineCopy.loadTest}</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-text-secondary">Iterations</label>
+            <label className="mb-1 block text-xs font-bold uppercase text-text-secondary">
+              {coreEngineCopy.iterations}
+            </label>
             <input
               type="number"
               min={1}
@@ -116,7 +144,7 @@ export function CoreEngineActionsCard({
           </div>
           <div>
             <label className="mb-1 block text-xs font-bold uppercase text-text-secondary">
-              Concurrency
+              {coreEngineCopy.concurrency}
             </label>
             <input
               type="number"
@@ -136,12 +164,12 @@ export function CoreEngineActionsCard({
           {loadLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Running...
+              {coreEngineCopy.running}
             </>
           ) : (
             <>
               <Play className="h-4 w-4" />
-              Run Load Test
+              {coreEngineCopy.runLoadTest}
             </>
           )}
         </button>

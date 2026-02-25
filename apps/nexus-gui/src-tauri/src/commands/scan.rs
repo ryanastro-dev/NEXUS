@@ -1,8 +1,8 @@
 use std::sync::atomic::Ordering;
 
 use nexus_core::{
-    detect_alerts, detect_alerts_without_baseline, execute_command_typed, list_valid_interfaces,
-    AppCommand, AppCommandResult, LoadTestSummary, ScanResult, ScanWithAi,
+    AppCommand, AppCommandResult, LoadTestSummary, ScanResult, ScanWithAi, detect_alerts,
+    detect_alerts_without_baseline, execute_command_typed, list_valid_interfaces,
 };
 
 use super::shared::{
@@ -10,7 +10,7 @@ use super::shared::{
     enrich_scan_result_security, load_known_devices_for_alerts, persist_alerts,
     persist_scan_telemetry,
 };
-use super::state::AppState;
+use super::{AppState, CommandResult};
 
 /// Perform a network scan and save to database.
 #[tauri::command]
@@ -18,7 +18,7 @@ pub async fn scan_network(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
     interface: Option<String>,
-) -> Result<ScanResult, String> {
+) -> CommandResult<ScanResult> {
     let scan_number = state.scan_counter.fetch_add(1, Ordering::SeqCst) + 1;
     emit_scan_started(&app, scan_number);
 
@@ -38,7 +38,7 @@ pub async fn scan_network(
 
     let mut scan_result = match command_result.map_err(|e| format!("Scan failed: {}", e))? {
         AppCommandResult::Scan(scan_with_ai) => scan_with_ai.scan,
-        _ => return Err("Unexpected scan response shape".to_string()),
+        _ => return Err("Unexpected scan response shape".into()),
     };
 
     emit_scan_progress(
@@ -78,7 +78,7 @@ pub async fn scan_network(
 
 /// Request cancellation for the currently running scan (if any).
 #[tauri::command]
-pub async fn cancel_active_scan(state: tauri::State<'_, AppState>) -> Result<(), String> {
+pub async fn cancel_active_scan(state: tauri::State<'_, AppState>) -> CommandResult<()> {
     let active_scan = state.active_scan_context.lock().await;
     if let Some(context) = active_scan.as_ref() {
         context.cancel();
@@ -88,10 +88,10 @@ pub async fn cancel_active_scan(state: tauri::State<'_, AppState>) -> Result<(),
 
 /// Get available network interfaces.
 #[tauri::command]
-pub fn get_interfaces() -> Result<Vec<String>, String> {
+pub fn get_interfaces() -> CommandResult<Vec<String>> {
     let interfaces = list_valid_interfaces();
     if interfaces.is_empty() {
-        return Err("No valid interfaces found".to_string());
+        return Err("No valid interfaces found".into());
     }
     Ok(interfaces)
 }
@@ -102,7 +102,7 @@ pub async fn scan_network_with_ai(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
     interface: Option<String>,
-) -> Result<ScanWithAi, String> {
+) -> CommandResult<ScanWithAi> {
     let scan_number = state.scan_counter.fetch_add(1, Ordering::SeqCst) + 1;
     emit_scan_started(&app, scan_number);
 
@@ -122,7 +122,7 @@ pub async fn scan_network_with_ai(
 
     let mut scan_with_ai = match command_result.map_err(|e| format!("AI scan failed: {}", e))? {
         AppCommandResult::Scan(scan_with_ai) => scan_with_ai,
-        _ => return Err("Unexpected scan-with-ai response shape".to_string()),
+        _ => return Err("Unexpected scan-with-ai response shape".into()),
     };
 
     emit_scan_progress(
@@ -167,7 +167,7 @@ pub async fn run_load_test(
     interface: Option<String>,
     iterations: u32,
     concurrency: usize,
-) -> Result<LoadTestSummary, String> {
+) -> CommandResult<LoadTestSummary> {
     let context = app_context_from_state_with_events(&state, &app)?;
     let result = execute_command_typed(
         AppCommand::LoadTest {
@@ -182,13 +182,13 @@ pub async fn run_load_test(
 
     match result {
         AppCommandResult::LoadTest(summary) => Ok(summary),
-        _ => Err("Unexpected load-test response shape".to_string()),
+        _ => Err("Unexpected load-test response shape".into()),
     }
 }
 
 /// Generate machine-readable schema for ScanResult contract.
 #[tauri::command]
-pub fn get_scan_result_schema() -> Result<serde_json::Value, String> {
+pub fn get_scan_result_schema() -> CommandResult<serde_json::Value> {
     Ok(serde_json::json!({
         "schema_version": "1.0.0",
         "scan_result_fields": [

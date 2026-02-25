@@ -22,6 +22,7 @@ import {
   getEventStyle,
   formatEventMessage,
 } from '../hooks/useMonitoring';
+import { useLanguage } from '../hooks/useLanguage';
 import CustomSelect from './common/CustomSelect';
 
 interface MonitoringPanelProps {
@@ -30,6 +31,8 @@ interface MonitoringPanelProps {
 }
 
 export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps) {
+  const { copy } = useLanguage();
+  const monitoringCopy = copy.common.monitoringPanel;
   const {
     status,
     isLoading,
@@ -51,6 +54,13 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
 
   const [interval, setInterval] = useState(60);
   const [showEvents, setShowEvents] = useState(true);
+  const intervalOptions = [
+    { value: 10, label: monitoringCopy.intervalSeconds.replace('{seconds}', '10') },
+    { value: 30, label: monitoringCopy.intervalSeconds.replace('{seconds}', '30') },
+    { value: 60, label: monitoringCopy.intervalMinute },
+    { value: 120, label: monitoringCopy.intervalMinutes.replace('{minutes}', '2') },
+    { value: 300, label: monitoringCopy.intervalMinutes.replace('{minutes}', '5') },
+  ];
 
   return (
     <div className="glass-card p-3 noise-texture relative overflow-hidden min-h-[280px]">
@@ -67,7 +77,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
           <Activity className="w-4 h-4 text-accent-blue" />
-          Real-time Monitoring
+          {monitoringCopy.title}
         </h2>
         <div className="flex items-center gap-2">
           {status.is_running && (
@@ -76,7 +86,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-green opacity-75" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-green" />
               </span>
-              Active
+              {monitoringCopy.active}
             </span>
           )}
         </div>
@@ -96,13 +106,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
         <div className="flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-text-muted" />
           <CustomSelect
-            options={[
-              { value: 10, label: '10 seconds' },
-              { value: 30, label: '30 seconds' },
-              { value: 60, label: '1 minute' },
-              { value: 120, label: '2 minutes' },
-              { value: 300, label: '5 minutes' },
-            ]}
+            options={intervalOptions}
             value={interval}
             onChange={setInterval}
             disabled={status.is_running || isLoading}
@@ -121,7 +125,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
             ) : (
               <Square className="w-3.5 h-3.5" />
             )}
-            Stop Live Monitor
+            {monitoringCopy.stopLiveMonitor}
           </button>
         ) : (
           <button
@@ -134,7 +138,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
             ) : (
               <Play className="w-3.5 h-3.5" />
             )}
-            Start Live Monitor
+            {monitoringCopy.startLiveMonitor}
           </button>
         )}
       </div>
@@ -159,15 +163,15 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
       <div className="grid grid-cols-3 gap-2 mb-3 p-2 bg-bg-tertiary/30 backdrop-blur-sm rounded-lg">
         <div className="text-center">
           <p className="text-lg font-bold text-text-primary">{status.scan_count}</p>
-          <p className="text-xs text-text-muted">Scans</p>
+          <p className="text-xs text-text-muted">{monitoringCopy.scans}</p>
         </div>
         <div className="text-center">
           <p className="text-lg font-bold text-text-primary">{status.devices_online}</p>
-          <p className="text-xs text-text-muted">Online</p>
+          <p className="text-xs text-text-muted">{monitoringCopy.online}</p>
         </div>
         <div className="text-center">
           <p className="text-lg font-bold text-text-primary">{status.devices_total}</p>
-          <p className="text-xs text-text-muted">Total</p>
+          <p className="text-xs text-text-muted">{monitoringCopy.total}</p>
         </div>
       </div>
 
@@ -178,7 +182,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
           className="flex items-center gap-1 text-xs text-text-muted hover:text-text-primary transition-colors"
         >
           {showEvents ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          Recent Events ({events.length})
+          {monitoringCopy.recentEvents} ({events.length})
         </button>
         {events.length > 0 && (
           <button
@@ -186,7 +190,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
             className="flex items-center gap-1 text-xs text-text-muted hover:text-accent-red transition-colors"
           >
             <Trash2 className="w-3 h-3" />
-            Clear
+            {monitoringCopy.clear}
           </button>
         )}
       </div>
@@ -196,7 +200,7 @@ export default function MonitoringPanel({ onScanComplete }: MonitoringPanelProps
         <div className="space-y-1.5 max-h-48 overflow-y-auto">
           {events.length === 0 ? (
             <p className="text-center text-text-muted text-xs py-3">
-              No events yet. Start Live Monitor to see live updates.
+              {monitoringCopy.noEventsYet}
             </p>
           ) : (
             events.map((event, index) => (

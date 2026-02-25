@@ -2,7 +2,7 @@ use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::database::models::NetworkStats;
-use crate::models::HostInfo;
+use crate::models::{HostInfo, SecurityGrade};
 
 use super::helpers::{normalize_device_type, normalize_security_grade, parse_datetime};
 
@@ -67,13 +67,16 @@ pub fn get_latest_scan_hosts(conn: &Connection) -> Result<Vec<HostInfo>> {
             host.response_time_ms = response_time_ms;
             host.risk_score = risk_score;
             host.is_randomized = is_randomized;
-            host.security_grade = normalize_security_grade(&security_grade_raw);
+            let normalized_security_grade = normalize_security_grade(&security_grade_raw);
+            host.security_grade = normalized_security_grade
+                .parse()
+                .unwrap_or(SecurityGrade::Unknown);
             host.open_ports = ports_str
                 .split(',')
                 .filter(|port| !port.is_empty())
                 .filter_map(|port| port.parse::<u16>().ok())
                 .collect();
-            if host.security_grade.is_empty() {
+            if host.security_grade == SecurityGrade::Unknown {
                 let inferred_grade = crate::insights::calculate_security_grade_enum(&host);
                 host.set_security_grade_enum(inferred_grade);
             }

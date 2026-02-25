@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { UseMonitoringReturn } from '../hooks/useMonitoring';
+import { useLanguage } from '../hooks/useLanguage';
+import { useMonitoring } from '../hooks/useMonitoring';
 import { tauriClient } from '../lib/api/tauri-client';
 import type {
   AiCheckReport,
@@ -26,24 +27,22 @@ import {
   VulnerabilityDbSection,
 } from './settings-page';
 
-interface SettingsProps {
-  monitor: UseMonitoringReturn;
-}
+
 
 interface SettingsGroupLabelProps {
   title: string;
+  badgeLabel: string;
   description?: string;
   tone: 'runtime' | 'manual' | 'experimental';
 }
 
-function SettingsGroupLabel({ title, description, tone }: SettingsGroupLabelProps) {
+function SettingsGroupLabel({ title, badgeLabel, description, tone }: SettingsGroupLabelProps) {
   const toneStyles =
     tone === 'runtime'
       ? 'border-emerald-300/60 bg-emerald-100/70 text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/10 dark:text-emerald-300'
       : tone === 'manual'
         ? 'border-cyan-300/60 bg-cyan-100/70 text-cyan-700 dark:border-cyan-500/35 dark:bg-cyan-500/10 dark:text-cyan-300'
         : 'border-amber-300/60 bg-amber-100/70 text-amber-700 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-300';
-  const badgeLabel = tone === 'runtime' ? 'Active Now' : tone === 'manual' ? 'Manual Actions' : 'Local / Demo';
 
   return (
     <div className="px-1 pb-0.5 pt-1">
@@ -60,7 +59,10 @@ function SettingsGroupLabel({ title, description, tone }: SettingsGroupLabelProp
   );
 }
 
-export default function Settings({ monitor: monitoring }: SettingsProps) {
+export default function Settings() {
+  const { copy } = useLanguage();
+  const settingsCopy = copy.settings;
+  const monitoring = useMonitoring();
   const [snmpEnabled, setSnmpEnabled] = useState(DEFAULT_SETTINGS.snmpEnabled);
   const [snmpCommunity, setSnmpCommunity] = useState(DEFAULT_SETTINGS.snmpCommunity);
   const [scanInterval, setScanInterval] = useState(DEFAULT_SETTINGS.scanInterval);
@@ -84,6 +86,9 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
   const [aiEnabled, setAiEnabled] = useState(DEFAULT_SETTINGS.aiEnabled);
   const [aiMode, setAiMode] = useState<AiMode>(DEFAULT_SETTINGS.aiMode);
+  const [autoAiOnDeviceOpen, setAutoAiOnDeviceOpen] = useState(
+    DEFAULT_SETTINGS.autoAiOnDeviceOpen,
+  );
   const [aiTimeoutMs, setAiTimeoutMs] = useState(DEFAULT_SETTINGS.aiTimeoutMs);
   const [ollamaEndpoint, setOllamaEndpoint] = useState(DEFAULT_SETTINGS.ollamaEndpoint);
   const [ollamaModel, setOllamaModel] = useState(DEFAULT_SETTINGS.ollamaModel);
@@ -122,6 +127,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     setMonitoringInterval(settings.monitoringInterval || 60);
     setAiEnabled(settings.aiEnabled === true);
     setAiMode(settings.aiEnabled ? settings.aiMode : 'disabled');
+    setAutoAiOnDeviceOpen(settings.autoAiOnDeviceOpen !== false);
     setAiTimeoutMs(settings.aiTimeoutMs || 8000);
     setOllamaEndpoint(settings.ollamaEndpoint || DEFAULT_SETTINGS.ollamaEndpoint);
     setOllamaModel(settings.ollamaModel || DEFAULT_SETTINGS.ollamaModel);
@@ -175,6 +181,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       monitoringInterval,
       aiEnabled,
       aiMode,
+      autoAiOnDeviceOpen,
       aiTimeoutMs,
       ollamaEndpoint,
       ollamaModel,
@@ -196,6 +203,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     monitoringInterval,
     aiEnabled,
     aiMode,
+    autoAiOnDeviceOpen,
     aiTimeoutMs,
     ollamaEndpoint,
     ollamaModel,
@@ -247,6 +255,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       monitoringInterval: normalizedMonitoringInterval,
       aiEnabled,
       aiMode: aiEnabled ? aiMode : 'disabled',
+      autoAiOnDeviceOpen,
       aiTimeoutMs,
       ollamaEndpoint,
       ollamaModel,
@@ -277,16 +286,16 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       if (saveSettingsToStorage(settings)) {
         setSaveStatus('saved');
         setHasChanges(false);
-        toast.success('Settings applied');
+        toast.success(settingsCopy.toasts.settingsApplied);
         setTimeout(() => setSaveStatus('idle'), 2000);
       } else {
         setSaveStatus('idle');
       }
     } catch (error) {
       setSaveStatus('idle');
-      toast.error('Failed to apply settings');
+      toast.error(settingsCopy.toasts.settingsApplyFailed);
       setSyncNotice(
-        `Failed to apply runtime settings: ${error instanceof Error ? error.message : String(error)}`,
+        `${settingsCopy.notices.applyRuntimeFailedPrefix} ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   };
@@ -301,6 +310,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     setMonitoringInterval(DEFAULT_SETTINGS.monitoringInterval);
     setAiEnabled(DEFAULT_SETTINGS.aiEnabled);
     setAiMode(DEFAULT_SETTINGS.aiMode);
+    setAutoAiOnDeviceOpen(DEFAULT_SETTINGS.autoAiOnDeviceOpen);
     setAiTimeoutMs(DEFAULT_SETTINGS.aiTimeoutMs);
     setOllamaEndpoint(DEFAULT_SETTINGS.ollamaEndpoint);
     setOllamaModel(DEFAULT_SETTINGS.ollamaModel);
@@ -341,7 +351,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     saveSettingsToStorage(DEFAULT_SETTINGS);
     setSaveStatus('saved');
     setHasChanges(false);
-    toast.success('Settings reset to defaults');
+    toast.success(settingsCopy.toasts.settingsReset);
     setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
@@ -354,13 +364,14 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       const syncTimestamp = new Date().toISOString();
       setVulnDbLastSync(syncTimestamp);
       localStorage.setItem(VULN_DB_SYNC_KEY, syncTimestamp);
-      setSyncNotice(
-        `Online sync complete (${report.range}): fetched ${report.fetched_records}, upserted ${report.upserted_records}.`,
-      );
-      toast.success('Vulnerability feed synced');
+      setSyncNotice(settingsCopy.notices.onlineSyncComplete
+        .replace('{range}', report.range)
+        .replace('{fetched}', String(report.fetched_records))
+        .replace('{upserted}', String(report.upserted_records)));
+      toast.success(settingsCopy.toasts.syncSuccess);
     } catch (error) {
-      toast.error('Vulnerability sync failed');
-      setSyncNotice(`Database sync failed: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(settingsCopy.toasts.syncFailure);
+      setSyncNotice(`${settingsCopy.notices.dbSyncFailedPrefix} ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSyncing(false);
     }
@@ -371,6 +382,18 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
     setDemoMode(newValue);
     localStorage.setItem('demo-mode-enabled', newValue.toString());
     setTimeout(() => window.location.reload(), 300);
+  };
+
+  const handleAutoAiOnDeviceOpenToggle = () => {
+    setAutoAiOnDeviceOpen((current) => {
+      const next = !current;
+      const saved = loadSettings();
+      saveSettingsToStorage({
+        ...saved,
+        autoAiOnDeviceOpen: next,
+      });
+      return next;
+    });
   };
 
   const handleApplyAiSettings = async () => {
@@ -394,12 +417,12 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
         cloudAllowSensitive,
       });
       window.dispatchEvent(new Event('ai-status-refresh'));
-      toast.success('AI runtime settings applied');
+      toast.success(settingsCopy.toasts.aiApplySuccess);
       await handleAiCheck();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setAiError(message);
-      toast.error('Failed to apply AI settings');
+      toast.error(settingsCopy.toasts.aiApplyFailure);
     } finally {
       setAiApplyLoading(false);
     }
@@ -424,13 +447,13 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
       const result = await tauriClient.getRuntimeDiagnostics();
       setRuntimeDiagnostics(result);
       if (result.warnings.length > 0) {
-        toast.warning(`Diagnostics completed with ${result.warnings.length} warning(s)`);
+        toast.warning(settingsCopy.toasts.diagnosticsWithWarnings.replace('{count}', String(result.warnings.length)));
       } else {
-        toast.success('Diagnostics passed');
+        toast.success(settingsCopy.toasts.diagnosticsPassed);
       }
     } catch (error) {
-      toast.error('Diagnostics failed');
-      setSyncNotice(`Diagnostics failed: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(settingsCopy.toasts.diagnosticsFailed);
+      setSyncNotice(`${settingsCopy.notices.diagnosticsFailedPrefix} ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setDiagnosticsLoading(false);
     }
@@ -449,7 +472,8 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
             <SettingsHero panelClassName={PANEL} />
 
             <SettingsGroupLabel
-              title="Runtime Controls"
+              title={settingsCopy.groups.runtime.title}
+              badgeLabel={settingsCopy.groups.runtime.badge}
               tone="runtime"
             />
 
@@ -487,6 +511,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
               aiSettings={aiSettings}
               aiEnabled={aiEnabled}
               aiMode={aiMode}
+              autoAiOnDeviceOpen={autoAiOnDeviceOpen}
               aiTimeoutMs={aiTimeoutMs}
               ollamaEndpoint={ollamaEndpoint}
               ollamaModel={ollamaModel}
@@ -506,6 +531,7 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
                 }
               }}
               onAiModeChange={setAiMode}
+              onAutoAiOnDeviceOpenToggle={handleAutoAiOnDeviceOpenToggle}
               onAiTimeoutChange={(value) =>
                 setAiTimeoutMs(
                   Number.isFinite(value)
@@ -524,7 +550,8 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
             />
 
             <SettingsGroupLabel
-              title="Vulnerability Data"
+              title={settingsCopy.groups.manual.title}
+              badgeLabel={settingsCopy.groups.manual.badge}
               tone="manual"
             />
 
@@ -545,7 +572,8 @@ export default function Settings({ monitor: monitoring }: SettingsProps) {
             />
 
             <SettingsGroupLabel
-              title="Experimental"
+              title={settingsCopy.groups.experimental.title}
+              badgeLabel={settingsCopy.groups.experimental.badge}
               tone="experimental"
             />
 

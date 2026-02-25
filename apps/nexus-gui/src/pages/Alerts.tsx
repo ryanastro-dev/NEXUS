@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { BellRing, Loader2 } from 'lucide-react';
 
+import { useLanguage } from '../hooks/useLanguage';
 import { useScanContext } from '../hooks/useScan';
 import {
   CARD,
@@ -12,6 +13,8 @@ import {
 } from './alerts-page';
 
 export default function Alerts() {
+  const { copy } = useLanguage();
+  const alertsCopy = copy.alerts;
   const { scanResult, isScanning, tauriAvailable } = useScanContext();
   const {
     alerts,
@@ -50,10 +53,12 @@ export default function Alerts() {
             >
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4`}>
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                  Security Events
+                  {alertsCopy.header.kicker}
                 </p>
-                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">Alert Center</h1>
-                <p className="mt-1.5 text-sm text-text-secondary">No scan events yet.</p>
+                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">
+                  {alertsCopy.header.title}
+                </h1>
+                <p className="mt-1.5 text-sm text-text-secondary">{alertsCopy.header.noData}</p>
               </div>
 
               <div className={`${CARD} relative flex min-h-0 flex-1 items-center justify-center overflow-hidden`}>
@@ -63,15 +68,15 @@ export default function Alerts() {
                     <BellRing className="h-8 w-8" />
                   </div>
                   <h2 className="text-2xl font-bold text-text-primary sm:text-[2rem]">
-                    Alerts are ready to stream
+                    {alertsCopy.emptyState.headline}
                   </h2>
                   <p className="mt-2 max-w-xl text-sm text-text-secondary sm:text-base">
-                    Start a network scan to populate security alerts, device events, and triage signals.
+                    {alertsCopy.emptyState.description}
                   </p>
                   <p className="mt-4 text-xs text-text-muted">
                     {tauriAvailable
-                      ? 'Use the top-right Start Scan button to begin.'
-                      : 'Run with `npm run tauri dev` to enable scanning.'}
+                      ? alertsCopy.emptyState.hintTauri
+                      : alertsCopy.emptyState.hintBrowser}
                   </p>
                 </div>
               </div>
@@ -89,18 +94,24 @@ export default function Alerts() {
             >
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4`}>
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                  Security Events
+                  {alertsCopy.header.kicker}
                 </p>
-                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">Alert Center</h1>
-                <p className="mt-1.5 text-sm text-text-secondary">Scanning and collecting live events...</p>
+                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">
+                  {alertsCopy.header.title}
+                </h1>
+                <p className="mt-1.5 text-sm text-text-secondary">
+                  {alertsCopy.scanningState.subtitle}
+                </p>
               </div>
 
               <div className={`${CARD} relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden`}>
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-cyan-300/10 to-transparent dark:from-cyan-500/10" />
                 <Loader2 className="mb-4 h-14 w-14 animate-spin text-accent-blue" />
-                <p className="text-base font-medium text-text-primary">Building your alert timeline...</p>
+                <p className="text-base font-medium text-text-primary">
+                  {alertsCopy.scanningState.headline}
+                </p>
                 <p className="mt-1 text-sm text-text-muted">
-                  Gathering discovery events and security signals in real time.
+                  {alertsCopy.scanningState.description}
                 </p>
               </div>
             </motion.div>
@@ -164,7 +175,9 @@ export default function Alerts() {
                     />
 
                     <div className="text-center text-xs text-text-muted sm:text-sm">
-                      Showing {filteredAlerts.length} of {alerts.length} unread alerts
+                      {alertsCopy.footer.showingOf
+                        .replace('{shown}', String(filteredAlerts.length))
+                        .replace('{total}', String(alerts.length))}
                     </div>
                   </div>
                 )}

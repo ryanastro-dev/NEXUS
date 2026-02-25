@@ -6,9 +6,11 @@
 pub(crate) mod assistant;
 pub(crate) mod database;
 pub(crate) mod demo;
+mod error;
 pub(crate) mod exports;
 pub(crate) mod insights;
 pub(crate) mod monitoring;
+pub(crate) mod router;
 pub(crate) mod scan;
 pub(crate) mod settings;
 pub(crate) mod shared;
@@ -16,4 +18,5 @@ mod state;
 pub(crate) mod tools;
 mod types;
 
-pub use state::{AppState, MonitorState};
+pub(crate) use error::{CommandError, CommandResult};
+pub use state::{AppState, MonitorState, RouterState};

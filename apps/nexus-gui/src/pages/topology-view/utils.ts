@@ -14,8 +14,10 @@ export function phaseToStageIndex(phase: string | null): number {
     case 'probe':
     case 'icmp':
     case 'tcp':
+    case 'security':
       return 2;
     case 'render':
+    case 'topology':
     case 'dns':
     case 'persist':
     case 'finalize':

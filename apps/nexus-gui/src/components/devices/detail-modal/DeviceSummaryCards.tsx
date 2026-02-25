@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import { AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 
+import { useLanguage } from '../../../hooks/useLanguage';
 import { getDeviceRiskLevel } from './utils';
 
 interface DeviceSummaryCardsProps {
@@ -10,6 +11,8 @@ interface DeviceSummaryCardsProps {
 }
 
 export function DeviceSummaryCards({ isDark, isOnline, riskScore }: DeviceSummaryCardsProps) {
+  const { copy } = useLanguage();
+  const modalCopy = copy.devices.modal;
   const riskLevel = getDeviceRiskLevel(riskScore);
 
   return (
@@ -47,10 +50,10 @@ export function DeviceSummaryCards({ isDark, isOnline, riskScore }: DeviceSummar
           </div>
           <div>
             <p className={clsx('text-[10px] font-medium uppercase tracking-wide', isDark ? 'text-slate-500' : 'text-slate-600')}>
-              Status
+              {modalCopy.summary.status}
             </p>
             <p className={clsx('text-base font-bold', isOnline ? 'text-emerald-500' : 'text-red-500')}>
-              {isOnline ? 'Online' : 'Offline'}
+              {isOnline ? modalCopy.summary.online : modalCopy.summary.offline}
             </p>
           </div>
         </div>
@@ -102,7 +105,7 @@ export function DeviceSummaryCards({ isDark, isOnline, riskScore }: DeviceSummar
           </div>
           <div>
             <p className={clsx('text-[10px] font-medium uppercase tracking-wide', isDark ? 'text-slate-500' : 'text-slate-600')}>
-              Risk Score
+              {modalCopy.summary.riskScore}
             </p>
             <p
               className={clsx(

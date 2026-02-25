@@ -11,7 +11,14 @@ import type {
   HybridInsightsResult,
   LoadTestSummary,
   MonitoringStatus,
+  MonitorSnapshot,
   NetworkHealth,
+  RouterActionResult,
+  RouterCapabilities,
+  RouterClient,
+  RouterConfigInput,
+  RouterPolicyInput,
+  RouterStatus,
   NetworkStats,
   PingResult,
   PortScanResult,
@@ -36,6 +43,18 @@ function normalizeError(error: unknown): string {
 
   if (typeof error === "string") {
     return error;
+  }
+
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    const code = (error as { code?: unknown }).code;
+
+    if (typeof message === "string" && message.length > 0) {
+      if (typeof code === "string" && code.length > 0) {
+        return `[${code}] ${message}`;
+      }
+      return message;
+    }
   }
 
   return "Unknown Tauri command error";
@@ -129,6 +148,8 @@ export const tauriClient = {
       limit,
     }),
   getUnreadAlerts: () => invokeCommand<AlertRecord[]>("get_unread_alerts"),
+  getRecentAlerts: (limit = 200) =>
+    invokeCommand<AlertRecord[]>("get_recent_alerts", { limit }),
   markAlertRead: (alertId: number) =>
     invokeCommand<void>("mark_alert_read", { alertId }),
   markAllAlertsRead: () => invokeCommand<void>("mark_all_alerts_read"),
@@ -144,6 +165,8 @@ export const tauriClient = {
   stopMonitoring: () => invokeCommand<void>("stop_monitoring"),
   getMonitoringStatus: () =>
     invokeCommand<MonitoringStatus>("get_monitoring_status"),
+  getMonitorSnapshot: () =>
+    invokeCommand<MonitorSnapshot>("get_monitor_snapshot"),
   applyRuntimeSettings: (
     snmpEnabled: boolean,
     snmpCommunity: string,
@@ -170,6 +193,21 @@ export const tauriClient = {
     }),
   getRuntimeDiagnostics: () =>
     invokeCommand<RuntimeDiagnostics>("get_runtime_diagnostics"),
+
+  // Router Control
+  configureRouter: (config: RouterConfigInput) =>
+    invokeCommand<RouterStatus>("configure_router", { config }),
+  getRouterProvider: () => invokeCommand<string>("get_router_provider"),
+  getRouterCapabilities: () =>
+    invokeCommand<RouterCapabilities>("get_router_capabilities"),
+  getRouterStatus: () => invokeCommand<RouterStatus>("get_router_status"),
+  listRouterClients: () => invokeCommand<RouterClient[]>("list_router_clients"),
+  blockRouterClient: (mac: string) =>
+    invokeCommand<RouterActionResult>("block_router_client", { mac }),
+  unblockRouterClient: (mac: string) =>
+    invokeCommand<RouterActionResult>("unblock_router_client", { mac }),
+  applyRouterPolicy: (policy: RouterPolicyInput) =>
+    invokeCommand<RouterActionResult>("apply_router_policy", { policy }),
 
   // Insights
   getNetworkHealth: () => invokeCommand<NetworkHealth>("get_network_health"),
@@ -209,6 +247,8 @@ export const tauriClient = {
     invokeCommand<number[]>("export_scan_report", { scan, hosts }),
   exportSecurityReport: (hosts: HostInfo[]) =>
     invokeCommand<number[]>("export_security_report", { hosts }),
+  exportShowcaseReport: () =>
+    invokeCommand<number[]>("export_showcase_report"),
 
   // Tools
   pingHost: (target: string, count: number) =>

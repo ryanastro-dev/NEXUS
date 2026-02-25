@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
-import { Lock, Unlock, Zap, Grid3x3, Share2, FileText, Loader2 } from 'lucide-react';
+import { Lock, Unlock, Zap, Grid3x3, Share2, FileText, Loader2, Play, Pause } from 'lucide-react';
 import { useAiStatus } from '../../hooks/useAiStatus';
+import { useLanguage } from '../../hooks/useLanguage';
 
 export type MappingDesign = 'default' | 'cyber' | 'mesh';
 
@@ -9,6 +10,8 @@ interface TopologyControlsProps {
   onLockToggle: () => void;
   mappingDesign: MappingDesign;
   onDesignChange: (design: MappingDesign) => void;
+  isAutoPlay?: boolean;
+  onAutoPlayToggle?: () => void;
   onGenerateReport?: () => void;
   isGeneratingReport?: boolean;
 }
@@ -18,10 +21,13 @@ export default function TopologyControls({
   onLockToggle,
   mappingDesign,
   onDesignChange,
+  isAutoPlay = false,
+  onAutoPlayToggle,
   onGenerateReport,
   isGeneratingReport = false,
 }: TopologyControlsProps) {
-  
+  const { copy } = useLanguage();
+  const topologyCopy = copy.topology;
   const { settings } = useAiStatus();
   const isAiDisabled = !settings?.enabled || settings?.mode === 'disabled';
 
@@ -55,7 +61,7 @@ export default function TopologyControls({
       {/* Theme Buttons */}
       <button
         onClick={() => onDesignChange('default')}
-        title="Standard Theme"
+        title={topologyCopy.controls.standardTheme}
         className={getButtonClass(mappingDesign === 'default')}
       >
         <Grid3x3 size={16} />
@@ -63,7 +69,7 @@ export default function TopologyControls({
       
       <button
         onClick={() => onDesignChange('cyber')}
-        title="Cyber Theme"
+        title={topologyCopy.controls.cyberTheme}
         className={getButtonClass(mappingDesign === 'cyber')}
       >
         <Zap size={16} />
@@ -71,17 +77,39 @@ export default function TopologyControls({
       
       <button
         onClick={() => onDesignChange('mesh')}
-        title="Mesh Theme"
+        title={topologyCopy.controls.meshTheme}
         className={getButtonClass(mappingDesign === 'mesh')}
       >
         <Share2 size={16} />
       </button>
 
+      {onAutoPlayToggle && (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onAutoPlayToggle}
+            title={isAutoPlay ? topologyCopy.controls.stopAutoPlay : topologyCopy.controls.startAutoPlay}
+            className={getButtonClass(isAutoPlay)}
+          >
+            {isAutoPlay ? <Pause size={16} /> : <Play size={16} />}
+          </button>
+          {isAutoPlay && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
+              {topologyCopy.controls.autoPlayBadge}
+            </span>
+          )}
+        </div>
+      )}
+
       {onGenerateReport && (
         <button
           onClick={onGenerateReport}
           disabled={isGeneratingReport || isAiDisabled}
-          title={isAiDisabled ? "AI Engine must be enabled to generate report" : "Generate network report"}
+          title={
+            isAiDisabled
+              ? topologyCopy.controls.aiRequiredForReport
+              : topologyCopy.controls.generateNetworkReport
+          }
           className={getButtonClass(false)}
         >
           {isGeneratingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
@@ -94,7 +122,7 @@ export default function TopologyControls({
       {/* Lock Button */}
       <button
         onClick={onLockToggle}
-        title={isLocked ? 'Unlock nodes' : 'Lock nodes'}
+        title={isLocked ? topologyCopy.controls.unlockNodes : topologyCopy.controls.lockNodes}
         className={getButtonClass(isLocked, true)}
       >
         {isLocked ? <Lock size={16} /> : <Unlock size={16} />}

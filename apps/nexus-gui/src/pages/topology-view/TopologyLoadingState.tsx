@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Clock3, Loader2 } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 import { SCAN_PIPELINE_STAGES } from './constants';
 import { loadingProgressPercent } from './utils';
 
@@ -18,8 +19,33 @@ export function TopologyLoadingState({
   scanElapsedSeconds,
   isDark,
 }: TopologyLoadingStateProps) {
+  const { copy } = useLanguage();
+  const topologyCopy = copy.topology;
+  const localizedStages = [
+    {
+      ...SCAN_PIPELINE_STAGES[0],
+      title: topologyCopy.stages.interfaceHandshake.title,
+      detail: topologyCopy.stages.interfaceHandshake.detail,
+    },
+    {
+      ...SCAN_PIPELINE_STAGES[1],
+      title: topologyCopy.stages.hostDiscovery.title,
+      detail: topologyCopy.stages.hostDiscovery.detail,
+    },
+    {
+      ...SCAN_PIPELINE_STAGES[2],
+      title: topologyCopy.stages.serviceProfiling.title,
+      detail: topologyCopy.stages.serviceProfiling.detail,
+    },
+    {
+      ...SCAN_PIPELINE_STAGES[3],
+      title: topologyCopy.stages.graphSynthesis.title,
+      detail: topologyCopy.stages.graphSynthesis.detail,
+    },
+  ];
   const progressPct = loadingProgressPercent(scanProgress, activeStageIndex);
-  const activeStageLabel = SCAN_PIPELINE_STAGES[activeStageIndex]?.title ?? 'Topology Discovery';
+  const activeStageLabel =
+    localizedStages[activeStageIndex]?.title ?? topologyCopy.stages.fallbackTitle;
   const isScanComplete = scanProgress >= 100;
 
   const cardSurfaceClass = isDark
@@ -82,21 +108,20 @@ export function TopologyLoadingState({
                   className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${badgeClass}`}
                 >
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Discovery Pipeline Active
+                  {topologyCopy.loadingState.badge}
                 </div>
                 <h2 className={`text-2xl font-black leading-tight sm:text-4xl ${titleClass}`}>
-                  Mapping your live network fabric
+                  {topologyCopy.loadingState.title}
                 </h2>
                 <p className={`max-w-2xl text-sm sm:text-base ${bodyClass}`}>
-                  Collecting hosts, profiling topology signals, and preparing graph overlays for
-                  command view.
+                  {topologyCopy.loadingState.description}
                 </p>
                 <p
                   className={`text-xs font-semibold uppercase tracking-wide ${
                     isDark ? 'text-cyan-200/90' : 'text-sky-700/90'
                   }`}
                 >
-                  Current phase: {activeStageLabel}
+                  {topologyCopy.loadingState.currentPhase} {activeStageLabel}
                 </p>
               </div>
 
@@ -106,7 +131,7 @@ export function TopologyLoadingState({
                     isDark ? 'text-cyan-300' : 'text-sky-700'
                   }`}
                 >
-                  Elapsed
+                  {topologyCopy.loadingState.elapsed}
                 </p>
                 <p className="mt-1 flex items-center gap-1.5 text-xl font-bold">
                   <Clock3 className={`h-4 w-4 ${isDark ? 'text-cyan-200' : 'text-sky-700'}`} />
@@ -117,7 +142,7 @@ export function TopologyLoadingState({
 
             <div className="mt-4">
               <div className={`mb-2 flex items-center justify-between text-xs ${progressTextClass}`}>
-                <span>Topology synthesis in progress</span>
+                <span>{topologyCopy.loadingState.progressLabel}</span>
                 <span className={`font-semibold ${progressLabelClass}`}>{progressPct}%</span>
               </div>
               <div className={`h-2 rounded-full ${progressTrackClass}`}>
@@ -131,7 +156,7 @@ export function TopologyLoadingState({
             </div>
 
             <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-              {SCAN_PIPELINE_STAGES.map((stage, idx) => {
+              {localizedStages.map((stage, idx) => {
                 const status =
                   isScanComplete || idx < activeStageIndex
                     ? 'complete'

@@ -2,7 +2,8 @@
 
 use pnet::datalink::NetworkInterface;
 use pnet::util::MacAddr;
-use serde::{Deserialize, Serialize};
+use serde::de::Error as DeError;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
@@ -41,7 +42,12 @@ pub struct HostInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os_guess: Option<String>,
     /// Inferred device type (ROUTER, MOBILE, PC, etc.)
-    pub device_type: String,
+    #[serde(
+        default = "default_device_type",
+        serialize_with = "serialize_device_type",
+        deserialize_with = "deserialize_device_type"
+    )]
+    pub device_type: crate::network::DeviceType,
     /// Risk score (0-100, higher = more risk)
     #[serde(default)]
     pub risk_score: u8,
@@ -63,8 +69,12 @@ pub struct HostInfo {
     pub vulnerabilities: Vec<VulnerabilityInfo>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub port_warnings: Vec<PortWarning>,
-    #[serde(default)]
-    pub security_grade: String, // "A", "B", "C", "D", "F"
+    #[serde(
+        default = "default_security_grade",
+        serialize_with = "serialize_security_grade",
+        deserialize_with = "deserialize_security_grade"
+    )]
+    pub security_grade: SecurityGrade,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,6 +126,48 @@ impl FromStr for SecurityGrade {
     }
 }
 
+fn default_device_type() -> crate::network::DeviceType {
+    crate::network::DeviceType::Unknown
+}
+
+fn serialize_device_type<S>(
+    device_type: &crate::network::DeviceType,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(device_type.as_str())
+}
+
+fn deserialize_device_type<'de, D>(deserializer: D) -> Result<crate::network::DeviceType, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+    Ok(raw.parse().unwrap_or(crate::network::DeviceType::Unknown))
+}
+
+fn default_security_grade() -> SecurityGrade {
+    SecurityGrade::Unknown
+}
+
+fn serialize_security_grade<S>(grade: &SecurityGrade, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(grade.as_str())
+}
+
+fn deserialize_security_grade<'de, D>(deserializer: D) -> Result<SecurityGrade, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+    raw.parse()
+        .map_err(|_| D::Error::custom("invalid security grade"))
+}
+
 fn parse_mac_addr(mac: &str) -> Option<MacAddr> {
     let normalized = mac.trim().replace('-', ":");
     let mut octets = [0u8; 6];
@@ -138,6 +190,10 @@ fn parse_mac_addr(mac: &str) -> Option<MacAddr> {
 impl HostInfo {
     /// Canonical minimal constructor to avoid field drift across call-sites.
     pub fn new(ip: String, mac: String, device_type: String, discovery_method: String) -> Self {
+        let parsed_device_type = device_type
+            .parse()
+            .unwrap_or(crate::network::DeviceType::Unknown);
+
         Self {
             ip,
             mac,
@@ -146,7 +202,7 @@ impl HostInfo {
             response_time_ms: None,
             ttl: None,
             os_guess: None,
-            device_type,
+            device_type: parsed_device_type,
             risk_score: 0,
             open_ports: Vec::new(),
             discovery_method,
@@ -156,7 +212,7 @@ impl HostInfo {
             neighbors: Vec::new(),
             vulnerabilities: Vec::new(),
             port_warnings: Vec::new(),
-            security_grade: String::new(),
+            security_grade: SecurityGrade::Unknown,
         }
     }
 
@@ -170,22 +226,18 @@ impl HostInfo {
 
     pub fn device_type_enum(&self) -> crate::network::DeviceType {
         self.device_type
-            .parse()
-            .unwrap_or(crate::network::DeviceType::Unknown)
     }
 
     pub fn set_device_type_enum(&mut self, device_type: crate::network::DeviceType) {
-        self.device_type = device_type.to_string();
+        self.device_type = device_type;
     }
 
     pub fn security_grade_enum(&self) -> SecurityGrade {
         self.security_grade
-            .parse()
-            .unwrap_or(SecurityGrade::Unknown)
     }
 
     pub fn set_security_grade_enum(&mut self, grade: SecurityGrade) {
-        self.security_grade = grade.to_string();
+        self.security_grade = grade;
     }
 }
 
@@ -235,16 +287,24 @@ pub struct PortWarning {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn host_info_typed_accessors_parse_legacy_strings() {
-        let mut host = HostInfo::new(
-            "192.168.1.10".to_string(),
-            "aa-bb-cc-dd-ee-ff".to_string(),
-            "smart_tv".to_string(),
-            "ARP".to_string(),
-        );
-        host.security_grade = "b".to_string();
+        let host: HostInfo = serde_json::from_value(json!({
+            "ip": "192.168.1.10",
+            "mac": "aa-bb-cc-dd-ee-ff",
+            "device_type": "smart_tv",
+            "risk_score": 0,
+            "open_ports": [],
+            "discovery_method": "ARP",
+            "hostname": null,
+            "neighbors": [],
+            "vulnerabilities": [],
+            "port_warnings": [],
+            "security_grade": "b"
+        }))
+        .expect("legacy host payload should deserialize");
 
         assert_eq!(host.ip_addr(), Some(Ipv4Addr::new(192, 168, 1, 10)));
         assert_eq!(
@@ -253,5 +313,9 @@ mod tests {
         );
         assert_eq!(host.device_type_enum(), crate::network::DeviceType::SmartTv);
         assert_eq!(host.security_grade_enum(), SecurityGrade::B);
+
+        let serialized = serde_json::to_value(&host).expect("host should serialize");
+        assert_eq!(serialized["device_type"], "SMART_TV");
+        assert_eq!(serialized["security_grade"], "B");
     }
 }

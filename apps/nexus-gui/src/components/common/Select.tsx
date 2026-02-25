@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check } from 'lucide-react';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
+import { useLanguage } from '../../hooks/useLanguage';
 
 export interface SelectOption {
   value: string | number;
@@ -36,7 +37,7 @@ export default function Select({
   options,
   value,
   onChange,
-  placeholder = 'Select an option',
+  placeholder,
   label,
   error,
   disabled = false,
@@ -55,6 +56,9 @@ export default function Select({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { copy } = useLanguage();
+  const selectCopy = copy.common.select;
+  const resolvedPlaceholder = placeholder ?? selectCopy.defaultPlaceholder;
   const showSearch = searchable ?? options.length > 8;
 
   const isSameValue = (left: string | number | undefined, right: string | number | undefined) =>
@@ -199,7 +203,7 @@ export default function Select({
           {leftIcon && <span className="text-text-muted">{leftIcon}</span>}
           {selectedOption?.icon}
           <span className={clsx('truncate', !selectedOption && 'text-text-muted')}>
-            {selectedOption?.label || placeholder}
+            {selectedOption?.label || resolvedPlaceholder}
           </span>
         </span>
         <ChevronDown
@@ -237,7 +241,7 @@ export default function Select({
                       type="text"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search..."
+                      placeholder={selectCopy.searchPlaceholder}
                       autoFocus
                       className="h-9 w-full rounded-lg border border-theme bg-bg-tertiary px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-blue/30"
                     />
@@ -250,7 +254,9 @@ export default function Select({
                   onMouseLeave={() => setHoveredOptionValue(null)}
                 >
                   {filteredOptions.length === 0 ? (
-                    <div className="px-4 py-3 text-center text-sm text-text-muted">No options found</div>
+                    <div className="px-4 py-3 text-center text-sm text-text-muted">
+                      {selectCopy.noOptionsFound}
+                    </div>
                   ) : (
                     filteredOptions.map((option) => {
                       const isSelected = isSameValue(option.value, value);

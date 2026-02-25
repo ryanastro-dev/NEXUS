@@ -17,6 +17,7 @@ export type ExportType =
   | 'scan-json' 
   | 'scan-pdf' 
   | 'security-pdf'
+  | 'showcase-pdf'
   | null;
 
 interface UseExportReturn {
@@ -31,6 +32,7 @@ interface UseExportReturn {
   // PDF exports
   exportScanReportPDF: (scan: ScanResult, hosts: HostInfo[]) => Promise<void>;
   exportSecurityReportPDF: (hosts: HostInfo[]) => Promise<void>;
+  exportShowcaseReportPDF: () => Promise<void>;
   
   // State - now tracks which specific export is in progress
   exportingType: ExportType;
@@ -228,6 +230,30 @@ export function useExport(): UseExportReturn {
     }
   }, [saveBinaryFile]);
 
+  /**
+   * Export pre-generated showcase report as PDF.
+   */
+  const exportShowcaseReportPDF = useCallback(async () => {
+    setExportingType('showcase-pdf');
+    setError(null);
+
+    try {
+      const pdfBytes = await tauriClient.exportShowcaseReport();
+      const pdfData = new Uint8Array(pdfBytes);
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      await saveBinaryFile(
+        pdfData,
+        `nexus-showcase-report-${timestamp}.pdf`,
+        [{ name: 'PDF', extensions: ['pdf'] }]
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export showcase report PDF');
+    } finally {
+      setExportingType(null);
+    }
+  }, [saveBinaryFile]);
+
   return {
     exportDevicesCSV,
     exportScanCSV,
@@ -235,6 +261,7 @@ export function useExport(): UseExportReturn {
     exportScanJSON,
     exportScanReportPDF,
     exportSecurityReportPDF,
+    exportShowcaseReportPDF,
     exportingType,
     error,
   };

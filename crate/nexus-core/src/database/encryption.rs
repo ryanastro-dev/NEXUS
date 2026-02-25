@@ -7,9 +7,9 @@ use aes_gcm::{
     Aes256Gcm, Key, Nonce,
     aead::{Aead, KeyInit, OsRng},
 };
+use anyhow::{Result, anyhow};
 use argon2::{Algorithm, Argon2, Params, Version};
 use sha2::{Digest, Sha256};
-use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -22,7 +22,6 @@ const ENCRYPTION_HEADER_MAGIC: &[u8] = b"NXS2ENC!";
 const HEADER_MODE_MACHINE: u8 = 0;
 const HEADER_MODE_PASSPHRASE: u8 = 1;
 const KDF_SALT_LEN: usize = 16;
-const PASSPHRASE_ENV_VAR: &str = "NEXUS_DB_ENCRYPTION_PASSPHRASE";
 
 struct ParsedV2Payload {
     mode: u8,
@@ -34,14 +33,14 @@ struct ParsedV2Payload {
 /// Generate encryption key from machine ID
 ///
 /// Same as before but now used for AES encryption
-pub fn get_encryption_key() -> Result<[u8; 32], Box<dyn Error>> {
+pub fn get_encryption_key() -> Result<[u8; 32]> {
     let machine_material = get_machine_binding_material();
     tracing::debug!("Deriving encryption key with Argon2id");
     derive_key_from_machine_material(&machine_material)
 }
 
 /// Legacy key derivation retained for decrypt compatibility with old exports.
-fn get_legacy_encryption_key() -> Result<[u8; 32], Box<dyn Error>> {
+fn get_legacy_encryption_key() -> Result<[u8; 32]> {
     let machine_material = get_machine_binding_material();
     derive_legacy_key_from_machine_material(&machine_material)
 }
@@ -64,7 +63,7 @@ fn get_machine_binding_material() -> String {
 }
 
 /// Derive 256-bit encryption key from machine-specific material using Argon2id.
-fn derive_key_from_machine_material(machine_material: &str) -> Result<[u8; 32], Box<dyn Error>> {
+fn derive_key_from_machine_material(machine_material: &str) -> Result<[u8; 32]> {
     let combined = format!("{}-{}", machine_material, APP_KDF_CONTEXT);
     derive_key_from_string_argon2_with_salt(&combined, ARGON2_SALT)
 }
@@ -72,40 +71,35 @@ fn derive_key_from_machine_material(machine_material: &str) -> Result<[u8; 32], 
 fn derive_key_from_machine_material_with_salt(
     machine_material: &str,
     salt: &[u8],
-) -> Result<[u8; 32], Box<dyn Error>> {
+) -> Result<[u8; 32]> {
     let combined = format!("{}-{}", machine_material, APP_KDF_CONTEXT);
     derive_key_from_string_argon2_with_salt(&combined, salt)
 }
 
 /// Derive legacy SHA-256 key from machine-specific material (backward compatibility only).
-fn derive_legacy_key_from_machine_material(
-    machine_material: &str,
-) -> Result<[u8; 32], Box<dyn Error>> {
+fn derive_legacy_key_from_machine_material(machine_material: &str) -> Result<[u8; 32]> {
     let combined = format!("{}-{}", machine_material, APP_KDF_CONTEXT);
     derive_key_from_string_legacy_sha256(&combined)
 }
 
-fn derive_key_from_string_argon2_with_salt(
-    input: &str,
-    salt: &[u8],
-) -> Result<[u8; 32], Box<dyn Error>> {
+fn derive_key_from_string_argon2_with_salt(input: &str, salt: &[u8]) -> Result<[u8; 32]> {
     let params = Params::new(
         ARGON2_MEMORY_KIB,
         ARGON2_ITERATIONS,
         ARGON2_PARALLELISM,
         Some(32),
     )
-    .map_err(|e| format!("Argon2 parameter error: {}", e))?;
+    .map_err(|e| anyhow!("Argon2 parameter error: {}", e))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut key = [0u8; 32];
     argon2
         .hash_password_into(input.as_bytes(), salt, &mut key)
-        .map_err(|e| format!("Argon2 key derivation failed: {}", e))?;
+        .map_err(|e| anyhow!("Argon2 key derivation failed: {}", e))?;
     Ok(key)
 }
 
 /// Legacy SHA-256 derivation kept for decrypting older encrypted exports.
-fn derive_key_from_string_legacy_sha256(input: &str) -> Result<[u8; 32], Box<dyn Error>> {
+fn derive_key_from_string_legacy_sha256(input: &str) -> Result<[u8; 32]> {
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
     let result = hasher.finalize();
@@ -119,26 +113,22 @@ fn derive_key_from_string_legacy_sha256(input: &str) -> Result<[u8; 32], Box<dyn
 /// Encrypt database file using AES-256-GCM
 ///
 /// Creates an encrypted copy of the database with .encrypted extension
-pub fn encrypt_database_file<P: AsRef<Path>>(db_path: P) -> Result<String, Box<dyn Error>> {
-    let passphrase = passphrase_from_env();
-    encrypt_database_file_internal(db_path.as_ref(), passphrase.as_deref())
+pub fn encrypt_database_file<P: AsRef<Path>>(db_path: P) -> Result<String> {
+    encrypt_database_file_internal(db_path.as_ref(), None)
 }
 
 /// Encrypt database file using a user passphrase and per-file random salt.
 pub fn encrypt_database_file_with_passphrase<P: AsRef<Path>>(
     db_path: P,
     passphrase: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String> {
     if passphrase.is_empty() {
-        return Err("Passphrase cannot be empty".into());
+        return Err(anyhow!("Passphrase cannot be empty"));
     }
     encrypt_database_file_internal(db_path.as_ref(), Some(passphrase))
 }
 
-fn encrypt_database_file_internal(
-    db_path: &Path,
-    passphrase: Option<&str>,
-) -> Result<String, Box<dyn Error>> {
+fn encrypt_database_file_internal(db_path: &Path, passphrase: Option<&str>) -> Result<String> {
     let encrypted_path = encrypted_output_path(db_path);
 
     tracing::info!("Encrypting database: {:?} -> {:?}", db_path, encrypted_path);
@@ -172,7 +162,7 @@ fn encrypt_database_file_internal(
     // Encrypt
     let ciphertext = cipher
         .encrypt(nonce, plaintext.as_ref())
-        .map_err(|e| format!("Encryption failed: {}", e))?;
+        .map_err(|e| anyhow!("Encryption failed: {}", e))?;
 
     // Write v2 payload: magic + mode + salt + nonce + ciphertext.
     let output = build_v2_payload(mode, &kdf_salt, &nonce_bytes, &ciphertext);
@@ -191,18 +181,17 @@ fn encrypt_database_file_internal(
 /// Decrypt database file using AES-256-GCM
 ///
 /// Decrypts a .encrypted file back to .db
-pub fn decrypt_database_file<P: AsRef<Path>>(encrypted_path: P) -> Result<String, Box<dyn Error>> {
-    let passphrase = passphrase_from_env();
-    decrypt_database_file_internal(encrypted_path.as_ref(), passphrase.as_deref())
+pub fn decrypt_database_file<P: AsRef<Path>>(encrypted_path: P) -> Result<String> {
+    decrypt_database_file_internal(encrypted_path.as_ref(), None)
 }
 
 /// Decrypt database file using a user passphrase for passphrase-encrypted exports.
 pub fn decrypt_database_file_with_passphrase<P: AsRef<Path>>(
     encrypted_path: P,
     passphrase: &str,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String> {
     if passphrase.is_empty() {
-        return Err("Passphrase cannot be empty".into());
+        return Err(anyhow!("Passphrase cannot be empty"));
     }
     decrypt_database_file_internal(encrypted_path.as_ref(), Some(passphrase))
 }
@@ -210,7 +199,7 @@ pub fn decrypt_database_file_with_passphrase<P: AsRef<Path>>(
 fn decrypt_database_file_internal(
     encrypted_path: &Path,
     passphrase: Option<&str>,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String> {
     let db_path = decrypted_output_path(encrypted_path);
 
     tracing::info!("Decrypting database: {:?} -> {:?}", encrypted_path, db_path);
@@ -224,17 +213,19 @@ fn decrypt_database_file_internal(
                 derive_key_from_machine_material_with_salt(&machine_material, &parsed.salt)?
             }
             HEADER_MODE_PASSPHRASE => {
-                let passphrase = passphrase.ok_or(
-                    "Encrypted file requires a passphrase. Use decrypt_database_file_with_passphrase().",
-                )?;
+                let passphrase = passphrase.ok_or_else(|| {
+                    anyhow!(
+                        "Encrypted file requires a passphrase. Use decrypt_database_file_with_passphrase()."
+                    )
+                })?;
                 let passphrase_context = format!("{}-{}", passphrase, APP_KDF_CONTEXT);
                 derive_key_from_string_argon2_with_salt(&passphrase_context, &parsed.salt)?
             }
-            _ => return Err("Unsupported encrypted file format mode".into()),
+            _ => return Err(anyhow!("Unsupported encrypted file format mode")),
         };
 
         let plaintext = decrypt_ciphertext_with_key(&parsed.nonce, &parsed.ciphertext, &key_bytes)
-            .map_err(|e| format!("Decryption failed: {}", e))?;
+            .map_err(|e| anyhow!("Decryption failed: {}", e))?;
         fs::write(&db_path, plaintext)?;
         tracing::info!("Database decrypted successfully");
         return Ok(db_path.to_string_lossy().to_string());
@@ -242,7 +233,7 @@ fn decrypt_database_file_internal(
 
     // Legacy format fallback: nonce + ciphertext, machine-bound key candidates.
     if data.len() < 12 {
-        return Err("Invalid encrypted file: too short".into());
+        return Err(anyhow!("Invalid encrypted file: too short"));
     }
 
     let nonce_bytes = &data[..12];
@@ -268,7 +259,7 @@ fn decrypt_database_file_internal(
     }
 
     let plaintext = plaintext.ok_or_else(|| {
-        format!(
+        anyhow!(
             "Decryption failed with all supported key derivation strategies. Last error: {}",
             if last_error.is_empty() {
                 "unknown"
@@ -368,13 +359,6 @@ fn decrypted_output_path(encrypted_path: &Path) -> PathBuf {
             PathBuf::from(output)
         }
     }
-}
-
-fn passphrase_from_env() -> Option<String> {
-    std::env::var(PASSPHRASE_ENV_VAR)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
 }
 
 #[cfg(test)]

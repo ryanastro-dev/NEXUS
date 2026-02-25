@@ -1,0 +1,97 @@
+import type { RouterControlCopy } from '../types';
+
+export const ROUTER_CONTROL_COPY_MY: RouterControlCopy = {
+      providers: {
+        mock: 'Mock (Local test အတွက် အကြံပြု)',
+        laptopAp: 'Laptop AP Fallback',
+        mikrotik: 'MikroTik (Primary target)',
+        cisco: 'Cisco (Primary target)',
+      },
+      policyActions: {
+        deny: 'Deny / Block',
+        allow: 'Allow',
+        limitBandwidth: 'Limit Bandwidth',
+        prioritize: 'Prioritize',
+      },
+      placeholders: {
+        address: '192.168.88.1',
+        username: 'admin',
+        password: 'secret',
+        portMikrotik: '8728 (MikroTik API)',
+        portCisco: '22 (SSH)',
+        portOptional: 'Optional (provider-specific)',
+        policyTarget: 'AA:BB:CC:DD:EE:FF',
+        policyValue: 'ဥပမာ 10mbit',
+        noIp: 'IP မရှိ',
+      },
+      errors: {
+        unknown: 'Unknown error',
+        laptopPrivilegeAction:
+          'Action: app ကို Administrator (Windows) သို့ sudo/root (Linux) ဖြင့် ပြန်ဖွင့်ပါ။',
+        laptopResolveIpAction:
+          'Action: target device ကို hotspot နှင့်ချိတ်ပြီး clients refresh လုပ်ကာ ထပ်မံကြိုးစားပါ။',
+        configureDesktopOnly: 'Router provider configuration ကို NEXUS desktop app မှသာ အသုံးပြုနိုင်သည်။',
+        portRange: 'Port သည် 1 မှ 65535 အတွင်းဖြစ်ရပါမည်။',
+        clientControlDesktopOnly: 'Client control action များအတွက် NEXUS desktop runtime လိုအပ်သည်။',
+        policyDesktopOnly: 'Policy automation ကို NEXUS desktop app မှသာ အသုံးပြုနိုင်သည်။',
+        policyTargetRequired: 'Policy target ဖြည့်ရန်လိုအပ်သည်။',
+      },
+      header: {
+        kicker: 'Router Control Plane',
+        title: 'Admin Router Access',
+        subtitle:
+          'Provider adapter များ configure လုပ်ပြီး client-level action များကို control surface တစ်ခုထဲမှ run လုပ်နိုင်သည်။',
+        refresh: 'Refresh',
+        desktopNotice:
+          'Router adapter များသည် Tauri IPC မှ run လုပ်သည်။ Configure/control လုပ်ရန် npm run tauri dev ဖြင့်စတင်ပါ။',
+      },
+      sections: {
+        providerConfiguration: 'Provider Configuration',
+        runtimeStatus: 'Runtime Status',
+        capabilityMatrix: 'Capability Matrix',
+        connectedClients: 'Connected Clients',
+        policyAction: 'Policy Action',
+      },
+      labels: {
+        provider: 'Provider',
+        address: 'Address',
+        username: 'Username',
+        password: 'Password',
+        port: 'Port',
+        runtimeProvider: 'Provider',
+        connection: 'Connection',
+        capabilities: 'Capabilities',
+        target: 'Target (MAC/IP)',
+        action: 'Action',
+        valueOptional: 'Value (optional)',
+      },
+      buttons: {
+        applyProvider: 'Apply Provider',
+        applyingProvider: 'Applying...',
+        block: 'Block',
+        unblock: 'Unblock',
+        applyPolicy: 'Apply Policy',
+        applyingPolicy: 'Applying...',
+      },
+      states: {
+        unknown: 'unknown',
+        connected: 'Connected',
+        notConnected: 'Not Connected',
+        enabledCount: '{enabled}/{total} enabled',
+        noClients: 'လက်ရှိ provider မှ client မရရှိပါ။',
+        providerSwitched: "Provider ကို '{provider}' သို့ပြောင်းပြီးပါပြီ။",
+        providerConfigured: 'Router provider configured: {provider}',
+        desktopRequiredForPolicy: 'Policy operation များအတွက် desktop runtime လိုအပ်သည်။',
+        providerNoPolicySupport: 'လက်ရှိ provider သည် policy API ကို မထောက်ပံ့ပါ။',
+      },
+      capabilities: {
+        listClients: 'List Clients',
+        blockClient: 'Block Client',
+        unblockClient: 'Unblock Client',
+        applyPolicy: 'Apply Policy',
+        trafficStats: 'Traffic Stats',
+        qos: 'QoS',
+        vlan: 'VLAN',
+        dhcpLeases: 'DHCP Leases',
+      },
+    };

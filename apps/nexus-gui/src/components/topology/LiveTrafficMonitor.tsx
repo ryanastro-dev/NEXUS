@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, ChevronUp, ChevronDown, Wrench, List, AlignLeft } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 import {
   getCollapseButtonStyle,
@@ -29,6 +30,8 @@ export default function LiveTrafficMonitor({
   onTroubleshoot,
   isTroubleshooting = false,
 }: LiveTrafficMonitorProps) {
+  const { copy } = useLanguage();
+  const liveMonitorCopy = copy.topology.liveMonitor;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [viewMode, setViewMode] = useState<'compact' | 'raw'>(() => {
     const saved = localStorage.getItem('traffic-monitor-view-mode');
@@ -38,7 +41,20 @@ export default function LiveTrafficMonitor({
   const { events, streamConnected, streamStateLabel } = useTrafficStream({
     visible,
     hasScanData,
+    copy: liveMonitorCopy,
   });
+  const localizedStreamStateLabel =
+    streamStateLabel === 'IDLE'
+      ? liveMonitorCopy.stateIdle
+      : streamStateLabel === 'MONITORING'
+        ? liveMonitorCopy.stateMonitoring
+        : streamStateLabel === 'SCANNING'
+          ? liveMonitorCopy.stateScanning
+          : streamStateLabel === 'CONNECTED'
+            ? liveMonitorCopy.stateConnected
+            : streamStateLabel === 'UNAVAILABLE'
+              ? liveMonitorCopy.stateUnavailable
+              : streamStateLabel;
   const showStreamStatus = streamStateLabel !== 'IDLE';
 
   useEffect(() => {
@@ -64,7 +80,7 @@ export default function LiveTrafficMonitor({
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <Activity className="h-3.5 w-3.5" style={getHeaderIconStyle(isDark)} />
           <span style={getTitleStyle(isDark)}>
-            Live Traffic Monitor
+            {liveMonitorCopy.title}
           </span>
         </div>
 
@@ -74,19 +90,19 @@ export default function LiveTrafficMonitor({
               onClick={() => setViewMode('compact')}
               className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-semibold transition-colors"
               style={getToggleButtonStyle(isDark, viewMode === 'compact')}
-              title="Compact view"
+              title={liveMonitorCopy.compactView}
             >
               <List className="h-2.5 w-2.5" />
-              Compact
+              {liveMonitorCopy.compact}
             </button>
             <button
               onClick={() => setViewMode('raw')}
               className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-semibold transition-colors"
               style={getToggleButtonStyle(isDark, viewMode === 'raw')}
-              title="Raw view"
+              title={liveMonitorCopy.rawView}
             >
               <AlignLeft className="h-2.5 w-2.5" />
-              Raw
+              {liveMonitorCopy.raw}
             </button>
           </div>
 
@@ -94,7 +110,7 @@ export default function LiveTrafficMonitor({
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={getStatusDotStyle(streamConnected)} />
               <span style={getStatusLabelStyle(isDark)}>
-                {streamStateLabel}
+                {localizedStreamStateLabel}
               </span>
             </div>
           )}
@@ -120,7 +136,11 @@ export default function LiveTrafficMonitor({
           >
             {events.length === 0 ? (
               <div style={getEmptyStateStyle(isDark)}>
-                {resolveEmptyStreamMessage(streamConnected, hasScanData)}
+                {resolveEmptyStreamMessage(streamConnected, hasScanData, {
+                  emptyUnavailable: liveMonitorCopy.emptyUnavailable,
+                  emptyNoEvents: liveMonitorCopy.emptyNoEvents,
+                  emptyStartScan: liveMonitorCopy.emptyStartScan,
+                })}
               </div>
             ) : (
               events.map((event) => {
@@ -210,7 +230,11 @@ export default function LiveTrafficMonitor({
                         style={getTroubleshootButtonStyle(isDark, isTroubleshooting)}
                       >
                         <Wrench className="h-2.5 w-2.5" />
-                        <span>{isTroubleshooting ? 'Working...' : action.label}</span>
+                        <span>
+                          {isTroubleshooting
+                            ? liveMonitorCopy.working
+                            : action.label || liveMonitorCopy.troubleshoot}
+                        </span>
                       </button>
                     )}
                   </motion.div>

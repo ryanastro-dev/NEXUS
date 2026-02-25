@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
+import CountUp from 'react-countup';
 
 import { CARD } from './constants';
 
@@ -12,12 +13,14 @@ export function ChartFallback({ heightClass }: { heightClass: string }) {
 export function StatCard({
   title,
   value,
+  suffix,
   subtitle,
   icon,
   tone,
 }: {
   title: string;
-  value: string;
+  value: number;
+  suffix?: string;
   subtitle: string;
   icon: ReactNode;
   tone: 'cyan' | 'emerald' | 'amber' | 'rose';
@@ -34,7 +37,15 @@ export function StatCard({
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
           <p className="text-xs uppercase tracking-wider text-text-muted">{title}</p>
-          <p className="text-[2rem] leading-tight font-black text-text-primary">{value}</p>
+          <p className="text-[2rem] leading-tight font-black text-text-primary">
+            <CountUp
+              end={value}
+              duration={0.9}
+              separator=","
+              useEasing
+            />
+            {suffix}
+          </p>
           <p className="text-xs text-text-secondary">{subtitle}</p>
         </div>
         <div className={`rounded-xl p-2.5 ${toneClasses[tone]}`}>{icon}</div>

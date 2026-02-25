@@ -5,6 +5,7 @@
 
 pub mod macros;
 
+use anyhow::{Result, anyhow};
 use std::path::PathBuf;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -24,7 +25,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 /// Set `RUST_LOG` environment variable to control log level:
 /// - `RUST_LOG=debug` for debug level
 /// - `RUST_LOG=trace` for trace level
-pub fn init_logging() -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn init_logging() -> Result<PathBuf> {
     // Get log directory path
     let log_dir = get_log_directory()?;
 
@@ -66,7 +67,7 @@ pub fn init_logging() -> Result<PathBuf, Box<dyn std::error::Error>> {
         if e.to_string().contains("already been set") {
             return Ok(log_dir);
         }
-        return Err(Box::new(e));
+        return Err(anyhow!(e));
     }
 
     tracing::info!("Logging initialized. Log directory: {}", log_dir.display());
@@ -78,16 +79,16 @@ pub fn init_logging() -> Result<PathBuf, Box<dyn std::error::Error>> {
 ///
 /// Returns: `%APPDATA%/netmapper/logs` on Windows
 ///          `~/.config/netmapper/logs` on Linux/macOS
-fn get_log_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn get_log_directory() -> Result<PathBuf> {
     let base_dir = if cfg!(target_os = "windows") {
         // Windows: %APPDATA%/netmapper
         dirs::data_local_dir()
-            .ok_or("Could not find APPDATA directory")?
+            .ok_or_else(|| anyhow!("Could not find APPDATA directory"))?
             .join("netmapper")
     } else {
         // Linux/macOS: ~/.config/netmapper
         dirs::config_dir()
-            .ok_or("Could not find config directory")?
+            .ok_or_else(|| anyhow!("Could not find config directory"))?
             .join("netmapper")
     };
 
@@ -95,7 +96,7 @@ fn get_log_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
 }
 
 /// Get current log file path (for UI display)
-pub fn get_current_log_file() -> Result<PathBuf, Box<dyn std::error::Error>> {
+pub fn get_current_log_file() -> Result<PathBuf> {
     let log_dir = get_log_directory()?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     Ok(log_dir.join(format!("netmapper.log.{}", today)))
