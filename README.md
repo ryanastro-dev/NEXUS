@@ -4,7 +4,7 @@
 
 **Smart Network Topology Mapper & Health Monitor**
 
-`v0.1.0`
+`v0.1.1`
 
 A cross-platform desktop application for real-time network discovery, interactive topology visualization, continuous health monitoring, and AI-powered security analysis.
 
