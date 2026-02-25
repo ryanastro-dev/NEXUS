@@ -9,11 +9,14 @@ use pnet::packet::ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket};
 use pnet::util::MacAddr;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use crate::config::{arp_check_interval_ms, arp_idle_timeout_ms, arp_max_wait_ms, arp_rounds};
+use crate::config::{
+    arp_check_interval_ms, arp_deferred_receiver_handle_cap, arp_deferred_receiver_warn_threshold,
+    arp_idle_timeout_ms, arp_max_wait_ms, arp_rounds,
+};
 use crate::models::InterfaceInfo;
 use crate::network::is_special_address;
 
@@ -21,6 +24,202 @@ use crate::network::is_special_address;
 const BROADCAST_MAC: MacAddr = MacAddr(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
 /// Max per-round budget for transmitting ARP requests on slow adapters.
 const ARP_SEND_BUDGET_MS: u64 = 8000;
+type DeferredReceiverJoin = std::thread::JoinHandle<()>;
+static DEFERRED_ARP_RECEIVER_JOINS: OnceLock<Mutex<Vec<DeferredReceiverJoin>>> = OnceLock::new();
+static DEFERRED_ARP_RECEIVER_PENDING: AtomicUsize = AtomicUsize::new(0);
+static DEFERRED_ARP_RECEIVER_HIGH_WATERMARK: AtomicUsize = AtomicUsize::new(0);
+static DEFERRED_ARP_RECEIVER_TOTAL_DEFERRED: AtomicUsize = AtomicUsize::new(0);
+static DEFERRED_ARP_RECEIVER_TOTAL_REAPED: AtomicUsize = AtomicUsize::new(0);
+static DEFERRED_ARP_RECEIVER_DROPPED_OVER_CAP: AtomicUsize = AtomicUsize::new(0);
+static DEFERRED_ARP_RECEIVER_LAST_WARNED_PENDING: AtomicUsize = AtomicUsize::new(0);
+
+/// Runtime lifecycle metrics for deferred ARP receiver join handles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArpReceiverLifecycleMetrics {
+    /// Current number of deferred receiver handles pending best-effort join.
+    pub current_deferred_handles: usize,
+    /// Maximum observed pending deferred handle depth.
+    pub deferred_high_watermark: usize,
+    /// Total number of receiver handles added to deferred cleanup queue.
+    pub total_deferred_handles: usize,
+    /// Total number of deferred handles reaped (joined) successfully/attempted.
+    pub total_reaped_handles: usize,
+    /// Total deferred handles dropped because queue reached configured cap.
+    pub dropped_over_cap: usize,
+    /// Configured deferred-handle cap in effect for this snapshot.
+    pub cap: usize,
+    /// Configured warning threshold in effect for this snapshot.
+    pub warning_threshold: usize,
+}
+
+fn deferred_receiver_joins() -> &'static Mutex<Vec<DeferredReceiverJoin>> {
+    DEFERRED_ARP_RECEIVER_JOINS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DeferredJoinQueueResult {
+    pending: usize,
+    warning_threshold: usize,
+    cap: usize,
+    dropped_over_cap: bool,
+    dropped_over_cap_total: usize,
+}
+
+fn update_deferred_receiver_high_watermark(pending: usize) {
+    loop {
+        let previous = DEFERRED_ARP_RECEIVER_HIGH_WATERMARK.load(Ordering::Relaxed);
+        if pending <= previous {
+            return;
+        }
+        if DEFERRED_ARP_RECEIVER_HIGH_WATERMARK
+            .compare_exchange(previous, pending, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            return;
+        }
+    }
+}
+
+fn maybe_warn_deferred_receiver_depth(pending: usize, warning_threshold: usize, cap: usize) {
+    if pending < warning_threshold {
+        DEFERRED_ARP_RECEIVER_LAST_WARNED_PENDING.store(0, Ordering::Relaxed);
+        return;
+    }
+
+    loop {
+        let last_warned = DEFERRED_ARP_RECEIVER_LAST_WARNED_PENDING.load(Ordering::Relaxed);
+        if pending <= last_warned {
+            return;
+        }
+
+        if DEFERRED_ARP_RECEIVER_LAST_WARNED_PENDING
+            .compare_exchange(last_warned, pending, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
+        {
+            crate::log_warn!(
+                "ARP deferred receiver handles reached {} pending (warning threshold {}, cap {})",
+                pending,
+                warning_threshold,
+                cap
+            );
+            return;
+        }
+    }
+}
+
+fn reap_finished_receiver_joins_locked(joins: &mut Vec<DeferredReceiverJoin>) -> usize {
+    if joins.is_empty() {
+        DEFERRED_ARP_RECEIVER_PENDING.store(0, Ordering::Relaxed);
+        DEFERRED_ARP_RECEIVER_LAST_WARNED_PENDING.store(0, Ordering::Relaxed);
+        return 0;
+    }
+
+    let warning_threshold = arp_deferred_receiver_warn_threshold();
+    let cap = arp_deferred_receiver_handle_cap();
+    let mut pending = Vec::with_capacity(joins.len());
+    let mut reaped = 0usize;
+
+    for handle in joins.drain(..) {
+        if handle.is_finished() {
+            reaped += 1;
+            if handle.join().is_err() {
+                crate::log_warn!("Deferred ARP receiver thread panicked while joining");
+            }
+        } else {
+            pending.push(handle);
+        }
+    }
+
+    *joins = pending;
+    let pending_count = joins.len();
+    DEFERRED_ARP_RECEIVER_PENDING.store(pending_count, Ordering::Relaxed);
+    if reaped > 0 {
+        DEFERRED_ARP_RECEIVER_TOTAL_REAPED.fetch_add(reaped, Ordering::Relaxed);
+    }
+    maybe_warn_deferred_receiver_depth(pending_count, warning_threshold, cap);
+    reaped
+}
+
+fn reap_deferred_receiver_joins() {
+    let mut joins = match deferred_receiver_joins().lock() {
+        Ok(joins) => joins,
+        Err(poisoned) => {
+            crate::log_warn!("Deferred ARP receiver join registry lock poisoned; recovering");
+            poisoned.into_inner()
+        }
+    };
+
+    let reaped = reap_finished_receiver_joins_locked(&mut joins);
+    let pending_count = joins.len();
+
+    if reaped > 0 {
+        crate::log_stderr!(
+            "Reaped {} deferred ARP receiver thread handle(s); {} pending",
+            reaped,
+            pending_count
+        );
+    }
+}
+
+fn defer_receiver_join(handle: DeferredReceiverJoin) -> DeferredJoinQueueResult {
+    let cap = arp_deferred_receiver_handle_cap();
+    let warning_threshold = arp_deferred_receiver_warn_threshold();
+
+    let mut joins = match deferred_receiver_joins().lock() {
+        Ok(joins) => joins,
+        Err(poisoned) => {
+            crate::log_warn!("Deferred ARP receiver join registry lock poisoned; recovering");
+            poisoned.into_inner()
+        }
+    };
+
+    let _ = reap_finished_receiver_joins_locked(&mut joins);
+    if joins.len() >= cap {
+        drop(handle);
+        let dropped_total =
+            DEFERRED_ARP_RECEIVER_DROPPED_OVER_CAP.fetch_add(1, Ordering::Relaxed) + 1;
+        crate::log_warn!(
+            "Deferred ARP receiver join queue hit cap {}; dropping handle ({} dropped total)",
+            cap,
+            dropped_total
+        );
+        return DeferredJoinQueueResult {
+            pending: joins.len(),
+            warning_threshold,
+            cap,
+            dropped_over_cap: true,
+            dropped_over_cap_total: dropped_total,
+        };
+    }
+
+    joins.push(handle);
+    let pending = joins.len();
+    DEFERRED_ARP_RECEIVER_PENDING.store(pending, Ordering::Relaxed);
+    DEFERRED_ARP_RECEIVER_TOTAL_DEFERRED.fetch_add(1, Ordering::Relaxed);
+    update_deferred_receiver_high_watermark(pending);
+    maybe_warn_deferred_receiver_depth(pending, warning_threshold, cap);
+
+    DeferredJoinQueueResult {
+        pending,
+        warning_threshold,
+        cap,
+        dropped_over_cap: false,
+        dropped_over_cap_total: DEFERRED_ARP_RECEIVER_DROPPED_OVER_CAP.load(Ordering::Relaxed),
+    }
+}
+
+/// Snapshot lifecycle metrics for deferred ARP receiver handle management.
+pub fn arp_receiver_lifecycle_metrics() -> ArpReceiverLifecycleMetrics {
+    ArpReceiverLifecycleMetrics {
+        current_deferred_handles: DEFERRED_ARP_RECEIVER_PENDING.load(Ordering::Relaxed),
+        deferred_high_watermark: DEFERRED_ARP_RECEIVER_HIGH_WATERMARK.load(Ordering::Relaxed),
+        total_deferred_handles: DEFERRED_ARP_RECEIVER_TOTAL_DEFERRED.load(Ordering::Relaxed),
+        total_reaped_handles: DEFERRED_ARP_RECEIVER_TOTAL_REAPED.load(Ordering::Relaxed),
+        dropped_over_cap: DEFERRED_ARP_RECEIVER_DROPPED_OVER_CAP.load(Ordering::Relaxed),
+        cap: arp_deferred_receiver_handle_cap(),
+        warning_threshold: arp_deferred_receiver_warn_threshold(),
+    }
+}
 
 /// Creates an ARP request packet
 fn create_arp_request(
@@ -63,6 +262,9 @@ pub fn active_arp_scan(
     target_ips: &[Ipv4Addr],
     subnet: &Ipv4Network,
 ) -> Result<HashMap<Ipv4Addr, MacAddr>> {
+    // Best-effort cleanup for any previously deferred ARP receiver joins.
+    reap_deferred_receiver_joins();
+
     let cfg_arp_max_wait_ms = arp_max_wait_ms();
     let cfg_arp_check_interval_ms = arp_check_interval_ms();
     let cfg_arp_idle_timeout_ms = arp_idle_timeout_ms();
@@ -298,10 +500,31 @@ pub fn active_arp_scan(
             return Err(anyhow!("ARP receiver thread panicked"));
         }
     } else {
-        crate::log_warn!(
-            "ARP receiver thread did not stop within {}ms; continuing without blocking",
-            join_wait_ms
-        );
+        // Avoid detached join-helper threads. Queue this handle for best-effort join
+        // at the start of the next scan cycle.
+        let result = defer_receiver_join(receiver_handle);
+        if result.dropped_over_cap {
+            crate::log_warn!(
+                "ARP receiver thread did not stop within {}ms; deferred join queue is at cap {} ({} pending, {} dropped total)",
+                join_wait_ms,
+                result.cap,
+                result.pending,
+                result.dropped_over_cap_total
+            );
+        } else {
+            crate::log_warn!(
+                "ARP receiver thread did not stop within {}ms; queued for deferred join ({} pending)",
+                join_wait_ms,
+                result.pending
+            );
+            if result.pending >= result.warning_threshold {
+                crate::log_warn!(
+                    "Deferred ARP join queue pending {} is above warning threshold {}",
+                    result.pending,
+                    result.warning_threshold
+                );
+            }
+        }
     }
 
     let mut map = discovered

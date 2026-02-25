@@ -3,6 +3,7 @@ import {
   Sun,
   Monitor,
   Moon,
+  Languages,
   Play,
   CircleStop,
   Loader2,
@@ -16,10 +17,12 @@ import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { ScanStatus } from '../../hooks/useScan';
 import { deriveAiPillState, useAiStatus } from '../../hooks/useAiStatus';
+import { useLanguage } from '../../hooks/useLanguage';
 import { useTheme } from '../../hooks/useTheme';
+import type { Page } from '../../router';
 
 interface TopHeaderProps {
-  currentPage?: string;
+  currentPage?: Page;
   isScanning?: boolean;
   scanStatus?: ScanStatus;
   onStartScan?: () => void;
@@ -28,19 +31,18 @@ interface TopHeaderProps {
   unreadAlertsCount?: number;
 }
 
-const pageInfo: Record<string, { title: string; subtitle: string }> = {
-  dashboard: { title: 'Dashboard', subtitle: 'NetMapper Pro' },
-  topology: { title: 'Topology Map', subtitle: 'Network Visualization' },
-  devices: { title: 'Device List', subtitle: 'Connected Devices' },
-  vulnerabilities: { title: 'Vulnerabilities', subtitle: 'Security Assessment' },
-  alerts: { title: 'Alerts', subtitle: 'Notification Center' },
-  tools: { title: 'Tools', subtitle: 'Network Utilities' },
-  reports: { title: 'Reports', subtitle: 'Export & Analysis' },
-  settings: { title: 'Settings', subtitle: 'Configuration' },
-};
-
 // Status Pill Component
-function StatusPill({ scanStatus }: { scanStatus: ScanStatus }) {
+function StatusPill({
+  scanStatus,
+  labels,
+}: {
+  scanStatus: ScanStatus;
+  labels: {
+    scanning: string;
+    complete: string;
+    ready: string;
+  };
+}) {
   const getStatusConfig = () => {
     switch (scanStatus) {
       case 'scanning':
@@ -48,14 +50,14 @@ function StatusPill({ scanStatus }: { scanStatus: ScanStatus }) {
           bgColor: 'bg-orange-500/10',
           textColor: 'text-orange-600',
           icon: <Loader2 className="w-4 h-4 animate-spin" />,
-          text: 'Scanning Network...',
+          text: labels.scanning,
         };
       case 'complete':
         return {
           bgColor: 'bg-green-500/10',
           textColor: 'text-green-600',
           icon: <CheckCircle className="w-4 h-4" />,
-          text: 'Scan Complete!',
+          text: labels.complete,
         };
       case 'ready':
       default:
@@ -63,7 +65,7 @@ function StatusPill({ scanStatus }: { scanStatus: ScanStatus }) {
           bgColor: 'bg-green-500/10',
           textColor: 'text-green-600',
           icon: <Circle className="w-2 h-2 fill-current" />,
-          text: 'System Ready',
+          text: labels.ready,
         };
     }
   };
@@ -117,15 +119,16 @@ function AiStatusPill() {
 
 function ThemeModeControl() {
   const { themeMode, setThemeMode } = useTheme();
+  const { copy } = useLanguage();
 
   const options: Array<{
     id: 'light' | 'system' | 'dark';
     label: string;
     icon: ReactNode;
   }> = [
-    { id: 'light', label: 'Light', icon: <Sun className="h-4 w-4" /> },
-    { id: 'system', label: 'System', icon: <Monitor className="h-4 w-4" /> },
-    { id: 'dark', label: 'Dark', icon: <Moon className="h-4 w-4" /> },
+    { id: 'light', label: copy.header.themeMode.light, icon: <Sun className="h-4 w-4" /> },
+    { id: 'system', label: copy.header.themeMode.system, icon: <Monitor className="h-4 w-4" /> },
+    { id: 'dark', label: copy.header.themeMode.dark, icon: <Moon className="h-4 w-4" /> },
   ];
 
   return (
@@ -161,6 +164,55 @@ function ThemeModeControl() {
   );
 }
 
+function LanguageModeControl() {
+  const { language, setLanguage, copy } = useLanguage();
+  const options: Array<{ id: 'en' | 'my'; label: string; title: string }> = [
+    {
+      id: 'en',
+      label: copy.header.languageMode.shortEnglish,
+      title: copy.header.languageMode.english,
+    },
+    {
+      id: 'my',
+      label: copy.header.languageMode.shortMyanmar,
+      title: copy.header.languageMode.myanmar,
+    },
+  ];
+
+  return (
+    <div
+      className="flex items-center rounded-full border border-theme bg-bg-tertiary/75 p-1 shadow-sm"
+      title={copy.header.languageMode.label}
+    >
+      <Languages className="ml-1 mr-1 h-3.5 w-3.5 text-text-muted" />
+      {options.map((option) => {
+        const isActive = language === option.id;
+
+        return (
+          <motion.button
+            key={option.id}
+            onClick={() => setLanguage(option.id)}
+            className={`relative flex h-7 items-center justify-center rounded-full px-2 text-[11px] font-semibold transition-colors ${
+              isActive ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+            }`}
+            title={option.title}
+            whileTap={{ scale: 0.96 }}
+          >
+            {isActive && (
+              <motion.span
+                className="absolute inset-0 rounded-full border border-theme bg-bg-secondary shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                layoutId="language-mode-pill"
+                transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+              />
+            )}
+            <span className="relative z-10">{option.label}</span>
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function TopHeader({
   currentPage = 'dashboard',
   isScanning = false,
@@ -177,8 +229,9 @@ export default function TopHeader({
       onStartScan?.();
     }
   };
+  const { copy } = useLanguage();
 
-  const { title, subtitle } = pageInfo[currentPage] || pageInfo.dashboard;
+  const { title, subtitle } = copy.header.pageInfo[currentPage] || copy.header.pageInfo.dashboard;
 
   // Button configuration based on scanStatus
   const getButtonConfig = () => {
@@ -187,14 +240,14 @@ export default function TopHeader({
         return {
           bgColor: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30',
           icon: <CircleStop className="w-4 h-4" />,
-          text: 'Stop Scan',
+          text: copy.header.scanButton.stop,
           disabled: false,
         };
       case 'complete':
         return {
           bgColor: 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30',
           icon: <CheckCircle className="w-4 h-4" />,
-          text: 'Done',
+          text: copy.header.scanButton.done,
           disabled: true, // Disable clicking during complete state
         };
       case 'ready':
@@ -202,7 +255,7 @@ export default function TopHeader({
         return {
           bgColor: 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 shadow-lg shadow-cyan-500/30',
           icon: <Play className="w-4 h-4 fill-current" />,
-          text: 'Start Scan',
+          text: copy.header.scanButton.start,
           disabled: false,
         };
     }
@@ -229,8 +282,11 @@ export default function TopHeader({
       {/* Right: Status Pill + Actions */}
       <div className="flex items-center gap-2.5 shrink-0">
         {/* Status Indicator Pill */}
-        <StatusPill scanStatus={scanStatus} />
+        <StatusPill scanStatus={scanStatus} labels={copy.header.status} />
         <AiStatusPill />
+
+        {/* Language Mode Control */}
+        <LanguageModeControl />
 
         {/* Theme Mode Control */}
         <ThemeModeControl />
@@ -239,7 +295,7 @@ export default function TopHeader({
         <button
           onClick={onNavigateToAlerts}
           className="relative rounded-lg p-2 transition-colors hover:bg-bg-hover"
-          aria-label="Notifications"
+          aria-label={copy.header.notifications}
         >
           <Bell className="h-[18px] w-[18px] text-text-secondary" />
           {unreadAlertsCount > 0 && (

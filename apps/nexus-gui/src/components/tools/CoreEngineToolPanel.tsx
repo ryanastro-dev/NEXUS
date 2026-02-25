@@ -20,6 +20,9 @@ export default function CoreEngineToolPanel() {
     loadResult,
     engineEvents,
     exportingAiJson,
+    aiReadinessLoading,
+    aiReady,
+    aiReadinessMessage,
     aiOverlaySummary,
     aiProviderLabel,
     handleScanWithAi,
@@ -41,6 +44,9 @@ export default function CoreEngineToolPanel() {
         loadConcurrency={loadConcurrency}
         onLoadConcurrencyChange={setLoadConcurrency}
         loadLoading={loadLoading}
+        aiReadinessLoading={aiReadinessLoading}
+        aiReady={aiReady}
+        aiReadinessMessage={aiReadinessMessage}
         onScanWithAi={() => {
           void handleScanWithAi();
         }}

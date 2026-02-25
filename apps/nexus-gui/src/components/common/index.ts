@@ -8,6 +8,7 @@ export type { ContextMenuItem } from './ContextMenu';
 export { ToastProvider, toast } from './Toast';
 export { default as ThemeToggle } from './ThemeToggle';
 export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as DesktopModeNotice } from './DesktopModeNotice';
 export { default as AlertBadge } from './AlertBadge';
 export { default as AlertPanel } from './AlertPanel';
 export { default as Breadcrumb } from './Breadcrumb';

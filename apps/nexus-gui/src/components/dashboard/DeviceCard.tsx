@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Monitor, Server, Laptop, Smartphone, Printer, Camera, Router, Cpu, Activity, Signal, Wifi } from 'lucide-react';
 import { HostInfo } from '../../hooks/useScan';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface DeviceCardProps {
   device: HostInfo;
@@ -32,7 +33,7 @@ const deviceColors: Record<string, string> = {
 };
 
 // Utility: Format relative time
-function getRelativeTime(isoTimestamp: string): string {
+function getRelativeTime(isoTimestamp: string, locale: string, justNow: string): string {
   const now = new Date();
   const past = new Date(isoTimestamp);
   const diffMs = now.getTime() - past.getTime();
@@ -40,14 +41,17 @@ function getRelativeTime(isoTimestamp: string): string {
   const diffMin = Math.floor(diffSec / 60);
   const diffHr = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHr / 24);
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
 
-  if (diffSec < 60) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  return `${diffDay}d ago`;
+  if (diffSec < 60) return justNow;
+  if (diffMin < 60) return formatter.format(-diffMin, 'minute');
+  if (diffHr < 24) return formatter.format(-diffHr, 'hour');
+  return formatter.format(-diffDay, 'day');
 }
 
 export default function DeviceCard({ device, onClick }: DeviceCardProps) {
+  const { copy, locale } = useLanguage();
+  const devicesCopy = copy.devices;
   const Icon = deviceIcons[device.device_type] || Monitor;
   const color = deviceColors[device.device_type] || '#6B7280';
   
@@ -57,29 +61,45 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
   
   // Get status badge
   const getStatusBadge = () => {
-    if (!isOnline) return { text: 'offline', color: 'bg-status-offline', textColor: 'text-status-offline' };
-    if (isWarning) return { text: 'warning', color: 'bg-accent-amber', textColor: 'text-accent-amber' };
-    return { text: 'online', color: 'bg-status-online', textColor: 'text-status-online' };
+    if (!isOnline) {
+      return {
+        text: devicesCopy.card.statusOffline,
+        color: 'bg-status-offline',
+        textColor: 'text-status-offline',
+      };
+    }
+    if (isWarning) {
+      return {
+        text: devicesCopy.card.statusWarning,
+        color: 'bg-accent-amber',
+        textColor: 'text-accent-amber',
+      };
+    }
+    return {
+      text: devicesCopy.card.statusOnline,
+      color: 'bg-status-online',
+      textColor: 'text-status-online',
+    };
   };
   
   const status = getStatusBadge();
   
   // Format last seen timestamp
   const lastSeenText = device.last_seen 
-    ? getRelativeTime(device.last_seen)
-    : (isOnline ? 'Just now' : 'Unknown');
+    ? getRelativeTime(device.last_seen, locale, devicesCopy.card.justNow)
+    : (isOnline ? devicesCopy.card.justNow : devicesCopy.card.unknownLastSeen);
 
   const responseTimeText =
     device.response_time_ms !== null && device.response_time_ms !== undefined
       ? `${device.response_time_ms}ms`
-      : 'N/A';
+      : devicesCopy.card.notAvailable;
 
   const openPortsText =
     openPorts.length > 0
       ? `${openPorts.slice(0, 3).join(', ')}${openPorts.length > 3 ? ` +${openPorts.length - 3}` : ''}`
-      : 'None';
+      : devicesCopy.card.noOpenPorts;
 
-  const vendorText = device.vendor?.trim() || 'Unknown';
+  const vendorText = device.vendor?.trim() || devicesCopy.card.unknownVendor;
   
   return (
     <motion.div
@@ -101,7 +121,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="truncate text-[1rem] font-semibold text-text-primary">
-              {device.hostname || 'Unknown Device'}
+              {device.hostname || devicesCopy.card.unknownDevice}
             </h3>
             <p className="text-xs text-text-muted">
               {device.device_type.replace('_', ' ')}
@@ -126,7 +146,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
 
       {/* IP Address */}
       <div className="mb-3 border-b border-theme pb-3">
-        <p className="mb-1 text-xs text-text-muted">IP Address</p>
+        <p className="mb-1 text-xs text-text-muted">{devicesCopy.card.ipAddress}</p>
         <p className="font-mono text-sm font-medium text-accent-blue">{device.ip}</p>
       </div>
 
@@ -136,7 +156,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Signal className="h-3 w-3 text-text-muted" />
-            <span className="text-xs text-text-muted">Response Time</span>
+            <span className="text-xs text-text-muted">{devicesCopy.card.responseTime}</span>
           </div>
           <span className="text-xs font-semibold text-text-primary">{responseTimeText}</span>
         </div>
@@ -145,7 +165,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Wifi className="h-3 w-3 text-text-muted" />
-            <span className="text-xs text-text-muted">Open Ports</span>
+            <span className="text-xs text-text-muted">{devicesCopy.card.openPorts}</span>
           </div>
           <span className="max-w-[150px] truncate text-xs font-semibold text-text-primary">
             {openPortsText}
@@ -154,7 +174,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
 
         {/* Vendor */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-text-muted">Vendor</span>
+          <span className="text-xs text-text-muted">{devicesCopy.card.vendor}</span>
           <span className="max-w-[150px] truncate text-xs font-semibold text-text-primary">
             {vendorText}
           </span>
@@ -162,7 +182,7 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
 
         {/* Risk Score */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-text-muted">Risk Score</span>
+          <span className="text-xs text-text-muted">{devicesCopy.card.riskScore}</span>
           <span 
             className={`text-xs font-semibold ${
               device.risk_score >= 70 ? 'text-accent-red' : 
@@ -178,19 +198,19 @@ export default function DeviceCard({ device, onClick }: DeviceCardProps) {
       {/* Footer: Security Grade & Last Seen */}
       <div className="mt-auto grid grid-cols-2 gap-2 border-t border-theme pt-2">
         <div>
-          <p className="mb-1 text-xs text-text-muted">Security Grade</p>
+          <p className="mb-1 text-xs text-text-muted">{devicesCopy.card.securityGrade}</p>
           <p className={`text-base font-bold ${
             ['A', 'B'].includes(device.security_grade || '') ? 'text-accent-green' :
             ['C', 'D'].includes(device.security_grade || '') ? 'text-accent-amber' :
             'text-accent-red'
           }`}>
-            {device.security_grade || 'N/A'}
+            {device.security_grade || devicesCopy.card.notAvailable}
           </p>
         </div>
         <div>
           <div className="mb-1 flex items-center gap-1">
             <Activity className="h-2.5 w-2.5 text-text-muted" />
-            <p className="text-xs text-text-muted">Last Seen</p>
+            <p className="text-xs text-text-muted">{devicesCopy.card.lastSeen}</p>
           </div>
           <p className="text-xs font-semibold text-text-primary">
             {lastSeenText}

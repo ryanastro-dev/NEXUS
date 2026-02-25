@@ -1,0 +1,239 @@
+[
+  {
+    "ip": "192.168.1.1",
+    "mac": "34:4a:c3:22:6f:90",
+    "vendor": "TP-Link Technologies Co., Ltd.",
+    "hostname": "Deco-X90-Mesh-Router",
+    "device_type": "ROUTER",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 2,
+    "ttl": 64,
+    "open_ports": [80, 443, 22],
+    "risk_score": 35,
+    "security_grade": "B"
+  },
+  {
+    "ip": "192.168.1.10",
+    "mac": "00:0c:29:5a:8f:1d",
+    "vendor": "Dell Inc.",
+    "hostname": "Alienware-Aurora-R16",
+    "device_type": "PC",
+    "os_guess": "Windows",
+    "response_time_ms": 5,
+    "ttl": 128,
+    "open_ports": [445, 3389, 135],
+    "risk_score": 85,
+    "security_grade": "F",
+    "vulnerabilities": [
+      {
+        "cve_id": "CVE-2017-0144",
+        "severity": "Critical",
+        "description": "EternalBlue SMBv1 Remote Code Execution",
+        "cvss_score": 9.3
+      },
+      {
+        "cve_id": "CVE-2019-0708",
+        "severity": "Critical",
+        "description": "BlueKeep RDP Remote Code Execution",
+        "cvss_score": 9.8
+      }
+    ]
+  },
+  {
+    "ip": "192.168.1.25",
+    "mac": "d2:81:c8:45:6b:71",
+    "vendor": "Private Device (Randomized MAC)",
+    "hostname": "Galaxy-S24-Ultra",
+    "device_type": "MOBILE",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 12,
+    "ttl": 64,
+    "open_ports": [],
+    "risk_score": 10,
+    "is_randomized": true,
+    "security_grade": "A"
+  },
+  {
+    "ip": "192.168.1.30",
+    "mac": "00:25:b3:a4:56:78",
+    "vendor": "Hewlett Packard",
+    "hostname": "HP-Color-LaserJet-Pro",
+    "device_type": "PRINTER",
+    "response_time_ms": 3,
+    "ttl": 64,
+    "open_ports": [80, 631, 9100],
+    "risk_score": 40,
+    "security_grade": "C"
+  },
+  {
+    "ip": "192.168.1.70",
+    "mac": "44:19:b6:12:34:56",
+    "vendor": "Hangzhou Hikvision Digital",
+    "hostname": "Ring-Stick-Up-Cam-Pro",
+    "device_type": "CAMERA",
+    "response_time_ms": 10,
+    "ttl": 64,
+    "open_ports": [80, 554],
+    "risk_score": 60,
+    "security_grade": "D",
+    "vulnerabilities": [
+      {
+        "cve_id": "CVE-2021-36260",
+        "severity": "Critical",
+        "description": "Hikvision IP Camera Command Injection",
+        "cvss_score": 9.8
+      }
+    ]
+  },
+  {
+    "ip": "192.168.1.2",
+    "mac": "00:1e:14:7b:3c:90",
+    "vendor": "Cisco Systems, Inc.",
+    "hostname": "Cisco-Catalyst-9200",
+    "device_type": "SWITCH",
+    "os_guess": "Cisco IOS",
+    "response_time_ms": 1,
+    "ttl": 255,
+    "open_ports": [22, 23, 80, 443],
+    "risk_score": 25,
+    "security_grade": "B"
+  },
+  {
+    "ip": "192.168.1.15",
+    "mac": "3c:22:fb:89:12:34",
+    "vendor": "Apple, Inc.",
+    "hostname": "MacBook-Pro-M3-Max",
+    "device_type": "LAPTOP",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 4,
+    "ttl": 64,
+    "open_ports": [],
+    "risk_score": 15,
+    "security_grade": "A"
+  },
+  {
+    "ip": "192.168.1.26",
+    "mac": "f2:a3:b4:c5:d6:e7",
+    "vendor": "Private Device (Randomized MAC)",
+    "hostname": "iPhone-15-Pro-Max",
+    "device_type": "MOBILE",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 15,
+    "ttl": 64,
+    "open_ports": [],
+    "risk_score": 10,
+    "is_randomized": true,
+    "security_grade": "A"
+  },
+  {
+    "ip": "192.168.1.40",
+    "mac": "e8:50:8b:12:34:56",
+    "vendor": "Samsung Electronics Co., Ltd.",
+    "hostname": "Samsung-Neo-QLED-8K",
+    "device_type": "SMART_TV",
+    "os_guess": "Tizen OS",
+    "response_time_ms": 8,
+    "ttl": 64,
+    "open_ports": [8001, 8002],
+    "risk_score": 30,
+    "security_grade": "C"
+  },
+  {
+    "ip": "192.168.1.50",
+    "mac": "b8:27:eb:45:67:89",
+    "vendor": "Raspberry Pi Foundation",
+    "hostname": "RasPi-Server",
+    "device_type": "SERVER",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 3,
+    "ttl": 64,
+    "open_ports": [22, 80, 3306],
+    "risk_score": 50,
+    "security_grade": "D",
+    "vulnerabilities": [
+      {
+        "cve_id": "CVE-2023-4911",
+        "severity": "High",
+        "description": "Looney Tunables - glibc buffer overflow",
+        "cvss_score": 7.8
+      }
+    ]
+  },
+  {
+    "ip": "192.168.1.60",
+    "mac": "00:11:32:ab:cd:ef",
+    "vendor": "Synology Incorporated",
+    "hostname": "Synology-NAS-DS923+",
+    "device_type": "NAS",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 4,
+    "ttl": 64,
+    "open_ports": [80, 443, 5000, 5001],
+    "risk_score": 35,
+    "security_grade": "B"
+  },
+  {
+    "ip": "192.168.1.3",
+    "mac": "24:a4:3c:56:78:90",
+    "vendor": "Ubiquiti Networks Inc.",
+    "hostname": "UAP-AC-Pro",
+    "device_type": "ACCESS_POINT",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 2,
+    "ttl": 64,
+    "open_ports": [22, 80, 443],
+    "risk_score": 20,
+    "security_grade": "A"
+  },
+  {
+    "ip": "192.168.1.45",
+    "mac": "98:5f:d3:12:34:56",
+    "vendor": "Microsoft Corporation",
+    "hostname": "Xbox-Series-X",
+    "device_type": "GAME_CONSOLE",
+    "os_guess": "Xbox OS",
+    "response_time_ms": 6,
+    "ttl": 128,
+    "open_ports": [],
+    "risk_score": 15,
+    "security_grade": "A"
+  },
+  {
+    "ip": "192.168.1.31",
+    "mac": "00:1e:8f:ab:cd:12",
+    "vendor": "Canon Inc.",
+    "hostname": "Canon-ImageCLASS-MF743",
+    "device_type": "PRINTER",
+    "response_time_ms": 5,
+    "ttl": 64,
+    "open_ports": [80, 631],
+    "risk_score": 38,
+    "security_grade": "C"
+  },
+  {
+    "ip": "192.168.1.41",
+    "mac": "50:dc:e7:89:12:34",
+    "vendor": "Amazon Technologies Inc.",
+    "hostname": "Echo-Dot",
+    "device_type": "IOT_DEVICE",
+    "os_guess": "Fire OS",
+    "response_time_ms": 7,
+    "ttl": 64,
+    "open_ports": [],
+    "risk_score": 25,
+    "security_grade": "B"
+  },
+  {
+    "ip": "192.168.1.20",
+    "mac": "3c:52:82:1f:34:b8",
+    "vendor": "Hewlett Packard",
+    "hostname": "NEXUS-Command-Center",
+    "device_type": "PC",
+    "os_guess": "Linux/Unix/macOS",
+    "response_time_ms": 3,
+    "ttl": 64,
+    "open_ports": [22],
+    "risk_score": 20,
+    "security_grade": "A"
+  }
+]

@@ -1,6 +1,7 @@
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface FABAction {
   icon: React.ReactNode;
@@ -13,6 +14,7 @@ interface FABProps {
 }
 
 export default function FAB({ actions = [] }: FABProps) {
+  const { copy } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -59,7 +61,7 @@ export default function FAB({ actions = [] }: FABProps) {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Quick actions menu"
+        aria-label={copy.common.accessibility.quickActionsMenu}
       >
         <AnimatePresence mode="wait">
           {isOpen ? (

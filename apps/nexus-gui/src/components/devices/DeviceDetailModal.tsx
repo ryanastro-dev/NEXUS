@@ -1,16 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { BrainCircuit } from 'lucide-react';
 
 import type { HostInfo } from '../../hooks/useScan';
 import { useAssistant } from '../../hooks/useAssistant';
+import { useAiStatus } from '../../hooks/useAiStatus';
+import { useLanguage } from '../../hooks/useLanguage';
+import { SETTINGS_UPDATED_EVENT } from '../../lib/events/settings-sync';
 import { useTheme } from '../../hooks/useTheme';
 import {
   DeviceModalHeader,
   DeviceNetworkSection,
   DevicePersistedSection,
   DevicePortsSection,
+  DeviceSecuritySection,
   DeviceSummaryCards,
   DeviceSystemSection,
   usePersistedDevice,
@@ -21,10 +24,42 @@ interface DeviceDetailModalProps {
   onClose: () => void;
 }
 
+const SETTINGS_STORAGE_KEY = 'netmapper-settings';
+const AUTO_AI_ON_OPEN_KEY = 'autoAiOnDeviceOpen';
+const LEGACY_AUTO_AI_ON_OPEN_KEY = 'device-drilldown-auto-ai-on-open';
+
+function readAutoAiOnOpenPreference(): boolean {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.[AUTO_AI_ON_OPEN_KEY] === 'boolean') {
+        return parsed[AUTO_AI_ON_OPEN_KEY];
+      }
+    }
+  } catch {
+    // Ignore malformed settings and use fallback defaults.
+  }
+
+  const legacyRaw = localStorage.getItem(LEGACY_AUTO_AI_ON_OPEN_KEY);
+  if (legacyRaw === 'false') {
+    return false;
+  }
+  return true;
+}
+
 export default function DeviceDetailModal({ device, onClose }: DeviceDetailModalProps) {
   const { theme } = useTheme();
+  const { copy } = useLanguage();
+  const modalCopy = copy.devices.modal;
   const isDark = theme === 'dark';
+  const { settings } = useAiStatus();
+  const isAiDisabled = !settings?.enabled || settings?.mode === 'disabled';
   const persistedDevice = usePersistedDevice(device);
+  const autoTriggeredKeyRef = useRef<string | null>(null);
+  const [autoAnalyzeOnOpen, setAutoAnalyzeOnOpen] = useState<boolean>(
+    readAutoAiOnOpenPreference,
+  );
   const {
     isAnalyzingDevice,
     deviceSecurityAnalysis,
@@ -35,14 +70,56 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
 
   useEffect(() => {
     clearDeviceAnalysis();
+    autoTriggeredKeyRef.current = null;
   }, [device?.mac, clearDeviceAnalysis]);
+
+  const isOnline = device?.response_time_ms !== null && device?.response_time_ms !== undefined;
+  const deviceKey = device ? `${device.mac}|${device.ip}` : null;
+
+  useEffect(() => {
+    const refresh = () => {
+      setAutoAnalyzeOnOpen(readAutoAiOnOpenPreference());
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== SETTINGS_STORAGE_KEY) {
+        return;
+      }
+      refresh();
+    };
+
+    window.addEventListener(SETTINGS_UPDATED_EVENT, refresh);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(SETTINGS_UPDATED_EVENT, refresh);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!device || !autoAnalyzeOnOpen || isAiDisabled || isAnalyzingDevice || !deviceKey) {
+      return;
+    }
+
+    if (autoTriggeredKeyRef.current === deviceKey) {
+      return;
+    }
+
+    autoTriggeredKeyRef.current = deviceKey;
+    void analyzeDeviceSecurity(device);
+  }, [
+    analyzeDeviceSecurity,
+    autoAnalyzeOnOpen,
+    device,
+    deviceKey,
+    isAiDisabled,
+    isAnalyzingDevice,
+  ]);
 
   if (!device) return null;
 
-  const isOnline = device.response_time_ms !== null && device.response_time_ms !== undefined;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex justify-end">
       <motion.div
         className={clsx('absolute inset-0', isDark ? 'bg-black/80' : 'bg-black/40')}
         onClick={onClose}
@@ -51,69 +128,36 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
         transition={{ duration: 0.2 }}
       />
 
-      <motion.div
+      <motion.aside
         className={clsx(
-          'relative w-full max-w-2xl overflow-hidden rounded-2xl shadow-2xl',
-          isDark ? 'bg-[#1a1f2e]' : 'bg-white',
+          'relative z-10 flex h-full w-full max-w-[640px] flex-col overflow-hidden border-l shadow-2xl',
+          isDark ? 'border-white/10 bg-[#121722]' : 'border-slate-200 bg-white',
         )}
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        initial={{ opacity: 0.9, x: 64 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 35 }}
       >
         <DeviceModalHeader
           isDark={isDark}
           isOnline={isOnline}
           title={device.hostname || device.ip}
           subtitle={device.device_type}
+          isAiDisabled={isAiDisabled}
           onAnalyzeSecurity={() => {
-            void analyzeDeviceSecurity(device);
+            void analyzeDeviceSecurity(device, { force: true });
           }}
           isAnalyzingSecurity={isAnalyzingDevice}
           onClose={onClose}
         />
 
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
-          {(isAnalyzingDevice || deviceSecurityAnalysis || deviceError) && (
-            <div
-              className={clsx(
-                'rounded-xl border p-3',
-                isDark ? 'border-cyan-400/30 bg-cyan-500/5' : 'border-cyan-200 bg-cyan-50/80',
-              )}
-            >
-              <div className="mb-2 flex items-center gap-2">
-                <BrainCircuit className={clsx('h-4 w-4', isDark ? 'text-cyan-300' : 'text-cyan-700')} />
-                <p className={clsx('text-xs font-semibold uppercase tracking-[0.14em]', isDark ? 'text-cyan-300' : 'text-cyan-700')}>
-                  AI Device Security Review
-                </p>
-              </div>
-
-              {isAnalyzingDevice && (
-                <p className={clsx('text-sm', isDark ? 'text-slate-300' : 'text-slate-700')}>
-                  Evaluating exposure and generating remediation guidance...
-                </p>
-              )}
-
-              {!isAnalyzingDevice && deviceError && (
-                <p className={clsx('text-sm', isDark ? 'text-rose-300' : 'text-rose-700')}>{deviceError}</p>
-              )}
-
-              {!isAnalyzingDevice && deviceSecurityAnalysis && (
-                <div className="space-y-2.5">
-                  <p className={clsx('text-sm', isDark ? 'text-slate-200' : 'text-slate-800')}>
-                    {deviceSecurityAnalysis.executive_summary}
-                  </p>
-                  <p className={clsx('text-xs font-medium', isDark ? 'text-cyan-300' : 'text-cyan-700')}>
-                    Risk: {deviceSecurityAnalysis.risk_level.toUpperCase()} ({deviceSecurityAnalysis.risk_score}/100)
-                  </p>
-                  <div className={clsx('text-xs leading-relaxed', isDark ? 'text-slate-300' : 'text-slate-700')}>
-                    {deviceSecurityAnalysis.recommended_actions.slice(0, 2).map((action) => (
-                      <p key={action}>- {action}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          <DeviceSecuritySection
+            device={device}
+            isDark={isDark}
+            analysis={deviceSecurityAnalysis}
+            isAnalyzing={isAnalyzingDevice}
+            error={deviceError}
+          />
 
           <DeviceSummaryCards isDark={isDark} isOnline={isOnline} riskScore={device.risk_score} />
 
@@ -140,10 +184,10 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
             onClick={onClose}
             className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
           >
-            Close
+            {modalCopy.close}
           </button>
         </div>
-      </motion.div>
+      </motion.aside>
     </div>
   );
 }

@@ -1,393 +1,248 @@
 //! Demo Mode - Pre-loaded sample data for offline demonstrations
 //!
-//! Provides realistic network topology with sample devices, vulnerabilities, and alerts
+//! Provides realistic network topology with sample devices, vulnerabilities, and alerts.
 
-use nexus_core::{AlertRecord, AlertSeverity, AlertType, HostInfo, ScanResult, VulnerabilityInfo};
+use std::collections::HashSet;
+use std::sync::OnceLock;
 
-/// Generate demo scan result with realistic sample data
+use nexus_core::{
+    AlertRecord, AlertSeverity, AlertType, DeviceType, HostInfo, ScanResult, SecurityGrade,
+    VulnerabilityInfo,
+};
+use serde::Deserialize;
+
+const DEMO_HOSTS_JSON: &str = include_str!("demo_data/hosts.json");
+const DEMO_TARGET_HOST_COUNT: usize = 56;
+const DEFAULT_SUBNET_PREFIX: &str = "192.168.1";
+
+#[derive(Debug, Deserialize, Clone)]
+struct DemoHostTemplate {
+    ip: String,
+    mac: String,
+    vendor: Option<String>,
+    hostname: Option<String>,
+    device_type: String,
+    os_guess: Option<String>,
+    response_time_ms: Option<u64>,
+    ttl: Option<u8>,
+    #[serde(default)]
+    open_ports: Vec<u16>,
+    risk_score: u8,
+    #[serde(default)]
+    is_randomized: bool,
+    #[serde(default)]
+    vulnerabilities: Vec<VulnerabilityInfo>,
+    #[serde(default)]
+    security_grade: String,
+}
+
+fn demo_host_templates() -> &'static [DemoHostTemplate] {
+    static HOSTS: OnceLock<Vec<DemoHostTemplate>> = OnceLock::new();
+
+    HOSTS
+        .get_or_init(|| {
+            serde_json::from_str(DEMO_HOSTS_JSON)
+                .expect("embedded demo host JSON must remain valid")
+        })
+        .as_slice()
+}
+
+/// Generate demo scan result with realistic sample data.
 pub fn generate_demo_scan() -> ScanResult {
     let hosts = generate_demo_hosts();
+    let scan_duration_ms = estimate_demo_scan_duration_ms(hosts.len());
 
     ScanResult {
-        interface_name: "eth0".to_string(),
+        interface_name: "demo0".to_string(),
         local_ip: "192.168.1.100".to_string(),
-        local_mac: "00:00:00:00:00:00".to_string(),
+        local_mac: "02:6e:65:78:75:73".to_string(),
         subnet: "192.168.1.0/24".to_string(),
-        scan_method: "Demo".to_string(),
+        scan_method: "Demo Replay".to_string(),
         arp_discovered: hosts.len(),
         icmp_discovered: hosts.len(),
         total_hosts: hosts.len(),
-        scan_duration_ms: 2500,
+        scan_duration_ms,
         active_hosts: hosts,
     }
 }
 
-/// Generate 16 realistic demo devices with variety in vendors, types, and risk levels
-fn generate_demo_hosts() -> Vec<HostInfo> {
-    vec![
-        // 1. Gateway Router (TP-Link)
-        HostInfo {
-            ip: "192.168.1.1".to_string(),
-            mac: "34:4a:c3:22:6f:90".to_string(),
-            vendor: Some("TP-Link Technologies Co., Ltd.".to_string()),
-            hostname: Some("Deco-X90-Mesh-Router".to_string()),
-            device_type: "Router".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(2),
-            ttl: Some(64),
-            open_ports: vec![80, 443, 22],
-            risk_score: 35,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "B".to_string(),
-        },
-        // 2. Windows PC - HIGH RISK
-        HostInfo {
-            ip: "192.168.1.10".to_string(),
-            mac: "00:0c:29:5a:8f:1d".to_string(),
-            vendor: Some("Dell Inc.".to_string()),
-            hostname: Some("Alienware-Aurora-R16".to_string()),
-            device_type: "Desktop".to_string(),
-            os_guess: Some("Windows".to_string()),
-            response_time_ms: Some(5),
-            ttl: Some(128),
-            open_ports: vec![445, 3389, 135],
-            risk_score: 85,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![
-                VulnerabilityInfo {
-                    cve_id: "CVE-2017-0144".to_string(),
-                    severity: "Critical".to_string(),
-                    description: "EternalBlue SMBv1 Remote Code Execution".to_string(),
-                    cvss_score: Some(9.3),
-                },
-                VulnerabilityInfo {
-                    cve_id: "CVE-2019-0708".to_string(),
-                    severity: "Critical".to_string(),
-                    description: "BlueKeep RDP Remote Code Execution".to_string(),
-                    cvss_score: Some(9.8),
-                },
-            ],
-            port_warnings: vec![],
-            security_grade: "F".to_string(),
-        },
-        // 3. Android Phone (Randomized MAC)
-        HostInfo {
-            ip: "192.168.1.25".to_string(),
-            mac: "d2:81:c8:45:6b:71".to_string(),
-            vendor: Some("Private Device (Randomized MAC)".to_string()),
-            hostname: Some("Galaxy-S24-Ultra".to_string()),
-            device_type: "Phone".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(12),
-            ttl: Some(64),
-            open_ports: vec![],
-            risk_score: 10,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: true,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "A".to_string(),
-        },
-        // 4. Network Printer
-        HostInfo {
-            ip: "192.168.1.30".to_string(),
-            mac: "00:25:b3:a4:56:78".to_string(),
-            vendor: Some("Hewlett Packard".to_string()),
-            hostname: Some("HP-Color-LaserJet-Pro".to_string()),
-            device_type: "Printer".to_string(),
-            os_guess: None,
-            response_time_ms: Some(3),
-            ttl: Some(64),
-            open_ports: vec![80, 631, 9100],
-            risk_score: 40,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "C".to_string(),
-        },
-        // 5. IP Camera - HIGH RISK
-        HostInfo {
-            ip: "192.168.1.70".to_string(),
-            mac: "44:19:b6:12:34:56".to_string(),
-            vendor: Some("Hangzhou Hikvision Digital".to_string()),
-            hostname: Some("Ring-Stick-Up-Cam-Pro".to_string()),
-            device_type: "Camera".to_string(),
-            os_guess: None,
-            response_time_ms: Some(10),
-            ttl: Some(64),
-            open_ports: vec![80, 554],
-            risk_score: 60,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![VulnerabilityInfo {
-                cve_id: "CVE-2021-36260".to_string(),
-                severity: "Critical".to_string(),
-                description: "Hikvision IP Camera Command Injection".to_string(),
-                cvss_score: Some(9.8),
-            }],
-            port_warnings: vec![],
-            security_grade: "D".to_string(),
-        },
-        // 6. Managed Switch (Cisco)
-        HostInfo {
-            ip: "192.168.1.2".to_string(),
-            mac: "00:1e:14:7b:3c:90".to_string(),
-            vendor: Some("Cisco Systems, Inc.".to_string()),
-            hostname: Some("Cisco-Catalyst-9200".to_string()),
-            device_type: "Switch".to_string(),
-            os_guess: Some("Cisco IOS".to_string()),
-            response_time_ms: Some(1),
-            ttl: Some(255),
-            open_ports: vec![22, 23, 80, 443],
-            risk_score: 25,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "B".to_string(),
-        },
-        // 7. MacBook Pro
-        HostInfo {
-            ip: "192.168.1.15".to_string(),
-            mac: "3c:22:fb:89:12:34".to_string(),
-            vendor: Some("Apple, Inc.".to_string()),
-            hostname: Some("MacBook-Pro-M3-Max".to_string()),
-            device_type: "Laptop".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(4),
-            ttl: Some(64),
-            open_ports: vec![],
-            risk_score: 15,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "A".to_string(),
-        },
-        // 8. iPhone (Randomized MAC)
-        HostInfo {
-            ip: "192.168.1.26".to_string(),
-            mac: "f2:a3:b4:c5:d6:e7".to_string(),
-            vendor: Some("Private Device (Randomized MAC)".to_string()),
-            hostname: Some("iPhone-15-Pro-Max".to_string()),
-            device_type: "Phone".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(15),
-            ttl: Some(64),
-            open_ports: vec![],
-            risk_score: 10,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: true,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "A".to_string(),
-        },
-        // 9. Smart TV (Samsung)
-        HostInfo {
-            ip: "192.168.1.40".to_string(),
-            mac: "e8:50:8b:12:34:56".to_string(),
-            vendor: Some("Samsung Electronics Co., Ltd.".to_string()),
-            hostname: Some("Samsung-Neo-QLED-8K".to_string()),
-            device_type: "SmartTV".to_string(),
-            os_guess: Some("Tizen OS".to_string()),
-            response_time_ms: Some(8),
-            ttl: Some(64),
-            open_ports: vec![8001, 8002],
-            risk_score: 30,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "C".to_string(),
-        },
-        // 10. Raspberry Pi Server
-        HostInfo {
-            ip: "192.168.1.50".to_string(),
-            mac: "b8:27:eb:45:67:89".to_string(),
-            vendor: Some("Raspberry Pi Foundation".to_string()),
-            hostname: Some("RasPi-Server".to_string()),
-            device_type: "Server".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(3),
-            ttl: Some(64),
-            open_ports: vec![22, 80, 3306],
-            risk_score: 50,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![VulnerabilityInfo {
-                cve_id: "CVE-2023-4911".to_string(),
-                severity: "High".to_string(),
-                description: "Looney Tunables - glibc buffer overflow".to_string(),
-                cvss_score: Some(7.8),
-            }],
-            port_warnings: vec![],
-            security_grade: "D".to_string(),
-        },
-        // 11. NAS Storage (Synology)
-        HostInfo {
-            ip: "192.168.1.60".to_string(),
-            mac: "00:11:32:ab:cd:ef".to_string(),
-            vendor: Some("Synology Incorporated".to_string()),
-            hostname: Some("Synology-NAS-DS923+".to_string()),
-            device_type: "Storage".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(4),
-            ttl: Some(64),
-            open_ports: vec![80, 443, 5000, 5001],
-            risk_score: 35,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "B".to_string(),
-        },
-        // 12. Wireless Access Point
-        HostInfo {
-            ip: "192.168.1.3".to_string(),
-            mac: "24:a4:3c:56:78:90".to_string(),
-            vendor: Some("Ubiquiti Networks Inc.".to_string()),
-            hostname: Some("UAP-AC-Pro".to_string()),
-            device_type: "AccessPoint".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(2),
-            ttl: Some(64),
-            open_ports: vec![22, 80, 443],
-            risk_score: 20,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "A".to_string(),
-        },
-        // 13. Xbox Gaming Console
-        HostInfo {
-            ip: "192.168.1.45".to_string(),
-            mac: "98:5f:d3:12:34:56".to_string(),
-            vendor: Some("Microsoft Corporation".to_string()),
-            hostname: Some("Xbox-Series-X".to_string()),
-            device_type: "Gaming".to_string(),
-            os_guess: Some("Xbox OS".to_string()),
-            response_time_ms: Some(6),
-            ttl: Some(128),
-            open_ports: vec![],
-            risk_score: 15,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "A".to_string(),
-        },
-        // 14. Canon Printer
-        HostInfo {
-            ip: "192.168.1.31".to_string(),
-            mac: "00:1e:8f:ab:cd:12".to_string(),
-            vendor: Some("Canon Inc.".to_string()),
-            hostname: Some("Canon-ImageCLASS-MF743".to_string()),
-            device_type: "Printer".to_string(),
-            os_guess: None,
-            response_time_ms: Some(5),
-            ttl: Some(64),
-            open_ports: vec![80, 631],
-            risk_score: 38,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "C".to_string(),
-        },
-        // 15. Amazon Echo Dot
-        HostInfo {
-            ip: "192.168.1.41".to_string(),
-            mac: "50:dc:e7:89:12:34".to_string(),
-            vendor: Some("Amazon Technologies Inc.".to_string()),
-            hostname: Some("Echo-Dot".to_string()),
-            device_type: "IoT".to_string(),
-            os_guess: Some("Fire OS".to_string()),
-            response_time_ms: Some(7),
-            ttl: Some(64),
-            open_ports: vec![],
-            risk_score: 25,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "B".to_string(),
-        },
-        // 16. Linux Workstation (HP)
-        HostInfo {
-            ip: "192.168.1.20".to_string(),
-            mac: "3c:52:82:1f:34:b8".to_string(),
-            vendor: Some("Hewlett Packard".to_string()),
-            hostname: Some("NEXUS-Command-Center".to_string()),
-            device_type: "Desktop".to_string(),
-            os_guess: Some("Linux/Unix/macOS".to_string()),
-            response_time_ms: Some(3),
-            ttl: Some(64),
-            open_ports: vec![22],
-            risk_score: 20,
-            discovery_method: "Demo".to_string(),
-            system_description: None,
-            uptime_seconds: None,
-            is_randomized: false,
-            neighbors: vec![],
-            vulnerabilities: vec![],
-            port_warnings: vec![],
-            security_grade: "A".to_string(),
-        },
-    ]
+fn estimate_demo_scan_duration_ms(host_count: usize) -> u64 {
+    3_800 + (host_count as u64 * 165)
 }
 
-/// Generate sample alert records
+fn map_template_to_host(template: &DemoHostTemplate) -> HostInfo {
+    HostInfo {
+        ip: template.ip.clone(),
+        mac: template.mac.clone(),
+        vendor: template.vendor.clone(),
+        hostname: template.hostname.clone(),
+        device_type: template.device_type.parse().unwrap_or(DeviceType::Unknown),
+        os_guess: template.os_guess.clone(),
+        response_time_ms: template.response_time_ms,
+        ttl: template.ttl,
+        open_ports: template.open_ports.clone(),
+        risk_score: template.risk_score,
+        discovery_method: "Demo".to_string(),
+        system_description: None,
+        uptime_seconds: None,
+        is_randomized: template.is_randomized,
+        neighbors: vec![],
+        vulnerabilities: template.vulnerabilities.clone(),
+        port_warnings: vec![],
+        security_grade: template
+            .security_grade
+            .parse()
+            .unwrap_or(SecurityGrade::Unknown),
+    }
+}
+
+fn grade_from_risk(risk_score: u8) -> SecurityGrade {
+    match risk_score {
+        0..=19 => SecurityGrade::A,
+        20..=39 => SecurityGrade::B,
+        40..=59 => SecurityGrade::C,
+        60..=79 => SecurityGrade::D,
+        _ => SecurityGrade::F,
+    }
+}
+
+fn subnet_prefix(ip: &str) -> String {
+    let segments: Vec<_> = ip.split('.').collect();
+    if segments.len() == 4
+        && segments[..3]
+            .iter()
+            .all(|segment| !segment.is_empty() && segment.chars().all(|ch| ch.is_ascii_digit()))
+    {
+        return format!("{}.{}.{}", segments[0], segments[1], segments[2]);
+    }
+
+    DEFAULT_SUBNET_PREFIX.to_string()
+}
+
+fn parse_mac_bytes(mac: &str) -> Option<[u8; 6]> {
+    let parts: Vec<_> = mac.split(':').collect();
+    if parts.len() != 6 {
+        return None;
+    }
+
+    let mut bytes = [0u8; 6];
+    for (index, part) in parts.iter().enumerate() {
+        bytes[index] = u8::from_str_radix(part, 16).ok()?;
+    }
+    Some(bytes)
+}
+
+fn format_mac(bytes: [u8; 6]) -> String {
+    format!(
+        "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]
+    )
+}
+
+fn next_available_ip(prefix: &str, used_ips: &mut HashSet<String>, next_octet: &mut u16) -> String {
+    while *next_octet <= 254 {
+        let candidate = format!("{prefix}.{}", *next_octet);
+        *next_octet += 1;
+        if used_ips.insert(candidate.clone()) {
+            return candidate;
+        }
+    }
+
+    for octet in 2..=254 {
+        let candidate = format!("{prefix}.{octet}");
+        if used_ips.insert(candidate.clone()) {
+            return candidate;
+        }
+    }
+
+    panic!("demo IP pool exhausted for prefix {prefix}");
+}
+
+fn next_available_mac(seed: &str, salt: usize, used_macs: &mut HashSet<String>) -> String {
+    let mut bytes = parse_mac_bytes(seed).unwrap_or([0x02, 0x6e, 0x65, 0x78, 0x75, 0x00]);
+    let entropy = (salt as u32)
+        .wrapping_mul(0x45d9f3b)
+        .wrapping_add(0xa5a5_17d3);
+
+    // Ensure locally administered + unicast semantics.
+    bytes[0] = (bytes[0] | 0x02) & 0xfe;
+    bytes[3] ^= (entropy & 0xff) as u8;
+    bytes[4] = bytes[4].wrapping_add(((entropy >> 8) & 0xff) as u8);
+    bytes[5] = bytes[5].wrapping_add(((entropy >> 16) & 0xff) as u8);
+
+    let mut attempts = 0u8;
+    loop {
+        let candidate = format_mac(bytes);
+        if used_macs.insert(candidate.clone()) {
+            return candidate;
+        }
+        bytes[5] = bytes[5].wrapping_add(1 + attempts);
+        attempts = attempts.wrapping_add(1);
+    }
+}
+
+/// Generate showcase-scale demo devices with variety in vendors, types, and risk levels.
+fn generate_demo_hosts() -> Vec<HostInfo> {
+    let mut hosts: Vec<HostInfo> = demo_host_templates()
+        .iter()
+        .map(map_template_to_host)
+        .collect();
+    if hosts.len() >= DEMO_TARGET_HOST_COUNT {
+        return hosts;
+    }
+
+    let seed_hosts = hosts.clone();
+    if seed_hosts.is_empty() {
+        return hosts;
+    }
+
+    let prefix = subnet_prefix(&seed_hosts[0].ip);
+    let mut used_ips: HashSet<String> = hosts.iter().map(|host| host.ip.clone()).collect();
+    let mut used_macs: HashSet<String> = hosts.iter().map(|host| host.mac.clone()).collect();
+    let mut next_octet = 2u16;
+
+    while hosts.len() < DEMO_TARGET_HOST_COUNT {
+        let next_index = hosts.len();
+        let seed = &seed_hosts[next_index % seed_hosts.len()];
+        let clone_round = (next_index / seed_hosts.len()).max(1);
+        let expansion_offset = next_index - seed_hosts.len();
+
+        let mut cloned = seed.clone();
+        cloned.ip = next_available_ip(&prefix, &mut used_ips, &mut next_octet);
+        cloned.mac = next_available_mac(&seed.mac, next_index + clone_round, &mut used_macs);
+        cloned.hostname = seed
+            .hostname
+            .as_ref()
+            .map(|name| format!("{name}-lab-{clone_round:02}"));
+        cloned.response_time_ms = seed
+            .response_time_ms
+            .map(|base| base.saturating_add((expansion_offset % 18) as u64 + clone_round as u64));
+
+        let jitter = ((expansion_offset as i16 * 5 + clone_round as i16 * 3) % 17) - 8;
+        cloned.risk_score = (seed.risk_score as i16 + jitter).clamp(2, 96) as u8;
+        cloned.security_grade = grade_from_risk(cloned.risk_score);
+
+        // Keep vulnerability findings sparse so the larger dataset remains believable.
+        if !seed.vulnerabilities.is_empty() && expansion_offset.is_multiple_of(4) {
+            cloned.vulnerabilities = seed.vulnerabilities.clone();
+        } else {
+            cloned.vulnerabilities.clear();
+        }
+
+        hosts.push(cloned);
+    }
+
+    hosts.sort_by_key(|host| {
+        host.ip
+            .split('.')
+            .next_back()
+            .and_then(|octet| octet.parse::<u16>().ok())
+            .unwrap_or(u16::MAX)
+    });
+    hosts
+}
+
+/// Generate sample alert records.
 pub fn generate_demo_alerts() -> Vec<AlertRecord> {
     let now = chrono::Utc::now();
 
@@ -429,4 +284,50 @@ pub fn generate_demo_alerts() -> Vec<AlertRecord> {
             is_read: true,
         },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn demo_scan_has_showcase_scale_host_count() {
+        let scan = generate_demo_scan();
+        assert!(
+            scan.active_hosts.len() >= 50,
+            "demo host count should satisfy showcase target"
+        );
+        assert_eq!(scan.total_hosts, scan.active_hosts.len());
+        assert!(scan.scan_duration_ms > 5_000);
+    }
+
+    #[test]
+    fn demo_scan_has_unique_ip_and_mac_addresses() {
+        let scan = generate_demo_scan();
+        let unique_ips: HashSet<&str> = scan
+            .active_hosts
+            .iter()
+            .map(|host| host.ip.as_str())
+            .collect();
+        let unique_macs: HashSet<&str> = scan
+            .active_hosts
+            .iter()
+            .map(|host| host.mac.as_str())
+            .collect();
+
+        assert_eq!(unique_ips.len(), scan.active_hosts.len());
+        assert_eq!(unique_macs.len(), scan.active_hosts.len());
+    }
+
+    #[test]
+    fn demo_scan_preserves_vulnerability_signals() {
+        let scan = generate_demo_scan();
+        let vulnerable_hosts = scan
+            .active_hosts
+            .iter()
+            .filter(|host| !host.vulnerabilities.is_empty())
+            .count();
+
+        assert!(vulnerable_hosts >= 4);
+    }
 }

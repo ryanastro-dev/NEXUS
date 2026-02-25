@@ -2,6 +2,7 @@
 //!
 //! Listens for multicast DNS service announcements without sending packets
 
+use anyhow::Result;
 use mdns_sd::{ResolvedService, ServiceDaemon, ServiceEvent};
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -24,7 +25,7 @@ pub struct PassiveScanner {
 
 impl PassiveScanner {
     /// Create a new passive scanner
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self> {
         let mdns = ServiceDaemon::new()?;
 
         tracing::info!("Passive scanner initialized (mDNS/DNS-SD)");
@@ -35,10 +36,7 @@ impl PassiveScanner {
     /// Start listening for mDNS service announcements
     ///
     /// Sends discovered devices through the provided channel
-    pub async fn start_listening(
-        &self,
-        tx: mpsc::Sender<PassiveDevice>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start_listening(&self, tx: mpsc::Sender<PassiveDevice>) -> Result<()> {
         // Browse for all DNS-SD services
         let receiver = self.mdns.browse("_services._dns-sd._udp.local")?;
 

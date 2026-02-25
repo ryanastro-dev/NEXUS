@@ -3,32 +3,33 @@ name = "nexus-gui"
 version = "0.1.3"
 description = "NEXUS Desktop — Cross-Platform Network Intelligence GUI"
 authors = ["NEXUS Team"]
-edition = "2021"
+edition = "2024"
+rust-version = "1.93"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.5.5", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-shell = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-single-instance = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tokio = { version = "1", features = ["full"] }
-rusqlite = { version = "0.38", features = ["bundled"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tauri = { version = "2.10.2", features = [] }
+tauri-plugin-shell = "2.3.5"
+tauri-plugin-dialog = "2.6.0"
+tauri-plugin-fs = "2.4.5"
+tauri-plugin-single-instance = "2.4.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tokio = { version = "1.49.0", features = ["full"] }
+rusqlite = { version = "0.38.0", features = ["bundled"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "query", "rustls"] }
 
 # Logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
 
 # Network tools
-surge-ping = "0.8"
+surge-ping = "0.8.4"
 
 # Demo mode
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 
 # Core engine crate
 nexus-core = { path = "../../../crate/nexus-core", features = ["pdf-export"] }
@@ -36,4 +37,3 @@ nexus-core = { path = "../../../crate/nexus-core", features = ["pdf-export"] }
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
-

@@ -1,4 +1,4 @@
-use nexus_core::{database::queries, ScanResult};
+use nexus_core::{ScanResult, arp_receiver_lifecycle_metrics, database::queries};
 use tauri::Emitter;
 
 use super::super::state::AppState;
@@ -31,6 +31,7 @@ pub(crate) fn persist_scan_telemetry(
     } else {
         scan_result.total_hosts as f64 / (scan_result.scan_duration_ms as f64 / 1000.0)
     };
+    let arp_lifecycle = arp_receiver_lifecycle_metrics();
     let avg_latency = average_scan_latency_ms(scan_result);
 
     match get_db_connection(state) {
@@ -52,6 +53,24 @@ pub(crate) fn persist_scan_telemetry(
                     &conn,
                     "scan.throughput_hosts_per_sec",
                     throughput_hps,
+                    Some(label),
+                );
+                let _ = queries::insert_telemetry_sample(
+                    &conn,
+                    "arp.deferred_handles.current",
+                    arp_lifecycle.current_deferred_handles as f64,
+                    Some(label),
+                );
+                let _ = queries::insert_telemetry_sample(
+                    &conn,
+                    "arp.deferred_handles.high_watermark",
+                    arp_lifecycle.deferred_high_watermark as f64,
+                    Some(label),
+                );
+                let _ = queries::insert_telemetry_sample(
+                    &conn,
+                    "arp.deferred_handles.dropped_total",
+                    arp_lifecycle.dropped_over_cap as f64,
                     Some(label),
                 );
                 if let Some(latency) = avg_latency {
@@ -86,6 +105,33 @@ pub(crate) fn persist_scan_telemetry(
                     serde_json::json!({
                         "metric_key": "scan.throughput_hosts_per_sec",
                         "metric_value": throughput_hps,
+                        "label": label,
+                    }),
+                );
+
+                let _ = app.emit(
+                    "telemetry-event",
+                    serde_json::json!({
+                        "metric_key": "arp.deferred_handles.current",
+                        "metric_value": arp_lifecycle.current_deferred_handles,
+                        "label": label,
+                    }),
+                );
+
+                let _ = app.emit(
+                    "telemetry-event",
+                    serde_json::json!({
+                        "metric_key": "arp.deferred_handles.high_watermark",
+                        "metric_value": arp_lifecycle.deferred_high_watermark,
+                        "label": label,
+                    }),
+                );
+
+                let _ = app.emit(
+                    "telemetry-event",
+                    serde_json::json!({
+                        "metric_key": "arp.deferred_handles.dropped_total",
+                        "metric_value": arp_lifecycle.dropped_over_cap,
                         "label": label,
                     }),
                 );

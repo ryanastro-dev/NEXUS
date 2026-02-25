@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { tauriClient } from '../../lib/api/tauri-client';
 import type { AlertRecord } from '../../lib/api/types';
+import { useLanguage } from '../../hooks/useLanguage';
 
 export type Alert = AlertRecord;
 
@@ -12,6 +13,8 @@ interface AlertBadgeProps {
 }
 
 export default function AlertBadge({ onClick, className }: AlertBadgeProps) {
+  const { copy } = useLanguage();
+  const alertPanelCopy = copy.common.alertPanel;
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -47,7 +50,7 @@ export default function AlertBadge({ onClick, className }: AlertBadgeProps) {
         'hover:bg-bg-tertiary text-text-secondary hover:text-text-primary',
         className
       )}
-      title="Alerts"
+      title={alertPanelCopy.title}
     >
       <Bell className="w-5 h-5" />
       

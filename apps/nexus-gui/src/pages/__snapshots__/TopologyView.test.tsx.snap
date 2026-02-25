@@ -1,0 +1,52 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TopologyView snapshots > renders discovered topology snapshot 1`] = `
+<DocumentFragment>
+  <div
+    class="flex h-full flex-col"
+  >
+    <div
+      class="flex-1"
+    >
+      <section
+        data-testid="topology-canvas"
+      >
+        nodes:1 edges:0
+        <section
+          data-testid="assistant-overlay"
+        >
+          none
+        </section>
+      </section>
+    </div>
+    <section
+      data-testid="traffic-monitor"
+    >
+      visible:data
+    </section>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`TopologyView snapshots > renders empty state snapshot 1`] = `
+<DocumentFragment>
+  <div
+    class="flex h-full flex-col"
+  >
+    <div
+      class="flex-1"
+    >
+      <section
+        data-testid="topology-empty"
+      >
+        tauri
+      </section>
+    </div>
+    <section
+      data-testid="traffic-monitor"
+    >
+      visible:empty
+    </section>
+  </div>
+</DocumentFragment>
+`;

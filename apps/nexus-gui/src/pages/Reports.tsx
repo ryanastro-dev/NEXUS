@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3,
@@ -12,7 +12,11 @@ import {
 } from 'lucide-react';
 import { useScanContext } from '../hooks/useScan';
 import { useExport } from '../hooks/useExport';
+import { useLanguage } from '../hooks/useLanguage';
+import type { ScanResult } from '../lib/api/types';
 import { Tooltip } from '../components/common/Tooltip';
+import { PANEL_CARD } from '../lib/ui-classes';
+import { useNetworkRuntimeStore } from '../store/network-runtime-store';
 
 interface ExportCardProps {
   title: string;
@@ -24,12 +28,27 @@ interface ExportCardProps {
   onExport: () => void | Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
+  exportLabel: string;
+  exportingLabel: string;
+  scanDataRequiredLabel: string;
 }
 
-const CARD =
-  'rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65';
+const CARD = PANEL_CARD;
 
-function ExportCard({ title, description, icon, format, formatColor, bgColor, onExport, isLoading, disabled }: ExportCardProps) {
+function ExportCard({
+  title,
+  description,
+  icon,
+  format,
+  formatColor,
+  bgColor,
+  onExport,
+  isLoading,
+  disabled,
+  exportLabel,
+  exportingLabel,
+  scanDataRequiredLabel,
+}: ExportCardProps) {
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
@@ -59,7 +78,7 @@ function ExportCard({ title, description, icon, format, formatColor, bgColor, on
       <h3 className="mb-1.5 text-base font-bold text-text-primary">{title}</h3>
       <p className="mb-4 flex-1 text-sm leading-relaxed text-text-secondary">{description}</p>
 
-      <Tooltip content="Scan data is required" active={disabled}>
+      <Tooltip content={scanDataRequiredLabel} active={disabled}>
         <button
           onClick={handleExport}
           disabled={disabled || loading || isLoading}
@@ -72,12 +91,12 @@ function ExportCard({ title, description, icon, format, formatColor, bgColor, on
           {loading || isLoading ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Exporting...
+              {exportingLabel}
             </>
           ) : (
             <>
               <FileDown className="w-4 h-4" />
-              Export
+              {exportLabel}
             </>
           )}
         </button>
@@ -87,7 +106,43 @@ function ExportCard({ title, description, icon, format, formatColor, bgColor, on
 }
 
 export default function Reports() {
+  const { copy } = useLanguage();
+  const reportsCopy = copy.reports;
   const { scanResult, isScanning, tauriAvailable } = useScanContext();
+  const runtimeHostsByMac = useNetworkRuntimeStore((state) => state.hostsByMac);
+  const lastScanResult = useNetworkRuntimeStore((state) => state.lastScanResult);
+  const runtimeHosts = useMemo(() => Object.values(runtimeHostsByMac), [runtimeHostsByMac]);
+  const exportHosts = useMemo(
+    () => (runtimeHosts.length > 0 ? runtimeHosts : (scanResult?.active_hosts ?? [])),
+    [runtimeHosts, scanResult?.active_hosts],
+  );
+  const effectiveScanResult = useMemo<ScanResult | null>(() => {
+    if (scanResult) {
+      return {
+        ...scanResult,
+        active_hosts: exportHosts,
+        total_hosts: exportHosts.length,
+      };
+    }
+
+    if (exportHosts.length === 0) {
+      return null;
+    }
+
+    const fallback = lastScanResult;
+    return {
+      interface_name: fallback?.interface_name ?? 'runtime-monitor',
+      local_ip: fallback?.local_ip ?? '0.0.0.0',
+      local_mac: fallback?.local_mac ?? '00:00:00:00:00:00',
+      subnet: fallback?.subnet ?? 'unknown',
+      scan_method: fallback?.scan_method ?? 'MONITOR_RUNTIME',
+      arp_discovered: fallback?.arp_discovered ?? 0,
+      icmp_discovered: fallback?.icmp_discovered ?? 0,
+      total_hosts: exportHosts.length,
+      scan_duration_ms: fallback?.scan_duration_ms ?? 0,
+      active_hosts: exportHosts,
+    };
+  }, [exportHosts, lastScanResult, scanResult]);
   const {
     exportDevicesCSV,
     exportScanCSV,
@@ -95,15 +150,16 @@ export default function Reports() {
     exportScanJSON,
     exportScanReportPDF,
     exportSecurityReportPDF,
+    exportShowcaseReportPDF,
     exportingType,
     error,
   } = useExport();
 
-  const deviceCount = scanResult?.active_hosts?.length ?? 0;
+  const deviceCount = exportHosts.length;
   const hasData = deviceCount > 0;
 
-  const isInitialState = !scanResult && !isScanning;
-  const isScanningState = isScanning && !scanResult;
+  const isInitialState = !effectiveScanResult && !isScanning;
+  const isScanningState = isScanning && !effectiveScanResult;
 
   return (
     <div className="relative h-full overflow-hidden bg-bg-primary p-3 sm:p-4 lg:p-5">
@@ -129,11 +185,11 @@ export default function Reports() {
                 className={`${CARD} shrink-0 p-3.5 sm:p-4`}
               >
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                  Export Hub
+                  {reportsCopy.states.exportHub}
                 </p>
-                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">Reports & Artifacts</h1>
+                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">{reportsCopy.states.title}</h1>
                 <p className="mt-1.5 max-w-2xl text-sm text-text-secondary">
-                  Generate production-grade exports for audits, handoffs, and automation.
+                  {reportsCopy.states.emptySubtitle}
                 </p>
               </motion.section>
 
@@ -148,16 +204,35 @@ export default function Reports() {
                     <FileDown className="h-8 w-8" />
                   </div>
                   <h2 className="text-2xl font-bold text-text-primary sm:text-[2rem]">
-                    Exports are ready when scan data is available
+                    {reportsCopy.states.emptyHeadline}
                   </h2>
                   <p className="mt-2 max-w-xl text-sm text-text-secondary sm:text-base">
-                    Run a scan first, then export CSV, JSON, and PDF artifacts from this page.
+                    {reportsCopy.states.emptyBody}
                   </p>
                   <p className="mt-4 text-xs text-text-muted">
                     {tauriAvailable
-                      ? 'Use the top-right Start Scan button to begin.'
-                      : 'Run with `npm run tauri dev` to enable scanning.'}
+                      ? reportsCopy.states.emptyHintTauri
+                      : reportsCopy.states.emptyHintBrowser}
                   </p>
+                  <button
+                    onClick={() => {
+                      void exportShowcaseReportPDF();
+                    }}
+                    disabled={!tauriAvailable || exportingType === 'showcase-pdf'}
+                    className="mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent-blue to-accent-sapphire px-4 text-sm font-bold text-white shadow-lg shadow-accent-blue/25 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {exportingType === 'showcase-pdf' ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        {reportsCopy.states.preparingShowcasePdf}
+                      </>
+                    ) : (
+                      <>
+                        <FileDown className="h-4 w-4" />
+                        {reportsCopy.states.downloadShowcasePdf}
+                      </>
+                    )}
+                  </button>
                 </div>
               </motion.div>
             </motion.div>
@@ -174,17 +249,17 @@ export default function Reports() {
             >
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4`}>
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                  Export Hub
+                  {reportsCopy.states.exportHub}
                 </p>
-                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">Reports & Artifacts</h1>
-                <p className="mt-1.5 text-sm text-text-secondary">Preparing scan artifacts...</p>
+                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">{reportsCopy.states.title}</h1>
+                <p className="mt-1.5 text-sm text-text-secondary">{reportsCopy.states.scanningSubtitle}</p>
               </div>
 
               <div className={`${CARD} relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden`}>
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-cyan-300/10 to-transparent dark:from-cyan-500/10" />
                 <Loader2 className="mb-4 h-14 w-14 animate-spin text-accent-blue" />
-                <p className="text-base font-medium text-text-primary">Collecting scan data...</p>
-                <p className="mt-1 text-sm text-text-muted">Export actions will unlock once discovery completes.</p>
+                <p className="text-base font-medium text-text-primary">{reportsCopy.states.collectingScanData}</p>
+                <p className="mt-1 text-sm text-text-muted">{reportsCopy.states.unlockAfterDiscovery}</p>
               </div>
             </motion.div>
           )}
@@ -205,11 +280,11 @@ export default function Reports() {
               >
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                    Export Hub
+                    {reportsCopy.states.exportHub}
                   </p>
-                  <h1 className="text-2xl font-black text-text-primary sm:text-3xl">Reports & Artifacts</h1>
+                  <h1 className="text-2xl font-black text-text-primary sm:text-3xl">{reportsCopy.states.title}</h1>
                   <p className="max-w-2xl text-sm text-text-secondary">
-                    Generate production-grade reports and structured exports for audits, handoffs, and automation.
+                    {reportsCopy.states.contentSubtitle}
                   </p>
                 </div>
               </motion.section>
@@ -217,13 +292,13 @@ export default function Reports() {
               <div className={`${CARD} shrink-0 p-2.5`}>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 font-semibold text-text-muted">
-                    Hosts: {deviceCount}
+                    {reportsCopy.chips.hosts}: {deviceCount}
                   </span>
                   <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 font-semibold text-text-muted">
-                    Subnet: {scanResult?.subnet ?? 'N/A'}
+                    {reportsCopy.chips.subnet}: {effectiveScanResult?.subnet ?? reportsCopy.chips.notAvailable}
                   </span>
                   <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 font-semibold text-text-muted">
-                    Formats: PDF, CSV, JSON
+                    {reportsCopy.chips.formats}: PDF, CSV, JSON
                   </span>
                 </div>
               </div>
@@ -236,47 +311,68 @@ export default function Reports() {
 
               {!hasData && (
                 <div className={`${CARD} shrink-0 border-amber-300/60 bg-amber-100/80 p-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300`}>
-                  Scan completed but no active hosts were found. Exports are currently disabled.
+                  {reportsCopy.messages.noActiveHosts}
                 </div>
               )}
 
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 <div className="grid grid-cols-1 gap-3 pb-1 sm:grid-cols-2 xl:grid-cols-3">
                   <ExportCard
-                    title="Scan Report"
-                    description="Professional PDF report with network analysis, device inventory, and statistics."
+                    title={reportsCopy.cards.showcaseReport.title}
+                    description={reportsCopy.cards.showcaseReport.description}
+                    icon={<FileText className="h-5 w-5 text-accent-blue" />}
+                    format="PDF"
+                    formatColor="bg-accent-blue/20 text-accent-blue"
+                    bgColor="bg-gradient-to-br from-accent-blue/5 to-accent-blue/10"
+                    onExport={exportShowcaseReportPDF}
+                    isLoading={exportingType === 'showcase-pdf'}
+                    disabled={!tauriAvailable}
+                    exportLabel={reportsCopy.exportButton}
+                    exportingLabel={reportsCopy.exportingButton}
+                    scanDataRequiredLabel={reportsCopy.scanDataRequired}
+                  />
+
+                  <ExportCard
+                    title={reportsCopy.cards.scanReport.title}
+                    description={reportsCopy.cards.scanReport.description}
                     icon={<FileText className="h-5 w-5 text-accent-red" />}
                     format="PDF"
                     formatColor="bg-accent-red/20 text-accent-red"
                     bgColor="bg-gradient-to-br from-accent-red/5 to-accent-red/10"
                     onExport={async () => {
-                      if (scanResult) {
-                        await exportScanReportPDF(scanResult, scanResult.active_hosts);
+                      if (effectiveScanResult) {
+                        await exportScanReportPDF(effectiveScanResult, exportHosts);
                       }
                     }}
                     isLoading={exportingType === 'scan-pdf'}
                     disabled={!hasData}
+                    exportLabel={reportsCopy.exportButton}
+                    exportingLabel={reportsCopy.exportingButton}
+                    scanDataRequiredLabel={reportsCopy.scanDataRequired}
                   />
 
                   <ExportCard
-                    title="Security Report"
-                    description="Network health assessment with security recommendations and risk analysis."
+                    title={reportsCopy.cards.securityReport.title}
+                    description={reportsCopy.cards.securityReport.description}
                     icon={<Shield className="h-5 w-5 text-accent-red" />}
                     format="PDF"
                     formatColor="bg-accent-red/20 text-accent-red"
                     bgColor="bg-gradient-to-br from-accent-red/5 to-accent-red/10"
                     onExport={async () => {
-                      if (scanResult && scanResult.active_hosts) {
-                        await exportSecurityReportPDF(scanResult.active_hosts);
+                      if (exportHosts.length > 0) {
+                        await exportSecurityReportPDF(exportHosts);
                       }
                     }}
                     isLoading={exportingType === 'security-pdf'}
                     disabled={!hasData}
+                    exportLabel={reportsCopy.exportButton}
+                    exportingLabel={reportsCopy.exportingButton}
+                    scanDataRequiredLabel={reportsCopy.scanDataRequired}
                   />
 
                   <ExportCard
-                    title="Device List"
-                    description="Export all discovered devices to CSV format for spreadsheet analysis."
+                    title={reportsCopy.cards.deviceList.title}
+                    description={reportsCopy.cards.deviceList.description}
                     icon={<FileSpreadsheet className="h-5 w-5 text-accent-green" />}
                     format="CSV"
                     formatColor="bg-accent-green/20 text-accent-green"
@@ -284,54 +380,66 @@ export default function Reports() {
                     onExport={exportDevicesCSV}
                     isLoading={exportingType === 'devices-csv'}
                     disabled={!hasData}
+                    exportLabel={reportsCopy.exportButton}
+                    exportingLabel={reportsCopy.exportingButton}
+                    scanDataRequiredLabel={reportsCopy.scanDataRequired}
                   />
 
                   <ExportCard
-                    title="Scan Results"
-                    description="Export current scan results to CSV with all device details and metrics."
+                    title={reportsCopy.cards.scanResults.title}
+                    description={reportsCopy.cards.scanResults.description}
                     icon={<BarChart3 className="h-5 w-5 text-accent-green" />}
                     format="CSV"
                     formatColor="bg-accent-green/20 text-accent-green"
                     bgColor="bg-gradient-to-br from-accent-green/5 to-accent-green/10"
                     onExport={async () => {
-                      if (scanResult && scanResult.active_hosts) {
-                        await exportScanCSV(scanResult.active_hosts);
+                      if (exportHosts.length > 0) {
+                        await exportScanCSV(exportHosts);
                       }
                     }}
                     isLoading={exportingType === 'scan-csv'}
                     disabled={!hasData}
+                    exportLabel={reportsCopy.exportButton}
+                    exportingLabel={reportsCopy.exportingButton}
+                    scanDataRequiredLabel={reportsCopy.scanDataRequired}
                   />
 
                   <ExportCard
-                    title="Topology Data"
-                    description="Export network topology structure as JSON for custom visualization or analysis."
+                    title={reportsCopy.cards.topologyData.title}
+                    description={reportsCopy.cards.topologyData.description}
                     icon={<Network className="h-5 w-5 text-accent-amber" />}
                     format="JSON"
                     formatColor="bg-accent-amber/20 text-accent-amber"
                     bgColor="bg-gradient-to-br from-accent-amber/5 to-accent-amber/10"
                     onExport={async () => {
-                      if (scanResult && scanResult.active_hosts) {
-                        await exportTopologyJSON(scanResult.active_hosts, scanResult.subnet);
+                      if (effectiveScanResult && exportHosts.length > 0) {
+                        await exportTopologyJSON(exportHosts, effectiveScanResult.subnet);
                       }
                     }}
                     isLoading={exportingType === 'topology-json'}
                     disabled={!hasData}
+                    exportLabel={reportsCopy.exportButton}
+                    exportingLabel={reportsCopy.exportingButton}
+                    scanDataRequiredLabel={reportsCopy.scanDataRequired}
                   />
 
                   <ExportCard
-                    title="Raw Scan Data"
-                    description="Export complete scan result with all metadata in JSON format."
+                    title={reportsCopy.cards.rawScanData.title}
+                    description={reportsCopy.cards.rawScanData.description}
                     icon={<Database className="h-5 w-5 text-accent-amber" />}
                     format="JSON"
                     formatColor="bg-accent-amber/20 text-accent-amber"
                     bgColor="bg-gradient-to-br from-accent-amber/5 to-accent-amber/10"
                     onExport={async () => {
-                      if (scanResult) {
-                        await exportScanJSON(scanResult);
+                      if (effectiveScanResult) {
+                        await exportScanJSON(effectiveScanResult);
                       }
                     }}
                     isLoading={exportingType === 'scan-json'}
                     disabled={!hasData}
+                    exportLabel={reportsCopy.exportButton}
+                    exportingLabel={reportsCopy.exportingButton}
+                    scanDataRequiredLabel={reportsCopy.scanDataRequired}
                   />
                 </div>
               </div>

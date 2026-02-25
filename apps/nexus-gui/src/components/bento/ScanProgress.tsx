@@ -3,6 +3,7 @@
  */
 
 import { Activity, Wifi, Server, Globe, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface ScanProgressProps {
   isScanning: boolean;
@@ -19,11 +20,11 @@ interface ScanProgressProps {
 }
 
 const phases = [
-  { id: 'arp', label: 'ARP Discovery', icon: Wifi },
-  { id: 'icmp', label: 'ICMP Ping', icon: Activity },
-  { id: 'tcp', label: 'TCP Probe', icon: Server },
-  { id: 'dns', label: 'DNS Lookup', icon: Globe },
-];
+  { id: 'arp', labelKey: 'arpDiscovery', icon: Wifi },
+  { id: 'icmp', labelKey: 'icmpPing', icon: Activity },
+  { id: 'tcp', labelKey: 'tcpProbe', icon: Server },
+  { id: 'dns', labelKey: 'dnsLookup', icon: Globe },
+] as const;
 
 export default function ScanProgress({
   isScanning,
@@ -33,6 +34,9 @@ export default function ScanProgress({
   devicesFound = 0,
   elapsedTime = 0,
 }: ScanProgressProps) {
+  const { copy } = useLanguage();
+  const scanProgressCopy = copy.common.scanProgress;
+
   if (!isScanning) {
     return null;
   }
@@ -49,7 +53,7 @@ export default function ScanProgress({
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-accent-blue rounded-full animate-pulse" />
           <span className="text-sm font-medium text-[var(--color-text-primary)]">
-            Scanning...
+            {scanProgressCopy.scanning}
           </span>
         </div>
         <span className="text-xs text-[var(--color-text-muted)]">
@@ -61,7 +65,7 @@ export default function ScanProgress({
       <div className="space-y-1">
         <div className="flex items-center justify-between text-xs">
           <span className="text-[var(--color-text-muted)]">
-            {currentPhase || 'Initializing...'}
+            {currentPhase || scanProgressCopy.initializing}
           </span>
           <span className="text-[var(--color-text-secondary)]">{progress}%</span>
         </div>
@@ -96,7 +100,7 @@ export default function ScanProgress({
               ) : (
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'animate-pulse' : ''}`} />
               )}
-              <span className="text-xs">{phase.label}</span>
+              <span className="text-xs">{scanProgressCopy.phases[phase.labelKey]}</span>
             </div>
           );
         })}
@@ -108,7 +112,7 @@ export default function ScanProgress({
         <span className="text-sm font-semibold text-[var(--color-text-primary)]">
           {devicesFound}
         </span>
-        <span className="text-xs text-[var(--color-text-muted)]">devices found</span>
+        <span className="text-xs text-[var(--color-text-muted)]">{scanProgressCopy.devicesFound}</span>
       </div>
     </div>
   );

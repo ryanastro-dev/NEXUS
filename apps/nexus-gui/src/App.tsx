@@ -1,15 +1,12 @@
 import {
   useCallback,
-  lazy,
-  Suspense,
   useEffect,
-  useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
+import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { ThemeProvider, useTheme } from "./hooks/useTheme";
-import { ScanProvider, useScanContext, type HostInfo } from "./hooks/useScan";
+import { ScanProvider, useScanContext } from "./hooks/useScan";
 import { useMonitoring } from "./hooks/useMonitoring";
 import { useKeyboardShortcuts, SHORTCUTS } from "./hooks/useKeyboardShortcuts";
 import Sidebar from "./components/layout/Sidebar";
@@ -18,80 +15,53 @@ import DeviceDetailModal from "./components/devices/DeviceDetailModal";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { ToastProvider } from "./components/common/Toast";
 import DemoBanner from "./components/common/DemoBanner";
+import DesktopModeNotice from "./components/common/DesktopModeNotice";
 import { tauriClient } from "./lib/api/tauri-client";
+import { isTauri } from "./lib/runtime/is-tauri";
 import {
   ALERTS_UNREAD_COUNT_EVENT,
   type AlertsUnreadCountDetail,
 } from "./lib/events/alerts-sync";
 import { SETTINGS_UPDATED_EVENT } from "./lib/events/settings-sync";
+import { pageFromPath, PAGE_PATHS, type Page } from "./router";
+import { useDeviceDetailStore } from "./store/device-detail-store";
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const TopologyView = lazy(() => import("./pages/TopologyView"));
-const DeviceList = lazy(() => import("./pages/DeviceList"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Reports = lazy(() => import("./pages/Reports"));
-const Vulnerabilities = lazy(() => import("./pages/Vulnerabilities"));
-const Alerts = lazy(() => import("./pages/Alerts"));
-const Tools = lazy(() => import("./pages/Tools"));
-const ComponentDemo = lazy(() => import("./pages/ComponentDemo"));
-
-type Page =
-  | "dashboard"
-  | "topology"
-  | "devices"
-  | "vulnerabilities"
-  | "alerts"
-  | "tools"
-  | "reports"
-  | "settings"
-  | "profile"
-  | "demo";
-
-const PAGE_PATHS: Record<Page, string> = {
-  dashboard: "/",
-  topology: "/topology",
-  devices: "/devices",
-  vulnerabilities: "/vulnerabilities",
-  alerts: "/alerts",
-  tools: "/tools",
-  reports: "/reports",
-  settings: "/settings",
-  profile: "/profile",
-  demo: "/demo",
-};
-
-function pageFromPath(pathname: string): Page {
-  const match = (Object.entries(PAGE_PATHS) as [Page, string][]).find(
-    ([, path]) => path === pathname,
-  );
-  return match?.[0] ?? "dashboard";
-}
-
-function withSuspense(node: ReactNode) {
+/**
+ * Root layout rendered by TanStack Router's root route.
+ * Contains the shell (sidebar, header, device modal) and renders
+ * the matched child route via `<Outlet />`.
+ */
+export default function RootLayout() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-full items-center justify-center text-text-muted">
-          Loading page...
-        </div>
-      }
-    >
-      {node}
-    </Suspense>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ScanProvider>
+          <AppShell />
+          <ToastProvider />
+        </ScanProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
-function AppContent() {
-  const [currentPage, setCurrentPage] = useState<Page>(() =>
-    pageFromPath(window.location.pathname),
-  );
-  const [selectedDevice, setSelectedDevice] = useState<HostInfo | null>(null);
+// ---------------------------------------------------------------------------
+// Internal shell — all the side-effects, monitoring, keyboard shortcuts, etc.
+// ---------------------------------------------------------------------------
+function AppShell() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPage = pageFromPath(location.pathname);
+  const runningInBrowser = !isTauri();
+
+  const selectedDevice = useDeviceDetailStore((state) => state.selectedDevice);
+  const closeDeviceDetails = useDeviceDetailStore((state) => state.closeDeviceDetails);
   const [unreadAlertsCount, setUnreadAlertsCount] = useState(0);
   const { scan, stopScan, isScanning, scanStatus } = useScanContext();
   const monitoring = useMonitoring();
   const autoStartedMonitorRef = useRef(false);
   const { toggleTheme } = useTheme();
 
+  // ------- Alerts unread count -------
   const fetchUnreadAlertsCount = useCallback(async () => {
     try {
       const alerts = await tauriClient.getUnreadAlerts();
@@ -136,20 +106,7 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [fetchUnreadAlertsCount]);
 
-  useEffect(() => {
-    const onPopState = () => {
-      setCurrentPage(pageFromPath(window.location.pathname));
-    };
-
-    const knownPaths = new Set(Object.values(PAGE_PATHS));
-    if (!knownPaths.has(window.location.pathname)) {
-      window.history.replaceState({ page: "dashboard" }, "", PAGE_PATHS.dashboard);
-    }
-
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
-
+  // ------- Runtime settings sync -------
   const applyRuntimeFromRawSettings = useCallback(
     (rawSettings: string | null) => {
       try {
@@ -176,9 +133,9 @@ function AppContent() {
         const aiModeRaw = typeof parsed?.aiMode === "string" ? parsed.aiMode : "disabled";
         const aiMode =
           aiModeRaw === "local" ||
-          aiModeRaw === "cloud" ||
-          aiModeRaw === "hybrid_auto" ||
-          aiModeRaw === "disabled"
+            aiModeRaw === "cloud" ||
+            aiModeRaw === "hybrid_auto" ||
+            aiModeRaw === "disabled"
             ? aiModeRaw
             : "disabled";
         const aiTimeout = Number(parsed?.aiTimeoutMs);
@@ -254,6 +211,7 @@ function AppContent() {
     void applyRuntimeFromRawSettings(localStorage.getItem("netmapper-settings"));
   }, [applyRuntimeFromRawSettings]);
 
+  // ------- Auto-start monitoring -------
   useEffect(() => {
     let shouldStopOnUnmount = false;
 
@@ -270,18 +228,18 @@ function AppContent() {
       const parsed = JSON.parse(rawSettings);
       const monitoringEnabled = parsed?.monitoringEnabled === true;
       const interval = Number(parsed?.monitoringInterval);
-      const monitoringInterval =
+      const monitoringIntervalVal =
         Number.isFinite(interval) && interval > 0 ? interval : undefined;
       const preferredInterface =
         typeof parsed?.preferredInterface === "string" &&
-        parsed.preferredInterface.trim().length > 0
+          parsed.preferredInterface.trim().length > 0
           ? parsed.preferredInterface.trim()
           : undefined;
 
       if (monitoringEnabled) {
         autoStartedMonitorRef.current = true;
         shouldStopOnUnmount = true;
-        void monitoring.startMonitoring(monitoringInterval, preferredInterface);
+        void monitoring.startMonitoring(monitoringIntervalVal, preferredInterface);
       }
     } catch {
       // Ignore malformed settings and keep default behavior.
@@ -295,6 +253,7 @@ function AppContent() {
     };
   }, [monitoring.startMonitoring, monitoring.stopMonitoring]);
 
+  // ------- Settings updated listener -------
   useEffect(() => {
     const applyFromStorage = () => {
       const snapshot = applyRuntimeFromRawSettings(localStorage.getItem("netmapper-settings"));
@@ -331,6 +290,7 @@ function AppContent() {
     };
   }, [applyRuntimeFromRawSettings, monitoring.startMonitoring, monitoring.stopMonitoring]);
 
+  // ------- Prevent browser refresh in Tauri -------
   useEffect(() => {
     const handleRefreshHotkeys = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
@@ -358,6 +318,15 @@ function AppContent() {
     };
   }, []);
 
+  // ------- Navigation helper -------
+  const handlePageChange = useCallback(
+    (page: Page) => {
+      void navigate({ to: PAGE_PATHS[page] });
+    },
+    [navigate],
+  );
+
+  // ------- Keyboard shortcuts -------
   useKeyboardShortcuts([
     { ...SHORTCUTS.DASHBOARD, handler: () => handlePageChange("dashboard") },
     { ...SHORTCUTS.TOPOLOGY, handler: () => handlePageChange("topology") },
@@ -367,39 +336,6 @@ function AppContent() {
     { ...SHORTCUTS.TOGGLE_THEME, handler: toggleTheme },
   ]);
 
-  const handlePageChange = (page: Page) => {
-    setCurrentPage(page);
-    const nextPath = PAGE_PATHS[page];
-    if (window.location.pathname !== nextPath) {
-      window.history.pushState({ page }, "", nextPath);
-    }
-  };
-
-  const renderedPage = useMemo(() => {
-    switch (currentPage) {
-      case "dashboard":
-        return withSuspense(<Dashboard monitor={monitoring} />);
-      case "topology":
-        return withSuspense(<TopologyView onDeviceClick={setSelectedDevice} />);
-      case "devices":
-        return withSuspense(<DeviceList onDeviceClick={setSelectedDevice} />);
-      case "settings":
-        return withSuspense(<Settings monitor={monitoring} />);
-      case "demo":
-        return withSuspense(<ComponentDemo />);
-      case "vulnerabilities":
-        return withSuspense(<Vulnerabilities />);
-      case "alerts":
-        return withSuspense(<Alerts />);
-      case "tools":
-        return withSuspense(<Tools />);
-      case "reports":
-        return withSuspense(<Reports />);
-      default:
-        return withSuspense(<Dashboard monitor={monitoring} />);
-    }
-  }, [currentPage, monitoring]);
-
   return (
     <div className="flex h-screen overflow-hidden bg-bg-primary">
 
@@ -407,6 +343,7 @@ function AppContent() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {import.meta.env.DEV && <DemoBanner />}
+        {runningInBrowser ? <DesktopModeNotice className="mx-4 mt-2" /> : null}
         <TopHeader
           currentPage={currentPage}
           isScanning={isScanning}
@@ -417,26 +354,14 @@ function AppContent() {
           unreadAlertsCount={unreadAlertsCount}
         />
 
-        <main className="flex-1 overflow-auto">{renderedPage}</main>
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
       </div>
 
-      <DeviceDetailModal device={selectedDevice} onClose={() => setSelectedDevice(null)} />
+      {selectedDevice ? (
+        <DeviceDetailModal device={selectedDevice} onClose={closeDeviceDetails} />
+      ) : null}
     </div>
   );
 }
-
-function App() {
-  return (
-    <ErrorBoundary>
-      <ThemeProvider>
-        <ScanProvider>
-          <AppContent />
-          <ToastProvider />
-        </ScanProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
-  );
-}
-
-export default App;
-

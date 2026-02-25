@@ -9,13 +9,17 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
     "test": "vitest run",
+    "test:i18n": "vitest run src/lib/i18n/translations.test.ts",
     "test:watch": "vitest",
+    "smoke:i18n": "npm run lint && npm run test:i18n && npm run build",
     "smoke:frontend": "npm run lint && npm run test && npm run build",
     "preview": "vite preview",
-    "tauri": "tauri",
+    "tauri": "node ./scripts/tauri-cli.mjs",
     "smoke:runtime": "powershell -ExecutionPolicy Bypass -File ../../scripts/desktop-smoke.ps1"
   },
   "dependencies": {
+    "@tanstack/history": "^1.161.4",
+    "@tanstack/react-router": "^1.162.9",
     "@tanstack/react-virtual": "^3.13.18",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",
@@ -33,7 +37,8 @@
     "react-countup": "^6.5.3",
     "react-dom": "^19.2.3",
     "recharts": "^3.7.0",
-    "sonner": "^2.0.7"
+    "sonner": "^2.0.7",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

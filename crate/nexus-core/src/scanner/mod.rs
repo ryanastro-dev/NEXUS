@@ -6,7 +6,7 @@ pub mod passive;
 mod snmp;
 mod tcp;
 
-pub use arp::active_arp_scan;
+pub use arp::{ArpReceiverLifecycleMetrics, active_arp_scan, arp_receiver_lifecycle_metrics};
 pub use icmp::{IcmpResult, guess_os_from_ttl, icmp_scan};
 pub use passive::{ArpEvent, ArpMonitor, PassiveScanner};
 pub use snmp::{SnmpData, SnmpNeighbor, snmp_enrich};

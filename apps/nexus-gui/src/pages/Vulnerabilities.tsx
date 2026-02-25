@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Info, Loader2, Shield, XCircle } from 'lucide-react';
 
+import { useLanguage } from '../hooks/useLanguage';
 import { useScanContext } from '../hooks/useScan';
+import { useNetworkRuntimeStore } from '../store/network-runtime-store';
 import {
   CARD,
   SecurityCard,
@@ -17,13 +19,21 @@ import {
 } from './vulnerabilities-page';
 
 export default function Vulnerabilities() {
+  const { copy } = useLanguage();
+  const vulnerabilitiesCopy = copy.vulnerabilities;
   const { scanResult, isScanning, tauriAvailable } = useScanContext();
+  const runtimeHostsByMac = useNetworkRuntimeStore((state) => state.hostsByMac);
+  const runtimeHosts = useMemo(() => Object.values(runtimeHostsByMac), [runtimeHostsByMac]);
+  const sourceHosts = useMemo(
+    () => (runtimeHosts.length > 0 ? runtimeHosts : (scanResult?.active_hosts ?? [])),
+    [runtimeHosts, scanResult?.active_hosts],
+  );
   const [devices, setDevices] = useState<DeviceWithVulns[]>([]);
   const [filter, setFilter] = useState<VulnerabilityFilter>('all');
 
   useEffect(() => {
-    setDevices(mapHostsToDevices(scanResult?.active_hosts));
-  }, [scanResult]);
+    setDevices(mapHostsToDevices(sourceHosts));
+  }, [sourceHosts]);
 
   const stats = useMemo(() => buildVulnerabilityStats(devices), [devices]);
   const filteredDevices = useMemo(
@@ -36,8 +46,9 @@ export default function Vulnerabilities() {
 
   const summaryCardClass = 'h-[86px] min-w-0 w-full p-2.5';
 
-  const isInitialState = !scanResult && !isScanning;
-  const isScanningState = isScanning && !scanResult;
+  const hasSourceHosts = sourceHosts.length > 0;
+  const isInitialState = !hasSourceHosts && !isScanning;
+  const isScanningState = isScanning && !hasSourceHosts;
 
   return (
     <div className="relative h-full overflow-hidden bg-bg-primary p-3 sm:p-4 lg:p-5">
@@ -59,13 +70,13 @@ export default function Vulnerabilities() {
             >
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4`}>
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                  Security Intelligence
+                  {vulnerabilitiesCopy.header.kicker}
                 </p>
                 <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">
-                  Vulnerability Center
+                  {vulnerabilitiesCopy.header.title}
                 </h1>
                 <p className="mt-1.5 text-sm text-text-secondary">
-                  No scan data available yet.
+                  {vulnerabilitiesCopy.header.noData}
                 </p>
               </div>
 
@@ -80,26 +91,26 @@ export default function Vulnerabilities() {
                     <Shield className="h-8 w-8" />
                   </div>
                   <h2 className="text-2xl font-bold text-text-primary sm:text-[2rem]">
-                    Ready for vulnerability analysis
+                    {vulnerabilitiesCopy.emptyState.headline}
                   </h2>
                   <p className="mt-2 max-w-xl text-sm text-text-secondary sm:text-base">
-                    Start a scan to generate CVE insights, port warnings, and risk-classified device security signals.
+                    {vulnerabilitiesCopy.emptyState.description}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] font-medium">
                     <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 text-text-muted">
-                      CVE Insights
+                      {vulnerabilitiesCopy.emptyState.cveInsights}
                     </span>
                     <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 text-text-muted">
-                      Port Warnings
+                      {vulnerabilitiesCopy.emptyState.portWarnings}
                     </span>
                     <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 text-text-muted">
-                      Risk Filters
+                      {vulnerabilitiesCopy.emptyState.riskFilters}
                     </span>
                   </div>
                   <p className="mt-4 text-xs text-text-muted">
                     {tauriAvailable
-                      ? 'Use the top-right Start Scan button to begin.'
-                      : 'Run with `npm run tauri dev` to enable scanning.'}
+                      ? vulnerabilitiesCopy.emptyState.hintTauri
+                      : vulnerabilitiesCopy.emptyState.hintBrowser}
                   </p>
                 </div>
               </motion.div>
@@ -118,14 +129,14 @@ export default function Vulnerabilities() {
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4 flex items-center justify-between`}>
                 <div>
                   <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                    Security Intelligence
+                    {vulnerabilitiesCopy.header.kicker}
                   </p>
                   <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">
-                    Vulnerability Center
+                    {vulnerabilitiesCopy.header.title}
                   </h1>
                   <p className="mt-1.5 text-sm text-text-secondary flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-accent-blue" />
-                    Scanning and analyzing risk signals...
+                    {vulnerabilitiesCopy.header.scanning}
                   </p>
                 </div>
               </div>
@@ -168,20 +179,20 @@ export default function Vulnerabilities() {
               >
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                    Security Intelligence
+                    {vulnerabilitiesCopy.header.kicker}
                   </p>
                   <h1 className="text-2xl font-black text-text-primary sm:text-3xl">
-                    Vulnerability Center
+                    {vulnerabilitiesCopy.header.title}
                   </h1>
                   <p className="max-w-2xl text-sm text-text-secondary">
-                    Inspect vulnerability signals and port-level warnings across discovered assets.
+                    {vulnerabilitiesCopy.header.subtitle}
                   </p>
                 </div>
               </motion.section>
 
               <div className="grid w-full shrink-0 gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(132px,1fr))]">
                 <SummaryCard
-                  title="Critical"
+                  title={vulnerabilitiesCopy.summary.critical}
                   count={stats.critical}
                   icon={<XCircle className="h-5 w-5" />}
                   color="red"
@@ -190,7 +201,7 @@ export default function Vulnerabilities() {
                   className={summaryCardClass}
                 />
                 <SummaryCard
-                  title="High Risk"
+                  title={vulnerabilitiesCopy.summary.high}
                   count={stats.high}
                   icon={<AlertTriangle className="h-5 w-5" />}
                   color="orange"
@@ -199,7 +210,7 @@ export default function Vulnerabilities() {
                   className={summaryCardClass}
                 />
                 <SummaryCard
-                  title="Medium Risk"
+                  title={vulnerabilitiesCopy.summary.medium}
                   count={stats.medium}
                   icon={<Info className="h-5 w-5" />}
                   color="yellow"
@@ -208,7 +219,7 @@ export default function Vulnerabilities() {
                   className={summaryCardClass}
                 />
                 <SummaryCard
-                  title="Secure"
+                  title={vulnerabilitiesCopy.summary.secure}
                   count={stats.secure}
                   icon={<CheckCircle className="h-5 w-5" />}
                   color="green"
@@ -221,7 +232,7 @@ export default function Vulnerabilities() {
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                 {filteredDevices.length === 0 ? (
                   <VulnerabilitiesEmptyState
-                    hasScanResult={Boolean(scanResult)}
+                    hasScanResult={hasSourceHosts}
                     filter={filter}
                     className="h-full"
                   />
@@ -248,4 +259,3 @@ export default function Vulnerabilities() {
     </div>
   );
 }
-

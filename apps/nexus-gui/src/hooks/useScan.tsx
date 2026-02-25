@@ -20,6 +20,7 @@ import type {
 } from "../lib/api/types";
 import { isTauri } from "../lib/runtime/is-tauri";
 import { eventClient } from "../lib/api/event-client";
+import { useNetworkRuntimeStore } from "../store/network-runtime-store";
 
 export type { HostInfo, PortWarning, ScanResult, VulnerabilityInfo };
 
@@ -176,6 +177,7 @@ export function useScan() {
         scanProgress: 100,
         scanPhase: "complete",
       });
+      useNetworkRuntimeStore.getState().hydrateFromScan(result);
 
       setTimeout(() => {
         if (currentScanId !== activeScanIdRef.current) {

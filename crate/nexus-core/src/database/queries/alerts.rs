@@ -148,6 +148,41 @@ pub fn get_unread_alerts(conn: &Connection) -> Result<Vec<AlertRecord>> {
     Ok(alerts)
 }
 
+/// Get recent alerts including both read and unread records.
+pub fn get_recent_alerts(conn: &Connection, limit: i32) -> Result<Vec<AlertRecord>> {
+    let capped_limit = limit.clamp(1, 2000);
+    let mut stmt = conn.prepare(
+        r#"
+        SELECT id, created_at, alert_type, device_id, device_mac, device_ip,
+               message, severity, is_read
+        FROM alerts
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?1
+        "#,
+    )?;
+
+    let alerts = stmt
+        .query_map(params![capped_limit], |row| {
+            let alert_type_str: String = row.get(2)?;
+            let severity_str: String = row.get(7)?;
+
+            Ok(AlertRecord {
+                id: row.get(0)?,
+                created_at: parse_datetime_column(row.get::<_, String>(1)?, 1)?,
+                alert_type: parse_alert_type_or_default(&alert_type_str),
+                device_id: row.get(3)?,
+                device_mac: row.get(4)?,
+                device_ip: row.get(5)?,
+                message: row.get(6)?,
+                severity: parse_alert_severity_or_default(&severity_str),
+                is_read: row.get::<_, i32>(8)? == 1,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+
+    Ok(alerts)
+}
+
 /// Mark alert as read.
 pub fn mark_alert_read(conn: &Connection, alert_id: i64) -> Result<()> {
     conn.execute(

@@ -11,30 +11,49 @@ export interface AlertVisualConfig {
   border: string;
 }
 
+type AlertSeverityBucket = 'critical' | 'warning' | 'info';
+
+function normalizeSeverityBucket(severity: string): AlertSeverityBucket {
+  const normalized = severity.toLowerCase();
+  if (normalized === 'critical') {
+    return 'critical';
+  }
+  if (
+    normalized === 'warning' ||
+    normalized === 'error' ||
+    normalized === 'high' ||
+    normalized === 'medium'
+  ) {
+    return 'warning';
+  }
+  return 'info';
+}
+
 export function buildAlertStats(alerts: AlertRecord[]): AlertStats {
   return {
     total: alerts.length,
-    critical: alerts.filter((alert) => alert.severity.toLowerCase() === 'critical').length,
-    warnings: alerts.filter((alert) =>
-      ['high', 'medium'].includes(alert.severity.toLowerCase()),
-    ).length,
+    critical: alerts.filter((alert) => normalizeSeverityBucket(alert.severity) === 'critical')
+      .length,
+    warnings: alerts.filter((alert) => normalizeSeverityBucket(alert.severity) === 'warning')
+      .length,
     unread: alerts.filter((alert) => !alert.is_read).length,
   };
 }
 
 export function filterAlerts(alerts: AlertRecord[], filter: AlertFilter): AlertRecord[] {
   return alerts.filter((alert) => {
-    if (filter === 'critical') return alert.severity.toLowerCase() === 'critical';
-    if (filter === 'warnings') return ['high', 'medium'].includes(alert.severity.toLowerCase());
-    if (filter === 'info') return ['low', 'info'].includes(alert.severity.toLowerCase());
+    const bucket = normalizeSeverityBucket(alert.severity);
+    if (filter === 'critical') return bucket === 'critical';
+    if (filter === 'warnings') return bucket === 'warning';
+    if (filter === 'info') return bucket === 'info';
     if (filter === 'unread') return !alert.is_read;
     return true;
   });
 }
 
 export function getAlertConfig(severity: string): AlertVisualConfig {
-  const sev = severity.toLowerCase();
-  if (sev === 'critical') {
+  const bucket = normalizeSeverityBucket(severity);
+  if (bucket === 'critical') {
     return {
       icon: <ShieldAlert className="h-5 w-5" />,
       color: 'text-accent-red',
@@ -42,7 +61,7 @@ export function getAlertConfig(severity: string): AlertVisualConfig {
       border: 'border-l-accent-red',
     };
   }
-  if (sev === 'high' || sev === 'medium') {
+  if (bucket === 'warning') {
     return {
       icon: <AlertTriangle className="h-5 w-5" />,
       color: 'text-accent-amber',
@@ -58,7 +77,16 @@ export function getAlertConfig(severity: string): AlertVisualConfig {
   };
 }
 
-export function formatAlertRelativeDate(dateString: string): string {
+export function formatAlertRelativeDate(
+  dateString: string,
+  locale: string,
+  copy: {
+    justNow: string;
+    minutesAgo: string;
+    hoursAgo: string;
+    daysAgo: string;
+  },
+): string {
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -66,11 +94,11 @@ export function formatAlertRelativeDate(dateString: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
+  if (diffMins < 1) return copy.justNow;
+  if (diffMins < 60) return copy.minutesAgo.replace('{count}', String(diffMins));
+  if (diffHours < 24) return copy.hoursAgo.replace('{count}', String(diffHours));
+  if (diffDays < 7) return copy.daysAgo.replace('{count}', String(diffDays));
+  return date.toLocaleDateString(locale);
 }
 
 export function formatAlertTypeLabel(alertType: string): string {

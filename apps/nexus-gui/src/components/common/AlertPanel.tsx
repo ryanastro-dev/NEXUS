@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import type { Alert } from './AlertBadge';
 import { tauriClient } from '../../lib/api/tauri-client';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface AlertPanelProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface AlertPanelProps {
 }
 
 export default function AlertPanel({ isOpen, onClose }: AlertPanelProps) {
+  const { copy } = useLanguage();
+  const alertPanelCopy = copy.common.alertPanel;
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -84,10 +87,14 @@ export default function AlertPanel({ isOpen, onClose }: AlertPanelProps) {
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    return `${Math.floor(diffMins / 1440)}d ago`;
+    if (diffMins < 1) return alertPanelCopy.justNow;
+    if (diffMins < 60) {
+      return alertPanelCopy.minutesAgo.replace('{count}', String(diffMins));
+    }
+    if (diffMins < 1440) {
+      return alertPanelCopy.hoursAgo.replace('{count}', String(Math.floor(diffMins / 60)));
+    }
+    return alertPanelCopy.daysAgo.replace('{count}', String(Math.floor(diffMins / 1440)));
   };
 
   if (!isOpen) return null;
@@ -106,7 +113,7 @@ export default function AlertPanel({ isOpen, onClose }: AlertPanelProps) {
         <div className="flex items-center justify-between p-4 border-b border-theme bg-bg-secondary">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-text-primary" />
-            <h3 className="font-semibold text-text-primary">Alerts</h3>
+            <h3 className="font-semibold text-text-primary">{alertPanelCopy.title}</h3>
             {alerts.length > 0 && (
               <span className="px-2 py-0.5 bg-status-error text-white text-xs font-bold rounded-full">
                 {alerts.length}
@@ -119,7 +126,7 @@ export default function AlertPanel({ isOpen, onClose }: AlertPanelProps) {
                 onClick={markAllAsRead}
                 className="text-xs text-accent-blue hover:underline"
               >
-                Clear all
+                {alertPanelCopy.clearAll}
               </button>
             )}
             <button
@@ -135,13 +142,13 @@ export default function AlertPanel({ isOpen, onClose }: AlertPanelProps) {
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="p-8 text-center text-text-muted">
-              Loading alerts...
+              {alertPanelCopy.loadingAlerts}
             </div>
           ) : alerts.length === 0 ? (
             <div className="p-8 text-center">
               <Bell className="w-12 h-12 mx-auto mb-3 text-text-muted opacity-50" />
-              <p className="text-text-primary font-medium">No new alerts</p>
-              <p className="text-xs text-text-muted mt-1">You're all caught up! 👍</p>
+              <p className="text-text-primary font-medium">{alertPanelCopy.noNewAlerts}</p>
+              <p className="text-xs text-text-muted mt-1">{alertPanelCopy.caughtUp}</p>
             </div>
           ) : (
             <div className="divide-y divide-theme">
@@ -164,7 +171,7 @@ export default function AlertPanel({ isOpen, onClose }: AlertPanelProps) {
                       </p>
                       {alert.device_ip && (
                         <p className="text-xs text-text-muted">
-                          Device: {alert.device_ip}
+                          {alertPanelCopy.devicePrefix}: {alert.device_ip}
                         </p>
                       )}
                       <p className="text-xs text-text-muted mt-1">

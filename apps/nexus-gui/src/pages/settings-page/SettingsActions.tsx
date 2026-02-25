@@ -1,4 +1,5 @@
 import { RefreshCw, Save } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface SettingsActionsProps {
   hasChanges: boolean;
@@ -13,6 +14,9 @@ export function SettingsActions({
   onReset,
   onSave,
 }: SettingsActionsProps) {
+  const { copy } = useLanguage();
+  const actionsCopy = copy.settings.actions;
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-2.5">
       <button
@@ -20,7 +24,7 @@ export function SettingsActions({
         className="flex h-9 items-center gap-2 rounded-lg border-2 border-theme px-3.5 text-text-secondary transition-all hover:border-accent-blue hover:text-text-primary"
       >
         <RefreshCw className="h-4 w-4" />
-        <span className="text-sm font-medium">Reset All</span>
+        <span className="text-sm font-medium">{actionsCopy.resetAll}</span>
       </button>
 
       <button
@@ -35,7 +39,11 @@ export function SettingsActions({
         }`}
       >
         <Save className="h-4 w-4" />
-        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save All Settings'}
+        {saveStatus === 'saving'
+          ? actionsCopy.saving
+          : saveStatus === 'saved'
+            ? actionsCopy.saved
+            : actionsCopy.saveAll}
       </button>
     </div>
   );

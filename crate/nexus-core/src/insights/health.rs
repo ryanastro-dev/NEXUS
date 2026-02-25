@@ -23,11 +23,11 @@ pub struct NetworkHealth {
 /// Score breakdown by category
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthBreakdown {
-    /// Security score component (0-40 points)
+    /// Security score component (0..security_weight points)
     pub security: u8,
-    /// Network stability component (0-30 points)
+    /// Network stability component (0..stability_weight points)
     pub stability: u8,
-    /// Device compliance component (0-30 points)
+    /// Device compliance component (0..compliance_weight points)
     pub compliance: u8,
 }
 
@@ -43,7 +43,10 @@ impl NetworkHealth {
             return Self::empty();
         }
 
-        // Calculate security score (0-40 points)
+        let (security_weight, stability_weight, compliance_weight) =
+            crate::config::health_component_weights();
+
+        // Calculate security score (0..security_weight)
         let high_risk_count = hosts.iter().filter(|h| h.risk_score >= 50).count();
         let medium_risk_count = hosts
             .iter()
@@ -51,38 +54,41 @@ impl NetworkHealth {
             .count();
 
         let security = if high_risk_count == 0 && medium_risk_count == 0 {
-            40
+            security_weight
         } else {
-            let penalty = clamp_component_penalty(
+            let penalty_40 = clamp_component_penalty(
                 high_risk_count
                     .saturating_mul(15)
                     .saturating_add(medium_risk_count.saturating_mul(5)),
                 40,
             );
-            40u8.saturating_sub(penalty)
+            let scaled_penalty = ((penalty_40 as u16 * security_weight as u16) + 20) / 40;
+            security_weight.saturating_sub(scaled_penalty as u8)
         };
 
-        // Calculate stability score (0-30 points)
+        // Calculate stability score (0..stability_weight)
         let responsive_count = hosts
             .iter()
             .filter(|h| h.response_time_ms.is_some())
             .count();
         let response_rate = responsive_count as f32 / total as f32;
-        let stability = (response_rate * 30.0) as u8;
+        let stability = (response_rate * stability_weight as f32) as u8;
 
-        // Calculate compliance score (0-30 points)
+        // Calculate compliance score (0..compliance_weight)
         let randomized_count = hosts.iter().filter(|h| h.is_randomized).count();
         let unknown_count = hosts
             .iter()
             .filter(|h| h.device_type_enum() == DeviceType::Unknown)
             .count();
-        let compliance_penalty = clamp_component_penalty(
+        let compliance_penalty_30 = clamp_component_penalty(
             randomized_count
                 .saturating_mul(3)
                 .saturating_add(unknown_count.saturating_mul(2)),
             30,
         );
-        let compliance = 30u8.saturating_sub(compliance_penalty);
+        let scaled_compliance_penalty =
+            ((compliance_penalty_30 as u16 * compliance_weight as u16) + 15) / 30;
+        let compliance = compliance_weight.saturating_sub(scaled_compliance_penalty as u8);
 
         // Total score
         let score = security + stability + compliance;

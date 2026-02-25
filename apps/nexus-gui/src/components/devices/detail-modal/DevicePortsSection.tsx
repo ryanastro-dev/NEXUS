@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import { Shield } from 'lucide-react';
+import { useLanguage } from '../../../hooks/useLanguage';
 
 interface DevicePortsSectionProps {
   openPorts: number[];
@@ -7,6 +8,9 @@ interface DevicePortsSectionProps {
 }
 
 export function DevicePortsSection({ openPorts, isDark }: DevicePortsSectionProps) {
+  const { copy } = useLanguage();
+  const modalCopy = copy.devices.modal;
+
   if (openPorts.length === 0) {
     return null;
   }
@@ -21,7 +25,7 @@ export function DevicePortsSection({ openPorts, isDark }: DevicePortsSectionProp
             isDark ? 'text-white' : 'text-slate-900',
           )}
         >
-          Open Ports ({openPorts.length})
+          {modalCopy.ports.openPorts.replace('{count}', String(openPorts.length))}
         </h3>
       </div>
       <div className="flex flex-wrap gap-2">

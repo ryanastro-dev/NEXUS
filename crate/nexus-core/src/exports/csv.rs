@@ -132,6 +132,7 @@ fn last_seen_status(last_seen: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::SecurityGrade;
 
     #[test]
     fn test_export_hosts_csv() {
@@ -140,7 +141,7 @@ mod tests {
             mac: "aa:bb:cc:dd:ee:ff".to_string(),
             hostname: Some("router".to_string()),
             vendor: Some("TP-Link".to_string()),
-            device_type: "Router".to_string(),
+            device_type: DeviceType::Router,
             os_guess: Some("Linux".to_string()),
             risk_score: 15,
             open_ports: vec![80, 443],
@@ -153,7 +154,7 @@ mod tests {
             neighbors: vec![],
             vulnerabilities: vec![],
             port_warnings: vec![],
-            security_grade: String::new(),
+            security_grade: SecurityGrade::Unknown,
         }];
 
         let csv = export_hosts_csv(&hosts).unwrap();

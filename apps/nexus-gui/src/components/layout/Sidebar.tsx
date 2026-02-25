@@ -15,9 +15,10 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import AdminProfile from './AdminProfile';
 import { useSidebarCollapse } from '../../hooks/useSidebarCollapse';
+import { useLanguage } from '../../hooks/useLanguage';
+import { APP_VERSION } from '../../lib/app-version';
 import type { LucideIcon } from 'lucide-react';
-
-type Page = 'dashboard' | 'topology' | 'devices' | 'vulnerabilities' | 'alerts' | 'tools' | 'reports' | 'settings' | 'profile' | 'demo';
+import type { Page } from '../../router';
 
 interface SidebarProps {
   currentPage: Page;
@@ -26,50 +27,53 @@ interface SidebarProps {
 
 interface NavItemData {
   id: Page;
-  label: string;
   icon: LucideIcon;
   badge?: number;
 }
 
+type NavGroupId = 'main' | 'security' | 'utilities' | 'system';
+
 interface NavGroupData {
-  title: string;
+  id: NavGroupId;
   items: NavItemData[];
 }
 
 const NAV_GROUPS: NavGroupData[] = [
   {
-    title: 'MAIN',
+    id: 'main',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'topology', label: 'Topology Map', icon: Network },
-      { id: 'devices', label: 'Device List', icon: List },
+      { id: 'dashboard', icon: LayoutDashboard },
+      { id: 'topology', icon: Network },
+      { id: 'devices', icon: List },
     ],
   },
   {
-    title: 'SECURITY',
+    id: 'security',
     items: [
-      { id: 'vulnerabilities', label: 'Vulnerabilities', icon: Shield },
-      { id: 'alerts', label: 'Alerts', icon: Bell },
+      { id: 'vulnerabilities', icon: Shield },
+      { id: 'alerts', icon: Bell },
     ],
   },
   {
-    title: 'UTILITIES',
+    id: 'utilities',
     items: [
-      { id: 'tools', label: 'Tools', icon: Wrench },
-      { id: 'reports', label: 'Reports', icon: FileText },
+      { id: 'tools', icon: Wrench },
+      { id: 'router', icon: Network },
+      { id: 'reports', icon: FileText },
     ],
   },
   {
-    title: 'SYSTEM',
-    items: [{ id: 'settings', label: 'Settings', icon: Settings }],
+    id: 'system',
+    items: [{ id: 'settings', icon: Settings }],
   },
 ];
 
-export default function Sidebar({ 
-  currentPage, 
+export default function Sidebar({
+  currentPage,
   onNavigate,
 }: SidebarProps) {
   const { isCollapsed, toggle } = useSidebarCollapse();
+  const { copy } = useLanguage();
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const showCollapsedToggle = isCollapsed && isSidebarHovered;
   const sidebarTransition = isCollapsed
@@ -103,7 +107,7 @@ export default function Sidebar({
                 transition={{ duration: 0.16, ease: 'easeOut' }}
               >
                 <h1 className="text-[1.38rem] font-bold text-text-primary whitespace-nowrap leading-tight">NEXUS</h1>
-                <p className="text-[11px] text-text-muted whitespace-nowrap">NetMapper Pro</p>
+                <p className="text-[11px] text-text-muted whitespace-nowrap">{copy.sidebar.appSubtitle}</p>
               </motion.div>
             </div>
 
@@ -112,8 +116,8 @@ export default function Sidebar({
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-muted
                          transition-colors hover:bg-bg-hover hover:text-text-primary
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/40"
-              title="Collapse sidebar"
-              aria-label="Collapse sidebar"
+              title={copy.sidebar.collapseSidebar}
+              aria-label={copy.sidebar.collapseSidebar}
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -146,8 +150,8 @@ export default function Sidebar({
                 transition={{ duration: 0.12, ease: 'easeOut' }}
                 style={{ pointerEvents: showCollapsedToggle ? 'auto' : 'none' }}
                 tabIndex={showCollapsedToggle ? 0 : -1}
-                title="Expand sidebar"
-                aria-label="Expand sidebar"
+                title={copy.sidebar.expandSidebar}
+                aria-label={copy.sidebar.expandSidebar}
               >
                 <PanelLeftOpen className="h-4 w-4" />
               </motion.button>
@@ -159,7 +163,7 @@ export default function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3">
         {NAV_GROUPS.map((group) => (
-          <div key={group.title} className="mb-4">
+          <div key={group.id} className="mb-4">
             <motion.div
               className="mb-1.5 h-5 overflow-hidden px-3"
               initial={false}
@@ -171,7 +175,7 @@ export default function Sidebar({
               aria-hidden={isCollapsed}
             >
               <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                {group.title}
+                {copy.sidebar.groups[group.id]}
               </span>
             </motion.div>
 
@@ -180,7 +184,8 @@ export default function Sidebar({
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
-                
+                const itemLabel = copy.sidebar.items[item.id];
+
                 return (
                   <motion.button
                     key={item.id}
@@ -193,11 +198,11 @@ export default function Sidebar({
                         : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
                     )}
                     whileTap={{ scale: 0.98 }}
-                    title={isCollapsed ? item.label : undefined}
+                    title={isCollapsed ? itemLabel : undefined}
                   >
                     {/* Icon */}
                     <Icon className="h-[18px] w-[18px] shrink-0" />
-                    
+
                     <motion.span
                       className="flex-1 overflow-hidden whitespace-nowrap text-left text-[13px] font-medium"
                       initial={false}
@@ -213,7 +218,7 @@ export default function Sidebar({
                       }}
                       aria-hidden={isCollapsed}
                     >
-                      {item.label}
+                      {itemLabel}
                     </motion.span>
 
                     {/* Badge */}
@@ -221,7 +226,7 @@ export default function Sidebar({
                       <span
                         className={clsx(
                           'bg-accent-red text-white text-xs font-bold rounded-full',
-                          isCollapsed 
+                          isCollapsed
                             ? 'absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center text-[10px]'
                             : 'px-2 py-0.5'
                         )}
@@ -229,7 +234,7 @@ export default function Sidebar({
                         {item.badge}
                       </span>
                     )}
-                    
+
                     {/* Active Indicator */}
                     {isActive && (
                       <motion.span
@@ -244,7 +249,7 @@ export default function Sidebar({
                       <div className="absolute left-full ml-2 px-2 py-1 bg-bg-elevated border border-theme rounded-md
                                       opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none
                                       whitespace-nowrap text-xs text-text-primary shadow-lg z-50">
-                        {item.label}
+                        {itemLabel}
                       </div>
                     )}
                   </motion.button>
@@ -256,8 +261,19 @@ export default function Sidebar({
       </nav>
 
       {/* Admin Profile */}
-      <div>
+      <div className="border-t border-theme">
         <AdminProfile isCollapsed={isCollapsed} />
+        <div className={clsx('px-3 pb-2', isCollapsed ? 'pt-0.5' : 'pt-1.5')}>
+          <span
+            className={clsx(
+              'block text-[10px] text-text-muted',
+              isCollapsed ? 'text-center' : 'text-left',
+            )}
+            title={`NEXUS GUI v${APP_VERSION}`}
+          >
+            {isCollapsed ? `v${APP_VERSION}` : `GUI v${APP_VERSION}`}
+          </span>
+        </div>
       </div>
     </motion.aside>
   );

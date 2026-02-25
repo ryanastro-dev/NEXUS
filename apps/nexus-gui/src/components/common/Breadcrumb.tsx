@@ -1,13 +1,15 @@
 import { ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface BreadcrumbProps {
   items: string[];
 }
 
 export default function Breadcrumb({ items }: BreadcrumbProps) {
+  const { copy } = useLanguage();
   return (
-    <nav className="flex items-center gap-2" aria-label="Breadcrumb">
+    <nav className="flex items-center gap-2" aria-label={copy.common.accessibility.breadcrumb}>
       {items.map((item, index) => (
         <motion.div 
           key={index}

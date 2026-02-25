@@ -3,23 +3,29 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Activity, Cpu, Hash, Network } from "lucide-react";
 
 import CoreEngineToolPanel from "../components/tools/CoreEngineToolPanel";
+import DesktopModeNotice from "../components/common/DesktopModeNotice";
 import MacLookupToolPanel from "../components/tools/MacLookupToolPanel";
 import PingToolPanel from "../components/tools/PingToolPanel";
 import PortScanToolPanel from "../components/tools/PortScanToolPanel";
+import { useLanguage } from "../hooks/useLanguage";
+import { PANEL_CARD } from "../lib/ui-classes";
+import { isTauri } from "../lib/runtime/is-tauri";
 
 type Tab = "ping" | "portscan" | "maclookup" | "engine";
 type TabConfig = { id: Tab; label: string; icon: typeof Activity };
 
-const CARD =
-  "rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65";
+const CARD = PANEL_CARD;
 
 export default function Tools() {
+  const { copy } = useLanguage();
+  const toolsCopy = copy.tools;
+  const tauriAvailable = isTauri();
   const [activeTab, setActiveTab] = useState<Tab>("ping");
   const tabs: TabConfig[] = [
-    { id: "ping", label: "Ping Tool", icon: Activity },
-    { id: "portscan", label: "Port Scanner", icon: Hash },
-    { id: "maclookup", label: "MAC Lookup", icon: Network },
-    { id: "engine", label: "Core Engine", icon: Cpu },
+    { id: "ping", label: toolsCopy.tabs.ping, icon: Activity },
+    { id: "portscan", label: toolsCopy.tabs.portScan, icon: Hash },
+    { id: "maclookup", label: toolsCopy.tabs.macLookup, icon: Network },
+    { id: "engine", label: toolsCopy.tabs.coreEngine, icon: Cpu },
   ];
 
   return (
@@ -37,14 +43,20 @@ export default function Tools() {
         >
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-              Operator Toolkit
+              {toolsCopy.header.kicker}
             </p>
-            <h1 className="text-2xl font-black text-text-primary sm:text-3xl">Network Tools</h1>
+            <h1 className="text-2xl font-black text-text-primary sm:text-3xl">
+              {toolsCopy.header.title}
+            </h1>
             <p className="max-w-2xl text-sm text-text-secondary">
-              Run active diagnostics for reachability, open ports, and vendor fingerprinting.
+              {toolsCopy.header.subtitle}
             </p>
           </div>
         </motion.section>
+
+        {!tauriAvailable ? (
+          <DesktopModeNotice message={toolsCopy.header.desktopNotice} />
+        ) : null}
 
         <div className={`${CARD} shrink-0 p-2`}>
           <div className="flex flex-wrap items-center gap-1.5">

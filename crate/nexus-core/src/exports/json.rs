@@ -113,6 +113,7 @@ mod tests {
     use super::*;
     use crate::ai::types::AiInsightOverlay;
     use crate::insights::{DeviceDistribution, NetworkHealth, SecurityReport, VendorDistribution};
+    use crate::models::SecurityGrade;
     use std::collections::HashMap;
 
     #[test]
@@ -123,7 +124,7 @@ mod tests {
                 mac: "aa:bb:cc:dd:ee:ff".to_string(),
                 hostname: Some("router".to_string()),
                 vendor: Some("TP-Link".to_string()),
-                device_type: "ROUTER".to_string(),
+                device_type: DeviceType::Router,
                 os_guess: Some("Linux".to_string()),
                 risk_score: 15,
                 open_ports: vec![80, 443],
@@ -136,14 +137,14 @@ mod tests {
                 neighbors: vec![],
                 vulnerabilities: vec![],
                 port_warnings: vec![],
-                security_grade: String::new(),
+                security_grade: SecurityGrade::Unknown,
             },
             HostInfo {
                 ip: "192.168.1.10".to_string(),
                 mac: "11:22:33:44:55:66".to_string(),
                 hostname: Some("laptop".to_string()),
                 vendor: Some("Apple".to_string()),
-                device_type: "PC".to_string(),
+                device_type: DeviceType::Pc,
                 os_guess: Some("macOS".to_string()),
                 risk_score: 5,
                 open_ports: vec![],
@@ -156,7 +157,7 @@ mod tests {
                 neighbors: vec![],
                 vulnerabilities: vec![],
                 port_warnings: vec![],
-                security_grade: String::new(),
+                security_grade: SecurityGrade::Unknown,
             },
         ];
 

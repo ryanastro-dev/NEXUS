@@ -1,5 +1,6 @@
 import { Cpu, Shield, ShieldAlert, Wifi } from 'lucide-react';
 
+import { useLanguage } from '../../hooks/useLanguage';
 import { StatCard } from './widgets';
 import type { DashboardPayloadView } from './types';
 
@@ -16,37 +17,40 @@ export function DashboardKpiSection({
   unknownDevices,
   criticalAlerts,
 }: DashboardKpiSectionProps) {
+  const { copy } = useLanguage();
+  const kpiCopy = copy.dashboard.kpi;
   const criticalAlertSubtitle =
     criticalAlerts === 1
-      ? '1 critical unread alert'
-      : `${criticalAlerts} critical unread alerts`;
+      ? kpiCopy.criticalAlertSingular
+      : kpiCopy.criticalAlertPlural.replace('{count}', String(criticalAlerts));
 
   return (
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
-        title="Active (24h)"
-        value={String(activeDevices24h)}
-        subtitle={`${payload.devices.length} known devices`}
+        title={kpiCopy.active24h}
+        value={activeDevices24h}
+        subtitle={kpiCopy.knownDevices.replace('{count}', String(payload.devices.length))}
         icon={<Wifi className="h-4 w-4" />}
         tone="cyan"
       />
       <StatCard
-        title="Security Score"
-        value={`${payload.health?.score ?? 0}%`}
-        subtitle={`Grade ${payload.health?.grade ?? 'N/A'} • ${payload.health?.status ?? 'No Data'}`}
+        title={kpiCopy.securityScore}
+        value={payload.health?.score ?? 0}
+        suffix="%"
+        subtitle={`${kpiCopy.gradePrefix} ${payload.health?.grade ?? 'N/A'} • ${payload.health?.status ?? kpiCopy.noData}`}
         icon={<Shield className="h-4 w-4" />}
         tone="emerald"
       />
       <StatCard
-        title="Unidentified"
-        value={String(unknownDevices)}
-        subtitle="Missing vendor/type fingerprint"
+        title={kpiCopy.unidentified}
+        value={unknownDevices}
+        subtitle={kpiCopy.unidentifiedSubtitle}
         icon={<Cpu className="h-4 w-4" />}
         tone="amber"
       />
       <StatCard
-        title="Critical Alerts"
-        value={String(criticalAlerts)}
+        title={kpiCopy.criticalAlerts}
+        value={criticalAlerts}
         subtitle={criticalAlertSubtitle}
         icon={<ShieldAlert className="h-4 w-4" />}
         tone="rose"

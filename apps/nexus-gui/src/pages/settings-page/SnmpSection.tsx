@@ -1,4 +1,5 @@
 import { Network } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 import { AppToggle } from './AppToggle';
 
 interface SnmpSectionProps {
@@ -8,6 +9,9 @@ interface SnmpSectionProps {
 }
 
 export function SnmpSection({ panelClassName, snmpEnabled, onToggle }: SnmpSectionProps) {
+  const { copy } = useLanguage();
+  const snmpCopy = copy.settings.snmp;
+
   return (
     <div className={`${panelClassName} p-5`}>
       <div className="flex items-center justify-between">
@@ -16,9 +20,9 @@ export function SnmpSection({ panelClassName, snmpEnabled, onToggle }: SnmpSecti
             <Network className="h-5 w-5 text-accent-blue" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-text-primary">SNMP Settings</h3>
+            <h3 className="text-base font-semibold text-text-primary">{snmpCopy.title}</h3>
             <p className="mt-0.5 text-xs text-text-muted">
-              Enable SNMP to gather detailed device information like system description and uptime.
+              {snmpCopy.description}
             </p>
           </div>
         </div>

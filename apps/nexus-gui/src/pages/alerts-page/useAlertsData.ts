@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { eventClient } from '../../lib/api/event-client';
 import { tauriClient } from '../../lib/api/tauri-client';
 import { emitAlertsUnreadCount } from '../../lib/events/alerts-sync';
-import type { AlertRecord } from '../../lib/api/types';
+import type { AlertRecord, NetworkEventType } from '../../lib/api/types';
 import type { AlertFilter } from './constants';
 import { buildAlertStats, filterAlerts } from './utils';
+
+const ALERT_REFRESH_EVENT_TYPES: Set<NetworkEventType['type']> = new Set([
+  'NewDeviceDiscovered',
+  'DeviceWentOffline',
+  'DeviceCameOnline',
+  'DeviceIpChanged',
+  'MonitoringError',
+  'ScanCompleted',
+]);
+const RECENT_ALERTS_LIMIT = 400;
 
 export function useAlertsData() {
   const [alerts, setAlerts] = useState<AlertRecord[]>([]);
@@ -12,6 +23,7 @@ export function useAlertsData() {
   const [filter, setFilter] = useState<AlertFilter>('unread');
   const isDemoMode = localStorage.getItem('demo-mode-enabled') === 'true';
   const demoAlertsRef = useRef<AlertRecord[] | null>(null);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadAlerts = useCallback(async (withLoading = true) => {
     if (withLoading) {
@@ -24,7 +36,7 @@ export function useAlertsData() {
         }
         setAlerts([...demoAlertsRef.current]);
       } else {
-        const result = await tauriClient.getUnreadAlerts();
+        const result = await tauriClient.getRecentAlerts(RECENT_ALERTS_LIMIT);
         demoAlertsRef.current = null;
         setAlerts(result);
       }
@@ -47,6 +59,58 @@ export function useAlertsData() {
     }
     emitAlertsUnreadCount(alerts);
   }, [alerts, loading]);
+
+  useEffect(() => {
+    if (isDemoMode) {
+      return;
+    }
+
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = setTimeout(() => {
+        refreshTimerRef.current = null;
+        void loadAlerts(false);
+      }, 600);
+    };
+
+    const setup = async () => {
+      try {
+        const unsubscribe = await eventClient.listenNetworkEvents((event) => {
+          if (!ALERT_REFRESH_EVENT_TYPES.has(event.type)) {
+            return;
+          }
+          scheduleRefresh();
+        });
+
+        if (disposed) {
+          unsubscribe();
+          return;
+        }
+
+        unlisten = unsubscribe;
+      } catch {
+        // Keep alerts view usable even if event bridge is unavailable.
+      }
+    };
+
+    void setup();
+
+    return () => {
+      disposed = true;
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [isDemoMode, loadAlerts]);
 
   const markAsRead = useCallback(
     async (alertId: number) => {

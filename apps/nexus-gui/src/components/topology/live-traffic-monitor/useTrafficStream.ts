@@ -8,6 +8,8 @@ import {
   engineEventToStreamEntry,
   eventToStreamEntry,
   nextStreamStateLabel,
+  separatorTitle,
+  type LiveTrafficStreamCopy,
 } from './event-utils';
 import type { StreamEvent, UnlistenFn } from './types';
 
@@ -21,6 +23,7 @@ let sessionStreamStateLabel = 'IDLE';
 interface UseTrafficStreamOptions {
   visible: boolean;
   hasScanData: boolean;
+  copy: LiveTrafficStreamCopy;
 }
 
 interface UseTrafficStreamResult {
@@ -43,21 +46,10 @@ function shouldInsertSeparator(payload: NetworkEventType, previousEvents: Stream
   return lastEvent.variant !== 'separator';
 }
 
-function separatorTitle(payload: NetworkEventType): string {
-  if (payload.type === 'ScanStarted') {
-    return `New Scan Started (#${payload.data.scan_number})`;
-  }
-
-  if (payload.type === 'MonitoringStarted') {
-    return `Monitoring Session Started (${payload.data.interval_seconds}s interval)`;
-  }
-
-  return 'New Activity Session Started';
-}
-
 export function useTrafficStream({
   visible,
   hasScanData,
+  copy,
 }: UseTrafficStreamOptions): UseTrafficStreamResult {
   const [events, setEvents] = useState<StreamEvent[]>(() => sessionEvents);
   const [streamConnected, setStreamConnected] = useState<boolean>(() => sessionStreamConnected);
@@ -94,9 +86,9 @@ export function useTrafficStream({
           setEvents((previousEvents) => {
             const pendingEntries: StreamEvent[] = [];
             if (shouldInsertSeparator(payload, previousEvents)) {
-              pendingEntries.push(buildSessionSeparatorEntry(separatorTitle(payload)));
+              pendingEntries.push(buildSessionSeparatorEntry(separatorTitle(payload, copy)));
             }
-            pendingEntries.push(eventToStreamEntry(payload));
+            pendingEntries.push(eventToStreamEntry(payload, copy));
 
             const nextEvents = [...previousEvents, ...pendingEntries].slice(-MAX_STREAM_EVENTS);
             sessionEvents = nextEvents;
@@ -124,7 +116,7 @@ export function useTrafficStream({
 
         try {
           const unsubscribeEngine = await eventClient.listenEngineEvents((payload) => {
-            appendEvents([engineEventToStreamEntry(payload)]);
+            appendEvents([engineEventToStreamEntry(payload, copy)]);
             setStreamConnected((current) => {
               if (!current) {
                 sessionStreamConnected = true;
@@ -173,7 +165,7 @@ export function useTrafficStream({
       sessionStreamConnected = false;
       setStreamConnected(false);
     };
-  }, [visible, hasScanData]);
+  }, [visible, hasScanData, copy]);
 
   useEffect(() => {
     sessionEvents = events;

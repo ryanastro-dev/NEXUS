@@ -4,11 +4,14 @@ import { Activity, Loader2, Play, Terminal } from "lucide-react";
 import Select from "../common/Select";
 import { tauriClient } from "../../lib/api/tauri-client";
 import type { PingResult } from "../../lib/api/types";
+import { useLanguage } from "../../hooks/useLanguage";
+import { PANEL_CARD } from "../../lib/ui-classes";
 
-const CARD =
-  "rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65";
+const CARD = PANEL_CARD;
 
 export default function PingToolPanel() {
+  const { copy } = useLanguage();
+  const pingCopy = copy.tools.ping;
   const [target, setTarget] = useState("");
   const [count, setCount] = useState(4);
   const [loading, setLoading] = useState(false);
@@ -20,7 +23,11 @@ export default function PingToolPanel() {
 
     setLoading(true);
     setResults([]);
-    setTerminalOutput([`$ ping ${target.trim()}`, `Sending ${count} packets...`, ""]);
+    setTerminalOutput([
+      `$ ping ${target.trim()}`,
+      pingCopy.sending.replace('{count}', String(count)),
+      "",
+    ]);
 
     try {
       const pingResults = await tauriClient.pingHost(target.trim(), count);
@@ -28,14 +35,17 @@ export default function PingToolPanel() {
 
       const output = pingResults.map((result) =>
         result.success
-          ? `Reply from ${target}: bytes=32 time=${result.latency_ms}ms TTL=${result.ttl}`
-          : "Request timed out",
+          ? pingCopy.replyFrom
+              .replace('{target}', target.trim())
+              .replace('{latency}', String(result.latency_ms))
+              .replace('{ttl}', String(result.ttl ?? ''))
+          : pingCopy.requestTimedOut,
       );
       setTerminalOutput((prev) => [
         ...prev,
         ...output,
         "",
-        "Ping statistics:",
+        pingCopy.pingStats,
         `Sent = ${count}, Received = ${pingResults.filter((item) => item.success).length}`,
       ]);
     } catch (error) {
@@ -51,9 +61,9 @@ export default function PingToolPanel() {
     results.filter((r) => r.latency_ms !== null).reduce((sum, r) => sum + (r.latency_ms || 0), 0) /
     (successfulPings || 1);
   const packetOptions = [
-    { value: 4, label: "4 packets (Default)" },
-    { value: 1, label: "1 packet" },
-    { value: 10, label: "10 packets" },
+    { value: 4, label: pingCopy.packet4 },
+    { value: 1, label: pingCopy.packet1 },
+    { value: 10, label: pingCopy.packet10 },
   ];
   const inputClass =
     "h-11 w-full rounded-xl border border-theme bg-bg-tertiary px-3 text-sm text-text-primary transition-colors focus:border-accent-blue focus:outline-none";
@@ -63,17 +73,17 @@ export default function PingToolPanel() {
       <div className={`${CARD} p-4 lg:h-full`}>
         <div className="mb-3 flex items-center gap-2">
           <Activity className="h-4 w-4 text-accent-blue" />
-          <h2 className="text-base font-bold text-text-primary">Configuration</h2>
+          <h2 className="text-base font-bold text-text-primary">{pingCopy.configuration}</h2>
         </div>
 
         <div className="space-y-3">
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">
-              Target Host
+              {pingCopy.targetHost}
             </label>
             <input
               type="text"
-              placeholder="e.g. google.com"
+              placeholder={pingCopy.targetPlaceholder}
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void handlePing()}
@@ -83,7 +93,7 @@ export default function PingToolPanel() {
 
           <div>
             <label className="mb-1.5 block text-xs font-bold uppercase text-text-secondary">
-              Packet Count
+              {pingCopy.packetCount}
             </label>
             <Select
               options={packetOptions}
@@ -102,12 +112,12 @@ export default function PingToolPanel() {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Pinging...
+                {pingCopy.running}
               </>
             ) : (
               <>
                 <Play className="h-4 w-4" />
-                Start Ping
+                {pingCopy.start}
               </>
             )}
           </button>
@@ -119,14 +129,14 @@ export default function PingToolPanel() {
           <div className="flex items-center justify-between border-b border-slate-700/70 bg-slate-900 px-3 py-2">
             <div className="flex items-center gap-2">
               <Terminal className="h-3.5 w-3.5 text-green-400" />
-              <h3 className="text-sm font-semibold text-white">Output</h3>
+              <h3 className="text-sm font-semibold text-white">{pingCopy.output}</h3>
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-3 font-mono text-xs text-green-400">
             {terminalOutput.length <= 3 && !loading ? (
               <div className="flex h-full flex-col items-center justify-center text-slate-500">
                 <Terminal className="mb-2 h-10 w-10 opacity-20" />
-                <p className="text-xs">Ready...</p>
+                <p className="text-xs">{pingCopy.ready}</p>
               </div>
             ) : (
               <>
@@ -136,7 +146,7 @@ export default function PingToolPanel() {
                 {loading && (
                   <div className="mt-1 flex items-center gap-1">
                     <div className="h-1 w-1 animate-pulse rounded-full bg-green-400" />
-                    Processing...
+                    {pingCopy.processing}
                   </div>
                 )}
               </>
@@ -147,19 +157,19 @@ export default function PingToolPanel() {
         {results.length > 0 && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div className={`${CARD} rounded-xl p-2.5`}>
-              <p className="text-xs font-semibold uppercase text-text-muted">Sent</p>
+              <p className="text-xs font-semibold uppercase text-text-muted">{pingCopy.sent}</p>
               <p className="text-lg font-bold text-text-primary">{results.length}</p>
             </div>
             <div className={`${CARD} rounded-xl p-2.5`}>
-              <p className="text-xs font-semibold uppercase text-text-muted">Got</p>
+              <p className="text-xs font-semibold uppercase text-text-muted">{pingCopy.received}</p>
               <p className="text-lg font-bold text-accent-green">{successfulPings}</p>
             </div>
             <div className={`${CARD} rounded-xl p-2.5`}>
-              <p className="text-xs font-semibold uppercase text-text-muted">Lost</p>
+              <p className="text-xs font-semibold uppercase text-text-muted">{pingCopy.lost}</p>
               <p className="text-lg font-bold text-accent-red">{results.length - successfulPings}</p>
             </div>
             <div className={`${CARD} rounded-xl p-2.5`}>
-              <p className="text-xs font-semibold uppercase text-text-muted">Avg</p>
+              <p className="text-xs font-semibold uppercase text-text-muted">{pingCopy.avg}</p>
               <p className="text-lg font-bold text-accent-blue">{avgLatency.toFixed(1)}ms</p>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import { FileText, Loader2, Wrench, X } from 'lucide-react';
 
+import { useLanguage } from '../../hooks/useLanguage';
 import type { DeviceTroubleshootAdvice, NetworkReportSummary } from '../../lib/api/types';
 
 interface TopologyAssistantOverlayProps {
@@ -26,6 +27,8 @@ export function TopologyAssistantOverlay({
   troubleshootError,
   onCloseTroubleshoot,
 }: TopologyAssistantOverlayProps) {
+  const { copy } = useLanguage();
+  const topologyCopy = copy.topology;
   const showReportCard = isGeneratingReport || Boolean(networkReport) || Boolean(networkReportError);
   const showTroubleshootCard =
     isTroubleshooting || Boolean(troubleshootAdvice) || Boolean(troubleshootError);
@@ -52,7 +55,9 @@ export function TopologyAssistantOverlay({
               ) : (
                 <FileText className="h-4 w-4 text-cyan-400" />
               )}
-              <p className="text-xs font-semibold uppercase tracking-[0.14em]">Network Report</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em]">
+                {topologyCopy.assistant.networkReport}
+              </p>
             </div>
             {!isGeneratingReport && (
               <button
@@ -69,7 +74,7 @@ export function TopologyAssistantOverlay({
 
           {isGeneratingReport && (
             <p className={clsx('text-sm', isDark ? 'text-slate-300' : 'text-slate-700')}>
-              Building executive network summary...
+              {topologyCopy.assistant.buildingSummary}
             </p>
           )}
 
@@ -85,7 +90,10 @@ export function TopologyAssistantOverlay({
                 {networkReport.executive_summary}
               </p>
               <p className={clsx('text-xs', isDark ? 'text-cyan-300' : 'text-cyan-700')}>
-                Hosts: {networkReport.total_hosts} total, {networkReport.online_hosts} online, {networkReport.offline_hosts} offline
+                {topologyCopy.assistant.hostsSummary
+                  .replace('{total}', String(networkReport.total_hosts))
+                  .replace('{online}', String(networkReport.online_hosts))
+                  .replace('{offline}', String(networkReport.offline_hosts))}
               </p>
               <div className={clsx('text-xs leading-relaxed', isDark ? 'text-slate-300' : 'text-slate-700')}>
                 {networkReport.recommended_actions.slice(0, 2).map((action) => (
@@ -113,7 +121,9 @@ export function TopologyAssistantOverlay({
               ) : (
                 <Wrench className="h-4 w-4 text-indigo-400" />
               )}
-              <p className="text-xs font-semibold uppercase tracking-[0.14em]">Troubleshoot</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em]">
+                {topologyCopy.assistant.troubleshoot}
+              </p>
             </div>
             {!isTroubleshooting && (
               <button
@@ -130,7 +140,7 @@ export function TopologyAssistantOverlay({
 
           {isTroubleshooting && (
             <p className={clsx('text-sm', isDark ? 'text-slate-300' : 'text-slate-700')}>
-              Collecting probable causes and recovery steps...
+              {topologyCopy.assistant.collectingTroubleshoot}
             </p>
           )}
 

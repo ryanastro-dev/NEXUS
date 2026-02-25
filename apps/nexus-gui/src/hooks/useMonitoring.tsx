@@ -1,15 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
-import { eventClient } from '../lib/api/event-client';
-import { tauriClient } from '../lib/api/tauri-client';
-import { isTauri } from '../lib/runtime/is-tauri';
+import { ensureMonitoringEventBridge, useMonitoringStore } from '../store/monitoring-store';
 import {
-  createInitialMonitoringState,
   extractNewDeviceData,
   extractScanCompleteData,
-  reduceMonitoringState,
-  resolvePreferredInterface,
-  type UnlistenFn,
+  type NetworkEventType,
   type UseMonitoringOptions,
   type UseMonitoringReturn,
 } from './monitoring';
@@ -27,151 +22,59 @@ export function useMonitoring(
   options: UseMonitoringOptions = {},
 ): UseMonitoringReturn {
   const { maxEvents = 50, onScanComplete, onNewDevice } = options;
+  const status = useMonitoringStore((state) => state.status);
+  const isLoading = useMonitoringStore((state) => state.isLoading);
+  const error = useMonitoringStore((state) => state.error);
+  const events = useMonitoringStore((state) => state.events);
+  const currentPhase = useMonitoringStore((state) => state.currentPhase);
+  const currentProgress = useMonitoringStore((state) => state.currentProgress);
+  const startMonitoring = useMonitoringStore((state) => state.startMonitoring);
+  const stopMonitoring = useMonitoringStore((state) => state.stopMonitoring);
+  const fetchStatus = useMonitoringStore((state) => state.fetchStatus);
+  const clearEvents = useMonitoringStore((state) => state.clearEvents);
 
-  const [state, setState] = useState(createInitialMonitoringState);
+  const latestHandledEventRef = useRef<NetworkEventType | null>(null);
 
-  const fetchStatus = useCallback(async () => {
-    if (!isTauri()) {
-      return;
-    }
+  useEffect(() => {
+    void ensureMonitoringEventBridge(maxEvents);
+    void fetchStatus();
+  }, [fetchStatus, maxEvents]);
 
-    try {
-      const status = await tauriClient.getMonitoringStatus();
-      setState((previousState) => ({ ...previousState, status, error: null }));
-    } catch (err) {
-      setState((previousState) => ({
-        ...previousState,
-        error: err instanceof Error ? err.message : String(err),
-      }));
-    }
-  }, []);
-
-  const startMonitoring = useCallback(
-    async (intervalSeconds?: number, interfaceName?: string) => {
-      setState((previousState) => ({
-        ...previousState,
-        isLoading: true,
-        error: null,
-      }));
-
-      try {
-        if (!isTauri()) {
-          throw new Error('Tauri runtime unavailable');
-        }
-
-        const preferredInterface = resolvePreferredInterface(interfaceName);
-        await tauriClient.startMonitoring(intervalSeconds, preferredInterface);
-        await fetchStatus();
-        setState((previousState) => ({ ...previousState, isLoading: false }));
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (message.toLowerCase().includes('already running')) {
-          await fetchStatus();
-          setState((previousState) => ({
-            ...previousState,
-            isLoading: false,
-            error: null,
-          }));
-          return;
-        }
-
-        setState((previousState) => ({
-          ...previousState,
-          isLoading: false,
-          error: message,
-        }));
-      }
-    },
-    [fetchStatus],
-  );
-
-  const stopMonitoring = useCallback(async () => {
-    setState((previousState) => ({
-      ...previousState,
-      isLoading: true,
-      error: null,
-    }));
-
-    try {
-      if (!isTauri()) {
-        throw new Error('Tauri runtime unavailable');
-      }
-
-      await tauriClient.stopMonitoring();
-      await fetchStatus();
-      setState((previousState) => ({
-        ...previousState,
-        isLoading: false,
-        currentPhase: null,
-        currentProgress: 0,
-      }));
-    } catch (err) {
-      setState((previousState) => ({
-        ...previousState,
-        isLoading: false,
-        error: err instanceof Error ? err.message : String(err),
-      }));
-    }
-  }, [fetchStatus]);
-
-  const clearEvents = useCallback(() => {
-    setState((previousState) => ({ ...previousState, events: [] }));
+  useEffect(() => {
+    latestHandledEventRef.current = events[0] ?? null;
+    // Capture current buffered head event at mount to avoid replaying stale callbacks.
   }, []);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | null = null;
-    let disposed = false;
+    const latestEvent = events[0] ?? null;
+    if (!latestEvent) {
+      return;
+    }
 
-    const setupListener = async () => {
-      try {
-        const unsubscribe = await eventClient.listenNetworkEvents((networkEvent) => {
-          const scanCompleteData = extractScanCompleteData(networkEvent);
-          const newDeviceData = extractNewDeviceData(networkEvent);
+    if (latestHandledEventRef.current === latestEvent) {
+      return;
+    }
 
-          setState((previousState) =>
-            reduceMonitoringState(previousState, networkEvent, maxEvents),
-          );
+    latestHandledEventRef.current = latestEvent;
+    const scanCompleteData = extractScanCompleteData(latestEvent);
+    const newDeviceData = extractNewDeviceData(latestEvent);
 
-          if (scanCompleteData && onScanComplete) {
-            onScanComplete(scanCompleteData.hosts_found, scanCompleteData.duration_ms);
-          }
+    if (scanCompleteData && onScanComplete) {
+      onScanComplete(scanCompleteData.hosts_found, scanCompleteData.duration_ms);
+    }
 
-          if (newDeviceData && onNewDevice) {
-            onNewDevice(newDeviceData);
-          }
-        });
-
-        if (disposed) {
-          unsubscribe();
-          return;
-        }
-
-        unlisten = unsubscribe;
-      } catch (err) {
-        if (disposed) {
-          return;
-        }
-
-        setState((previousState) => ({
-          ...previousState,
-          error: err instanceof Error ? err.message : String(err),
-        }));
-      }
-    };
-
-    void setupListener();
-    void fetchStatus();
-
-    return () => {
-      disposed = true;
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, [fetchStatus, maxEvents, onNewDevice, onScanComplete]);
+    if (newDeviceData && onNewDevice) {
+      onNewDevice(newDeviceData);
+    }
+  }, [events, onNewDevice, onScanComplete]);
 
   return {
-    ...state,
+    status,
+    isLoading,
+    error,
+    events,
+    currentPhase,
+    currentProgress,
     startMonitoring,
     stopMonitoring,
     fetchStatus,

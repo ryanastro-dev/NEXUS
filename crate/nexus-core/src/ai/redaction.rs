@@ -72,6 +72,8 @@ mod tests {
     use super::*;
     use crate::ai::types::HybridInsightsResult;
     use crate::insights::{HealthBreakdown, Priority, Recommendation};
+    use crate::models::SecurityGrade;
+    use crate::network::DeviceType;
 
     fn sample_hosts() -> Vec<HostInfo> {
         vec![
@@ -83,7 +85,7 @@ mod tests {
                 response_time_ms: Some(5),
                 ttl: Some(64),
                 os_guess: Some("Linux".to_string()),
-                device_type: "ROUTER".to_string(),
+                device_type: DeviceType::Router,
                 risk_score: 65,
                 open_ports: vec![23, 80],
                 discovery_method: "ARP+ICMP+TCP".to_string(),
@@ -93,7 +95,7 @@ mod tests {
                 neighbors: vec![],
                 vulnerabilities: vec![],
                 port_warnings: vec![],
-                security_grade: String::new(),
+                security_grade: SecurityGrade::Unknown,
             },
             HostInfo {
                 ip: "192.168.1.20".to_string(),
@@ -103,7 +105,7 @@ mod tests {
                 response_time_ms: Some(12),
                 ttl: Some(64),
                 os_guess: Some("Linux".to_string()),
-                device_type: "UNKNOWN".to_string(),
+                device_type: DeviceType::Unknown,
                 risk_score: 20,
                 open_ports: vec![3389],
                 discovery_method: "ARP+ICMP".to_string(),
@@ -113,7 +115,7 @@ mod tests {
                 neighbors: vec![],
                 vulnerabilities: vec![],
                 port_warnings: vec![],
-                security_grade: String::new(),
+                security_grade: SecurityGrade::Unknown,
             },
         ]
     }

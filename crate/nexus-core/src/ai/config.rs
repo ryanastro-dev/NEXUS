@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::ai::types::AiMode;
+use crate::config::runtime_env_var;
 
 const DEFAULT_AI_TIMEOUT_MS: u64 = 8000;
 const DEFAULT_OLLAMA_ENDPOINT: &str = "http://127.0.0.1:11434";
@@ -34,7 +35,7 @@ impl AiSettings {
     pub fn from_env() -> Self {
         let enabled = env_parse_bool("NEXUS_AI_ENABLED", false);
         let mode = if enabled {
-            env_var("NEXUS_AI_MODE")
+            runtime_env_var("NEXUS_AI_MODE")
                 .and_then(|v| AiMode::parse(&v))
                 .unwrap_or(AiMode::Local)
         } else {
@@ -45,15 +46,15 @@ impl AiSettings {
             enabled,
             mode,
             timeout_ms: env_parse_u64("NEXUS_AI_TIMEOUT_MS", DEFAULT_AI_TIMEOUT_MS, 500, 60_000),
-            ollama_endpoint: env_var("NEXUS_AI_ENDPOINT")
+            ollama_endpoint: runtime_env_var("NEXUS_AI_ENDPOINT")
                 .unwrap_or_else(|| DEFAULT_OLLAMA_ENDPOINT.to_string()),
-            ollama_model: env_var("NEXUS_AI_MODEL")
+            ollama_model: runtime_env_var("NEXUS_AI_MODEL")
                 .unwrap_or_else(|| DEFAULT_OLLAMA_MODEL.to_string()),
-            gemini_endpoint: env_var("NEXUS_AI_GEMINI_ENDPOINT")
+            gemini_endpoint: runtime_env_var("NEXUS_AI_GEMINI_ENDPOINT")
                 .unwrap_or_else(|| DEFAULT_GEMINI_ENDPOINT.to_string()),
-            gemini_model: env_var("NEXUS_AI_GEMINI_MODEL")
+            gemini_model: runtime_env_var("NEXUS_AI_GEMINI_MODEL")
                 .unwrap_or_else(|| DEFAULT_GEMINI_MODEL.to_string()),
-            gemini_api_key: env_var("NEXUS_AI_GEMINI_API_KEY"),
+            gemini_api_key: runtime_env_var("NEXUS_AI_GEMINI_API_KEY"),
             cloud_allow_sensitive: env_parse_bool("NEXUS_AI_CLOUD_ALLOW_SENSITIVE", false),
         }
     }
@@ -63,15 +64,8 @@ impl AiSettings {
     }
 }
 
-fn env_var(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-}
-
 fn env_parse_bool(name: &str, default: bool) -> bool {
-    match env_var(name) {
+    match runtime_env_var(name) {
         Some(value) => {
             let normalized = value.to_ascii_lowercase();
             match normalized.as_str() {
@@ -85,7 +79,7 @@ fn env_parse_bool(name: &str, default: bool) -> bool {
 }
 
 fn env_parse_u64(name: &str, default: u64, min: u64, max: u64) -> u64 {
-    match env_var(name).and_then(|v| v.parse::<u64>().ok()) {
+    match runtime_env_var(name).and_then(|v| v.parse::<u64>().ok()) {
         Some(v) => v.clamp(min, max),
         None => default,
     }

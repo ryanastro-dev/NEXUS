@@ -25,6 +25,7 @@ export interface DeviceWithVulns {
   vulnerabilities?: VulnerabilityInfo[];
   port_warnings?: PortWarning[];
   security_grade?: string;
+  risk_score?: number;
 }
 
 export interface ScanHostLike {
@@ -37,6 +38,7 @@ export interface ScanHostLike {
   vulnerabilities?: VulnerabilityInfo[];
   port_warnings?: PortWarning[];
   security_grade?: string;
+  risk_score?: number;
 }
 
 export interface VulnerabilityStats {
@@ -47,4 +49,3 @@ export interface VulnerabilityStats {
 }
 
 export type VulnerabilityFilter = 'all' | 'critical' | 'high' | 'medium' | 'secure';
-

@@ -9,7 +9,7 @@
 mod commands;
 mod demo_data;
 
-use commands::{AppState, MonitorState};
+use commands::{AppState, MonitorState, RouterState};
 use tauri::{Listener, Manager};
 
 fn focus_main_window(app: &tauri::AppHandle) {
@@ -60,6 +60,11 @@ fn main() {
 
     tracing::info!("Monitoring state initialized");
 
+    // Initialize router control state
+    let router_state = RouterState::new();
+
+    tracing::info!("Router control state initialized");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -78,15 +83,15 @@ fn main() {
             if let Some(main_window) = app.get_webview_window("main") {
                 let app_handle_for_close = app.handle().clone();
                 main_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        if should_keep_running_in_background(&app_handle_for_close) {
-                            tracing::info!(
-                                "Close intercepted while monitoring is active; app moved to background"
-                            );
-                            api.prevent_close();
-                            if let Some(window) = app_handle_for_close.get_webview_window("main") {
-                                let _ = window.hide();
-                            }
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                        && should_keep_running_in_background(&app_handle_for_close)
+                    {
+                        tracing::info!(
+                            "Close intercepted while monitoring is active; app moved to background"
+                        );
+                        api.prevent_close();
+                        if let Some(window) = app_handle_for_close.get_webview_window("main") {
+                            let _ = window.hide();
                         }
                     }
                 });
@@ -96,6 +101,7 @@ fn main() {
         })
         .manage(app_state)
         .manage(monitor_state)
+        .manage(router_state)
         .invoke_handler(tauri::generate_handler![
             // Scanner commands
             commands::scan::scan_network,
@@ -114,6 +120,7 @@ fn main() {
             commands::database::get_telemetry_series,
             // Database commands - Alerts
             commands::database::get_unread_alerts,
+            commands::database::get_recent_alerts,
             commands::database::mark_alert_read,
             commands::database::mark_all_alerts_read,
             commands::database::clear_all_alerts,
@@ -121,7 +128,17 @@ fn main() {
             commands::monitoring::start_monitoring,
             commands::monitoring::stop_monitoring,
             commands::monitoring::get_monitoring_status,
+            commands::monitoring::get_monitor_snapshot,
             commands::monitoring::get_runtime_diagnostics,
+            // Router control commands
+            commands::router::configure_router,
+            commands::router::get_router_provider,
+            commands::router::get_router_capabilities,
+            commands::router::get_router_status,
+            commands::router::list_router_clients,
+            commands::router::block_router_client,
+            commands::router::unblock_router_client,
+            commands::router::apply_router_policy,
             // AI Insights commands
             commands::insights::get_ai_settings,
             commands::insights::ai_check,
@@ -138,6 +155,7 @@ fn main() {
             commands::exports::export_scan_to_json,
             commands::exports::export_scan_report,
             commands::exports::export_security_report,
+            commands::exports::export_showcase_report,
             // Network Tools commands
             commands::tools::ping_host,
             commands::tools::scan_ports,

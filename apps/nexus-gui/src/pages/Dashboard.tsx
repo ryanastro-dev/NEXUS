@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react';
 
-import type { UseMonitoringReturn } from '../hooks/useMonitoring';
+import { useLanguage } from '../hooks/useLanguage';
+import { useMonitoring } from '../hooks/useMonitoring';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useScanContext } from '../hooks/useScan';
 import {
@@ -37,11 +38,9 @@ function resolveMonitoringStartPreferences(
   }
 }
 
-interface DashboardProps {
-  monitor: UseMonitoringReturn;
-}
-
-export default function Dashboard({ monitor }: DashboardProps) {
+export default function Dashboard() {
+  const { copy } = useLanguage();
+  const monitor = useMonitoring();
   const { scanResult } = useScanContext();
   const latestEvent = monitor.events[0];
   const {
@@ -65,7 +64,7 @@ export default function Dashboard({ monitor }: DashboardProps) {
       <div className="flex h-full items-center justify-center bg-bg-primary">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-10 w-10 animate-spin text-cyan-500" />
-          <p className="text-sm text-text-secondary">Loading command center...</p>
+          <p className="text-sm text-text-secondary">{copy.dashboard.loadingCommandCenter}</p>
         </div>
       </div>
     );

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface LatencyChartProps {
   data?: Array<{ time: string; value: number }>;
@@ -8,6 +9,8 @@ interface LatencyChartProps {
 
 export default function LatencyChart({ data = [] }: LatencyChartProps) {
   const { theme } = useTheme();
+  const { copy } = useLanguage();
+  const latencyCopy = copy.common.latencyChart;
   const isDark = theme === 'dark';
   const hasData = data.length > 0;
   const values = data.map((entry) => entry.value);
@@ -24,7 +27,7 @@ export default function LatencyChart({ data = [] }: LatencyChartProps) {
         <div className="bg-bg-secondary border border-theme rounded-lg px-3 py-2 shadow-lg">
           <p className="text-xs text-text-muted mb-1">{payload[0].payload.time}</p>
           <p className="text-sm font-semibold text-accent-blue">
-            {payload[0].value}ms
+            {payload[0].value}{latencyCopy.unitMs}
           </p>
         </div>
       );
@@ -41,8 +44,8 @@ export default function LatencyChart({ data = [] }: LatencyChartProps) {
     >
       {/* Header */}
       <div className="mb-4">
-        <h3 className="text-sm font-medium text-text-primary mb-1">Average Latency</h3>
-        <p className="text-xs text-text-muted">Response time over 24 hours</p>
+        <h3 className="text-sm font-medium text-text-primary mb-1">{latencyCopy.title}</h3>
+        <p className="text-xs text-text-muted">{latencyCopy.subtitle}</p>
       </div>
 
       {/* Chart */}
@@ -68,7 +71,7 @@ export default function LatencyChart({ data = [] }: LatencyChartProps) {
                 tick={{ fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                label={{ value: 'ms', angle: -90, position: 'insideLeft', fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
+                label={{ value: latencyCopy.unitMs, angle: -90, position: 'insideLeft', fill: isDark ? '#94A3B8' : '#64748B', fontSize: 11 }}
               />
               <Tooltip content={<CustomTooltip />} />
               <Area
@@ -83,7 +86,7 @@ export default function LatencyChart({ data = [] }: LatencyChartProps) {
           </ResponsiveContainer>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-text-muted">
-            No latency telemetry available
+            {latencyCopy.noTelemetry}
           </div>
         )}
       </div>
@@ -91,21 +94,21 @@ export default function LatencyChart({ data = [] }: LatencyChartProps) {
       {/* Footer Stats */}
       <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-theme">
         <div>
-          <p className="text-xs text-text-muted mb-1">Min</p>
+          <p className="text-xs text-text-muted mb-1">{latencyCopy.min}</p>
           <p className="text-lg font-bold text-accent-green">
-            {minLatency ?? '--'} <span className="text-xs font-normal text-text-muted">ms</span>
+            {minLatency ?? '--'} <span className="text-xs font-normal text-text-muted">{latencyCopy.unitMs}</span>
           </p>
         </div>
         <div>
-          <p className="text-xs text-text-muted mb-1">Avg</p>
+          <p className="text-xs text-text-muted mb-1">{latencyCopy.average}</p>
           <p className="text-lg font-bold text-text-primary">
-            {avgLatency ?? '--'} <span className="text-xs font-normal text-text-muted">ms</span>
+            {avgLatency ?? '--'} <span className="text-xs font-normal text-text-muted">{latencyCopy.unitMs}</span>
           </p>
         </div>
         <div>
-          <p className="text-xs text-text-muted mb-1">Max</p>
+          <p className="text-xs text-text-muted mb-1">{latencyCopy.max}</p>
           <p className="text-lg font-bold text-accent-amber">
-            {maxLatency ?? '--'} <span className="text-xs font-normal text-text-muted">ms</span>
+            {maxLatency ?? '--'} <span className="text-xs font-normal text-text-muted">{latencyCopy.unitMs}</span>
           </p>
         </div>
       </div>

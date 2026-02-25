@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { AlertTriangle, Info, CheckCircle, XCircle } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface Event {
   id: string;
@@ -41,6 +42,8 @@ const eventConfig = {
 };
 
 export default function RecentEventsPanel({ events = [], maxEvents = 5 }: RecentEventsPanelProps) {
+  const { copy } = useLanguage();
+  const recentEventsCopy = copy.common.recentEventsPanel;
   const displayEvents = events.slice(0, maxEvents);
 
   return (
@@ -52,14 +55,14 @@ export default function RecentEventsPanel({ events = [], maxEvents = 5 }: Recent
     >
       {/* Header */}
       <div className="mb-4">
-        <h3 className="text-sm font-medium text-text-primary mb-1">Recent Events</h3>
-        <p className="text-xs text-text-muted">Latest network activity and alerts</p>
+        <h3 className="text-sm font-medium text-text-primary mb-1">{recentEventsCopy.title}</h3>
+        <p className="text-xs text-text-muted">{recentEventsCopy.subtitle}</p>
       </div>
 
       {/* Events List */}
       <div className="space-y-3">
         {displayEvents.length === 0 ? (
-          <p className="text-center text-text-muted py-8 text-sm">No recent events</p>
+          <p className="text-center text-text-muted py-8 text-sm">{recentEventsCopy.noRecentEvents}</p>
         ) : (
           displayEvents.map((event, index) => {
             const config = eventConfig[event.type];

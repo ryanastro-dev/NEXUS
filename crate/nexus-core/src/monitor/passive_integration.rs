@@ -7,6 +7,7 @@ use crate::config::arp_passive_channel_capacity;
 use crate::monitor::events::{DeviceSnapshot, NetworkEvent};
 use crate::scanner::passive::mdns::PassiveDevice;
 use crate::scanner::passive::{ArpEvent, ArpMonitor, PassiveScanner};
+use anyhow::Result;
 use pnet::datalink::NetworkInterface;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -16,13 +17,10 @@ use tokio::sync::mpsc;
 /// Returns channels for mDNS and ARP events
 pub async fn start_passive_listeners(
     interface: &NetworkInterface,
-) -> Result<
-    (
-        mpsc::Receiver<PassiveDevice>,
-        Option<mpsc::Receiver<ArpEvent>>,
-    ),
-    Box<dyn std::error::Error>,
-> {
+) -> Result<(
+    mpsc::Receiver<PassiveDevice>,
+    Option<mpsc::Receiver<ArpEvent>>,
+)> {
     // mDNS listener
     let (mdns_tx, mdns_rx) = mpsc::channel(100);
     let mdns_scanner = PassiveScanner::new()?;
@@ -46,9 +44,7 @@ pub async fn start_passive_listeners(
 }
 
 /// Try to start ARP monitor (may fail without admin privileges)
-async fn try_start_arp_monitor(
-    interface: &NetworkInterface,
-) -> Result<mpsc::Receiver<ArpEvent>, Box<dyn std::error::Error>> {
+async fn try_start_arp_monitor(interface: &NetworkInterface) -> Result<mpsc::Receiver<ArpEvent>> {
     let channel_capacity = arp_passive_channel_capacity();
     let (tx, rx) = mpsc::channel(channel_capacity);
     tracing::debug!(

@@ -1,23 +1,31 @@
 import { useState, useMemo } from 'react';
 import { Search, WifiOff, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../hooks/useLanguage';
 import { useScanContext, HostInfo } from '../hooks/useScan';
 import DeviceCard from '../components/dashboard/DeviceCard';
 import DeviceSkeletonCard from '../components/dashboard/DeviceSkeletonCard';
+import { PANEL_CARD } from '../lib/ui-classes';
+import { useDeviceDetailStore } from '../store/device-detail-store';
+import { useNetworkRuntimeStore } from '../store/network-runtime-store';
 
 interface DeviceListProps {
   onDeviceClick?: (device: HostInfo) => void;
 }
 
-const CARD =
-  'rounded-2xl border border-slate-200/70 bg-white/85 backdrop-blur-sm shadow-sm dark:border-slate-800 dark:bg-slate-950/65';
+const CARD = PANEL_CARD;
 
 export default function DeviceList({ onDeviceClick }: DeviceListProps) {
+  const { copy } = useLanguage();
+  const devicesCopy = copy.devices;
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  
+
   const { scanResult, isScanning, tauriAvailable } = useScanContext();
-  const devices = scanResult?.active_hosts ?? [];
+  const openDeviceDetails = useDeviceDetailStore((state) => state.openDeviceDetails);
+  const runtimeHostsByMac = useNetworkRuntimeStore((state) => state.hostsByMac);
+  const runtimeHosts = useMemo(() => Object.values(runtimeHostsByMac), [runtimeHostsByMac]);
+  const devices = runtimeHosts.length > 0 ? runtimeHosts : (scanResult?.active_hosts ?? []);
 
   const isOnline = (device: HostInfo) => {
     if (device.response_time_ms !== null && device.response_time_ms !== undefined) {
@@ -65,14 +73,14 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
   
   // Tab configuration
   const tabs = [
-    { id: 'all', label: 'All Devices', count: devices.length },
-    { id: 'online', label: 'Online', count: onlineDevices.length },
-    { id: 'warning', label: 'Warning', count: warningDevices.length },
-    { id: 'offline', label: 'Offline', count: offlineDevices.length },
+    { id: 'all', label: devicesCopy.tabs.all, count: devices.length },
+    { id: 'online', label: devicesCopy.tabs.online, count: onlineDevices.length },
+    { id: 'warning', label: devicesCopy.tabs.warning, count: warningDevices.length },
+    { id: 'offline', label: devicesCopy.tabs.offline, count: offlineDevices.length },
   ];
 
-  const isInitialState = !scanResult && !isScanning;
-  const isScanningState = isScanning && !scanResult;
+  const isInitialState = devices.length === 0 && !isScanning;
+  const isScanningState = isScanning && devices.length === 0;
 
   return (
     <div className="relative h-full overflow-hidden bg-bg-primary p-3 sm:p-4 lg:p-5">
@@ -93,10 +101,12 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
             >
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4`}>
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                  Asset Inventory
+                  {devicesCopy.header.kicker}
                 </p>
-                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">Devices</h1>
-                <p className="mt-1.5 text-sm text-text-secondary">No scan data available.</p>
+                <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">
+                  {devicesCopy.header.title}
+                </h1>
+                <p className="mt-1.5 text-sm text-text-secondary">{devicesCopy.header.noData}</p>
               </div>
 
               <motion.div
@@ -110,26 +120,26 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
                     <WifiOff className="h-8 w-8" />
                   </div>
                   <h2 className="text-2xl font-bold text-text-primary sm:text-[2rem]">
-                    Ready to discover your devices
+                    {devicesCopy.emptyState.headline}
                   </h2>
                   <p className="mt-2 max-w-xl text-sm text-text-secondary sm:text-base">
-                    Start a network scan to populate inventory, classify device types, and unlock risk insights.
+                    {devicesCopy.emptyState.description}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] font-medium">
                     <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 text-text-muted">
-                      Live Inventory
+                      {devicesCopy.emptyState.liveInventory}
                     </span>
                     <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 text-text-muted">
-                      Online or Offline Status
+                      {devicesCopy.emptyState.onlineOfflineStatus}
                     </span>
                     <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 text-text-muted">
-                      Risk Overview
+                      {devicesCopy.emptyState.riskOverview}
                     </span>
                   </div>
                   <p className="mt-4 text-xs text-text-muted">
                     {tauriAvailable
-                      ? 'Use the top-right Start Scan button to begin discovery.'
-                      : 'Run with `npm run tauri dev` to enable scanning.'}
+                      ? devicesCopy.emptyState.hintTauri
+                      : devicesCopy.emptyState.hintBrowser}
                   </p>
                 </div>
               </motion.div>
@@ -148,12 +158,14 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4 flex items-center justify-between`}>
                 <div>
                   <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                    Asset Inventory
+                    {devicesCopy.header.kicker}
                   </p>
-                  <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">Devices</h1>
+                  <h1 className="mt-2 text-2xl font-black text-text-primary sm:text-3xl">
+                    {devicesCopy.header.title}
+                  </h1>
                   <p className="mt-1.5 text-sm text-text-secondary flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-accent-blue" />
-                    Scanning network...
+                    {devicesCopy.header.scanning}
                   </p>
                 </div>
               </div>
@@ -191,16 +203,18 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
             >
               <div className={`${CARD} shrink-0 p-3.5 sm:p-4`}>
                 <p className="text-xs uppercase tracking-[0.22em] text-cyan-600 dark:text-cyan-300">
-                  Asset Inventory
+                  {devicesCopy.header.kicker}
                 </p>
                 <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
-                  <h1 className="text-2xl font-black text-text-primary sm:text-3xl">Devices</h1>
+                  <h1 className="text-2xl font-black text-text-primary sm:text-3xl">
+                    {devicesCopy.header.title}
+                  </h1>
                   <span className="rounded-full border border-theme bg-bg-tertiary/70 px-2.5 py-1 text-xs font-semibold text-text-muted">
-                    {devices.length} discovered
+                    {devicesCopy.header.discovered.replace('{count}', String(devices.length))}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-text-secondary">
-                  Search, filter, and inspect discovered network assets by state and risk.
+                  {devicesCopy.header.subtitle}
                 </p>
               </div>
 
@@ -213,7 +227,7 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
                       type="text"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search by IP, MAC, hostname..."
+                      placeholder={devicesCopy.controls.searchPlaceholder}
                       className="h-8 w-full rounded-lg border border-theme bg-bg-tertiary pl-10 pr-4 text-[13px] text-text-primary placeholder:text-text-muted transition-all focus:outline-none focus:ring-2 focus:ring-accent-blue/50"
                     />
                   </div>
@@ -253,7 +267,9 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
                     })}
                   </div>
                   <span className="text-xs font-medium text-text-muted xl:min-w-[170px] xl:text-right">
-                    Showing {filteredDevices.length} of {devices.length} devices
+                    {devicesCopy.controls.showingOf
+                      .replace('{shown}', String(filteredDevices.length))
+                      .replace('{total}', String(devices.length))}
                   </span>
                 </div>
               </div>
@@ -268,7 +284,7 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
                   >
                     <WifiOff className="mb-2.5 h-10 w-10 text-text-muted" />
                     <p className="text-text-muted">
-                      {search ? 'No devices match your search' : 'No devices found'}
+                      {search ? devicesCopy.controls.noSearchMatch : devicesCopy.controls.noDevicesFound}
                     </p>
                   </motion.div>
                 ) : (
@@ -279,7 +295,7 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
                   >
                     {filteredDevices.map((device, index) => (
                       <motion.div
-                        key={device.ip}
+                        key={device.mac || device.ip}
                         className="h-full"
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -287,7 +303,13 @@ export default function DeviceList({ onDeviceClick }: DeviceListProps) {
                       >
                         <DeviceCard
                           device={device}
-                          onClick={() => onDeviceClick?.(device)}
+                          onClick={() => {
+                            if (onDeviceClick) {
+                              onDeviceClick(device);
+                              return;
+                            }
+                            openDeviceDetails(device);
+                          }}
                         />
                       </motion.div>
                     ))}
