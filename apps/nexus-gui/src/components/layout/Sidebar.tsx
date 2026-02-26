@@ -13,7 +13,6 @@ import {
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import AdminProfile from './AdminProfile';
 import { useSidebarCollapse } from '../../hooks/useSidebarCollapse';
 import { useLanguage } from '../../hooks/useLanguage';
 import { APP_VERSION } from '../../lib/app-version';
@@ -260,18 +259,14 @@ export default function Sidebar({
         ))}
       </nav>
 
-      {/* Admin Profile */}
+      {/* Version Footer */}
       <div className="border-t border-theme">
-        <AdminProfile isCollapsed={isCollapsed} />
-        <div className={clsx('px-3 pb-2', isCollapsed ? 'pt-0.5' : 'pt-1.5')}>
+        <div className={clsx('px-3 py-2', isCollapsed ? 'flex justify-center' : 'flex justify-start')}>
           <span
-            className={clsx(
-              'block text-[10px] text-text-muted',
-              isCollapsed ? 'text-center' : 'text-left',
-            )}
+            className="inline-flex items-center rounded-md border border-theme bg-bg-secondary/70 px-2 py-1 text-[10px] font-medium tracking-[0.08em] text-text-muted"
             title={`NEXUS GUI v${APP_VERSION}`}
           >
-            {isCollapsed ? `v${APP_VERSION}` : `GUI v${APP_VERSION}`}
+            {isCollapsed ? `v${APP_VERSION}` : `NEXUS v${APP_VERSION}`}
           </span>
         </div>
       </div>
