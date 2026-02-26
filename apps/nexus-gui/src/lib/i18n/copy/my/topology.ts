@@ -45,6 +45,8 @@ export const TOPOLOGY_COPY_MY: TopologyCopy = {
         fallbackTitle: 'Topology Discovery',
       },
       controls: {
+        twoDView: '2D View',
+        threeDView: '3D View',
         standardTheme: 'Standard Theme',
         cyberTheme: 'Cyber Theme',
         meshTheme: 'Mesh Theme',

@@ -1,11 +1,25 @@
 import { motion } from 'framer-motion';
-import { Lock, Unlock, Zap, Grid3x3, Share2, FileText, Loader2, Play, Pause } from 'lucide-react';
+import {
+  Lock,
+  Unlock,
+  Zap,
+  Grid3x3,
+  Share2,
+  FileText,
+  Loader2,
+  Play,
+  Pause,
+  Box,
+} from 'lucide-react';
 import { useAiStatus } from '../../hooks/useAiStatus';
 import { useLanguage } from '../../hooks/useLanguage';
 
 export type MappingDesign = 'default' | 'cyber' | 'mesh';
+export type TopologyViewMode = '2d' | '3d';
 
 interface TopologyControlsProps {
+  viewMode?: TopologyViewMode;
+  onViewModeChange?: (mode: TopologyViewMode) => void;
   isLocked: boolean;
   onLockToggle: () => void;
   mappingDesign: MappingDesign;
@@ -17,6 +31,8 @@ interface TopologyControlsProps {
 }
 
 export default function TopologyControls({
+  viewMode = '2d',
+  onViewModeChange,
   isLocked,
   onLockToggle,
   mappingDesign,
@@ -58,6 +74,28 @@ export default function TopologyControls({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
+      {onViewModeChange && (
+        <>
+          <button
+            onClick={() => onViewModeChange('2d')}
+            title={topologyCopy.controls.twoDView}
+            className={getButtonClass(viewMode === '2d')}
+          >
+            <Grid3x3 size={16} />
+          </button>
+
+          <button
+            onClick={() => onViewModeChange('3d')}
+            title={topologyCopy.controls.threeDView}
+            className={getButtonClass(viewMode === '3d')}
+          >
+            <Box size={16} />
+          </button>
+
+          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+        </>
+      )}
+
       {/* Theme Buttons */}
       <button
         onClick={() => onDesignChange('default')}

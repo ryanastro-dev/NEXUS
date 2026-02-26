@@ -473,6 +473,8 @@ export interface TopologyCopy {
     fallbackTitle: string;
   };
   controls: {
+    twoDView: string;
+    threeDView: string;
     standardTheme: string;
     cyberTheme: string;
     meshTheme: string;

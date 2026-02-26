@@ -7,7 +7,7 @@ import type { TroubleshootTarget } from '../components/topology/live-traffic-mon
 import DeviceNode from '../components/topology/DeviceNode';
 import CyberDeviceNode from '../components/topology/CyberDeviceNode';
 import MeshDeviceNode from '../components/topology/MeshDeviceNode';
-import type { MappingDesign } from '../components/topology/TopologyControls';
+import type { MappingDesign, TopologyViewMode } from '../components/topology/TopologyControls';
 import { useAssistant } from '../hooks/useAssistant';
 import { HostInfo, useScanContext } from '../hooks/useScan';
 import { useTheme } from '../hooks/useTheme';
@@ -18,6 +18,7 @@ import { useNetworkRuntimeStore } from '../store/network-runtime-store';
 import {
   TopologyAssistantOverlay,
   TopologyCanvas,
+  TopologyCanvas3D,
   TopologyEmptyState,
   TopologyLoadingState,
   phaseToStageIndex,
@@ -87,6 +88,10 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     if (saved === 'cyber' || saved === 'mesh') return saved;
     return 'default';
   });
+  const [viewMode, setViewMode] = useState<TopologyViewMode>(() => {
+    const saved = localStorage.getItem('topology-view-mode');
+    return saved === '3d' ? '3d' : '2d';
+  });
   const [isAutoPlay, setIsAutoPlay] = useState(() => {
     const saved = localStorage.getItem('topology-auto-play');
     return saved === 'true';
@@ -150,10 +155,10 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setEdges, setNodes]);
 
-  const onNodeClick: NodeMouseHandler = useCallback(
-    (_event, node) => {
+  const handleSelectNode = useCallback(
+    (nodeId: string) => {
       if (topologyHosts.length === 0) return;
-      const device = topologyHosts.find((host) => host.ip === node.id);
+      const device = topologyHosts.find((host) => host.ip === nodeId);
       if (device && onDeviceClick) {
         onDeviceClick(device);
       } else if (device) {
@@ -161,6 +166,13 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
       }
     },
     [onDeviceClick, openDeviceDetails, topologyHosts],
+  );
+
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      handleSelectNode(String(node.id));
+    },
+    [handleSelectNode],
   );
 
   const handleLockToggle = useCallback(() => {
@@ -184,6 +196,11 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
       localStorage.setItem('topology-auto-play', String(next));
       return next;
     });
+  }, []);
+
+  const handleViewModeChange = useCallback((mode: TopologyViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('topology-view-mode', mode);
   }, []);
 
   const themeConfig = useMemo(() => getMappingTheme(mappingDesign, isDark), [mappingDesign, isDark]);
@@ -276,41 +293,77 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     );
   } else {
     topologyContent = (
-      <TopologyCanvas
-        bgColor={bgColor}
-        controlsBg={controlsBg}
-        controlsBorder={controlsBorder}
-        controlsText={controlsText}
-        isDark={isDark}
-        isLocked={isLocked}
-        mappingDesign={mappingDesign}
-        themeConfig={themeConfig}
-        nodes={nodes}
-        enhancedEdges={enhancedEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
-        nodeTypes={nodeTypes}
-        onLockToggle={handleLockToggle}
-        onDesignChange={handleDesignChange}
-        isAutoPlay={isAutoPlay}
-        onAutoPlayToggle={handleAutoPlayToggle}
-        onGenerateReport={handleGenerateReport}
-        isGeneratingReport={isGeneratingReport}
-        assistantOverlay={
-          <TopologyAssistantOverlay
-            isDark={isDark}
-            isGeneratingReport={isGeneratingReport}
-            networkReport={networkReport}
-            networkReportError={networkReportError}
-            onCloseReport={clearNetworkReport}
-            isTroubleshooting={isTroubleshooting}
-            troubleshootAdvice={troubleshootAdvice}
-            troubleshootError={troubleshootError}
-            onCloseTroubleshoot={clearTroubleshootAdvice}
-          />
-        }
-      />
+      viewMode === '3d' ? (
+        <TopologyCanvas3D
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          bgColor={bgColor}
+          isDark={isDark}
+          isLocked={isLocked}
+          mappingDesign={mappingDesign}
+          themeConfig={themeConfig}
+          nodes={nodes}
+          enhancedEdges={enhancedEdges}
+          onNodeSelect={handleSelectNode}
+          onLockToggle={handleLockToggle}
+          onDesignChange={handleDesignChange}
+          isAutoPlay={isAutoPlay}
+          onAutoPlayToggle={handleAutoPlayToggle}
+          onGenerateReport={handleGenerateReport}
+          isGeneratingReport={isGeneratingReport}
+          assistantOverlay={
+            <TopologyAssistantOverlay
+              isDark={isDark}
+              isGeneratingReport={isGeneratingReport}
+              networkReport={networkReport}
+              networkReportError={networkReportError}
+              onCloseReport={clearNetworkReport}
+              isTroubleshooting={isTroubleshooting}
+              troubleshootAdvice={troubleshootAdvice}
+              troubleshootError={troubleshootError}
+              onCloseTroubleshoot={clearTroubleshootAdvice}
+            />
+          }
+        />
+      ) : (
+        <TopologyCanvas
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          bgColor={bgColor}
+          controlsBg={controlsBg}
+          controlsBorder={controlsBorder}
+          controlsText={controlsText}
+          isDark={isDark}
+          isLocked={isLocked}
+          mappingDesign={mappingDesign}
+          themeConfig={themeConfig}
+          nodes={nodes}
+          enhancedEdges={enhancedEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          onLockToggle={handleLockToggle}
+          onDesignChange={handleDesignChange}
+          isAutoPlay={isAutoPlay}
+          onAutoPlayToggle={handleAutoPlayToggle}
+          onGenerateReport={handleGenerateReport}
+          isGeneratingReport={isGeneratingReport}
+          assistantOverlay={
+            <TopologyAssistantOverlay
+              isDark={isDark}
+              isGeneratingReport={isGeneratingReport}
+              networkReport={networkReport}
+              networkReportError={networkReportError}
+              onCloseReport={clearNetworkReport}
+              isTroubleshooting={isTroubleshooting}
+              troubleshootAdvice={troubleshootAdvice}
+              troubleshootError={troubleshootError}
+              onCloseTroubleshoot={clearTroubleshootAdvice}
+            />
+          }
+        />
+      )
     );
   }
 

@@ -76,6 +76,29 @@ vi.mock('./topology-view', () => ({
       );
     })()
   ),
+  TopologyCanvas3D: ({
+    nodes,
+    enhancedEdges,
+    assistantOverlay,
+    onNodeSelect,
+  }: {
+    nodes: Array<{ id: string }>;
+    enhancedEdges: Array<{ id: string }>;
+    assistantOverlay: ReactNode;
+    onNodeSelect: (nodeId: string) => void;
+  }) => (
+    (() => {
+      topologyMocks.lastOnNodeClick = (_event: unknown, node: { id: string }) => {
+        onNodeSelect(node.id);
+      };
+      return (
+        <section data-testid="topology-canvas-3d">
+          nodes:{nodes.length} edges:{enhancedEdges.length}
+          {assistantOverlay}
+        </section>
+      );
+    })()
+  ),
   TopologyEmptyState: ({ tauriAvailable }: { tauriAvailable: boolean }) => (
     <section data-testid="topology-empty">{tauriAvailable ? 'tauri' : 'browser'}</section>
   ),
@@ -117,6 +140,7 @@ function setupCommonMocks() {
 describe('TopologyView snapshots', () => {
   beforeEach(() => {
     topologyMocks.lastOnNodeClick = null;
+    localStorage.removeItem('topology-view-mode');
     useDeviceDetailStore.getState().closeDeviceDetails();
     useNetworkRuntimeStore.setState({
       hostsByMac: {},

@@ -14,11 +14,16 @@ import {
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
-import TopologyControls, { MappingDesign } from '../../components/topology/TopologyControls';
+import TopologyControls, {
+  MappingDesign,
+  TopologyViewMode,
+} from '../../components/topology/TopologyControls';
 import type { MappingThemeConfig } from '../../lib/mapping-themes';
 import { DEVICE_TYPE_COLORS } from './constants';
 
 interface TopologyCanvasProps {
+  viewMode?: TopologyViewMode;
+  onViewModeChange?: (mode: TopologyViewMode) => void;
   bgColor: string;
   controlsBg: string;
   controlsBorder: string;
@@ -43,6 +48,8 @@ interface TopologyCanvasProps {
 }
 
 export function TopologyCanvas({
+  viewMode = '2d',
+  onViewModeChange,
   bgColor,
   controlsBg,
   controlsBorder,
@@ -75,6 +82,8 @@ export function TopologyCanvas({
         transition={{ delay: 0.2 }}
       >
         <TopologyControls
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
           isLocked={isLocked}
           onLockToggle={onLockToggle}
           mappingDesign={mappingDesign}
