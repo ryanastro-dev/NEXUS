@@ -65,15 +65,18 @@ fn main() {
 
     tracing::info!("Router control state initialized");
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            focus_main_window(app);
-            close_splash_window(app);
-        }))
-        .setup(|app| {
+        .plugin(tauri_plugin_fs::init());
+
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        focus_main_window(app);
+        close_splash_window(app);
+    }));
+
+    let builder = builder.setup(|app| {
             let app_handle = app.handle().clone();
             app.listen("ui-ready", move |_| {
                 focus_main_window(&app_handle);
@@ -96,9 +99,10 @@ fn main() {
                     }
                 });
             }
-
             Ok(())
-        })
+        });
+
+    builder
         .manage(app_state)
         .manage(monitor_state)
         .manage(router_state)
