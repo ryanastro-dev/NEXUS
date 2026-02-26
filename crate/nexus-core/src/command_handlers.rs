@@ -86,10 +86,52 @@ pub(crate) async fn scan_with_ai(
     }
 
     let ai_result = if context.ai_settings().enabled {
-        Some(
+        context.emit_event(AppEvent::Info {
+            message: "AI analysis started: generating overlay from latest scan data".to_string(),
+        });
+        context.emit_event(AppEvent::ScanPhase {
+            phase: "ai".to_string(),
+            progress_pct: 95,
+        });
+
+        let insights =
             generate_hybrid_insights_with_settings(&result.active_hosts, context.ai_settings())
-                .await,
-        )
+                .await;
+
+        if let Some(provider) = insights.ai_provider.as_deref() {
+            let model_suffix = insights
+                .ai_model
+                .as_deref()
+                .map(|model| format!(" ({})", model))
+                .unwrap_or_default();
+            context.emit_event(AppEvent::Info {
+                message: format!(
+                    "AI overlay completed via provider {}{}",
+                    provider, model_suffix
+                ),
+            });
+        } else if let Some(error) = insights.ai_error.as_deref() {
+            context.emit_event(AppEvent::Warn {
+                message: format!(
+                    "AI provider unavailable; deterministic fallback response used: {}",
+                    error
+                ),
+            });
+            context.emit_event(AppEvent::ScanPhase {
+                phase: "ai_fallback".to_string(),
+                progress_pct: 97,
+            });
+        } else {
+            context.emit_event(AppEvent::Warn {
+                message: "AI overlay unavailable; deterministic fallback response used".to_string(),
+            });
+            context.emit_event(AppEvent::ScanPhase {
+                phase: "ai_fallback".to_string(),
+                progress_pct: 97,
+            });
+        }
+
+        Some(insights)
     } else {
         None
     };

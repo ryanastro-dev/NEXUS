@@ -1,11 +1,26 @@
 import { motion } from 'framer-motion';
-import { Lock, Unlock, Zap, Grid3x3, Share2, FileText, Loader2, Play, Pause } from 'lucide-react';
+import {
+  Lock,
+  Unlock,
+  Zap,
+  Grid3x3,
+  Share2,
+  FileText,
+  Loader2,
+  Play,
+  Pause,
+  Box,
+  Orbit,
+} from 'lucide-react';
 import { useAiStatus } from '../../hooks/useAiStatus';
 import { useLanguage } from '../../hooks/useLanguage';
 
-export type MappingDesign = 'default' | 'cyber' | 'mesh';
+export type MappingDesign = 'default' | 'cyber' | 'mesh' | 'starlink';
+export type TopologyViewMode = '2d' | '3d';
 
 interface TopologyControlsProps {
+  viewMode?: TopologyViewMode;
+  onViewModeChange?: (mode: TopologyViewMode) => void;
   isLocked: boolean;
   onLockToggle: () => void;
   mappingDesign: MappingDesign;
@@ -17,6 +32,8 @@ interface TopologyControlsProps {
 }
 
 export default function TopologyControls({
+  viewMode = '2d',
+  onViewModeChange,
   isLocked,
   onLockToggle,
   mappingDesign,
@@ -33,15 +50,15 @@ export default function TopologyControls({
 
   const getButtonClass = (isActive: boolean, isLock?: boolean) => {
     const base = 'flex items-center justify-center w-8 h-8 rounded-lg border-none cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
-    
+
     if (isLock && isActive) {
       return `${base} bg-orange-500/20 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400`;
     }
-    
+
     if (isActive) {
       return `${base} bg-cyan-500/15 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-300`;
     }
-    
+
     return `${base} bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50`;
   };
 
@@ -58,6 +75,28 @@ export default function TopologyControls({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
+      {onViewModeChange && (
+        <>
+          <button
+            onClick={() => onViewModeChange('2d')}
+            title={topologyCopy.controls.twoDView}
+            className={getButtonClass(viewMode === '2d')}
+          >
+            <Grid3x3 size={16} />
+          </button>
+
+          <button
+            onClick={() => onViewModeChange('3d')}
+            title={topologyCopy.controls.threeDView}
+            className={getButtonClass(viewMode === '3d')}
+          >
+            <Box size={16} />
+          </button>
+
+          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+        </>
+      )}
+
       {/* Theme Buttons */}
       <button
         onClick={() => onDesignChange('default')}
@@ -66,7 +105,7 @@ export default function TopologyControls({
       >
         <Grid3x3 size={16} />
       </button>
-      
+
       <button
         onClick={() => onDesignChange('cyber')}
         title={topologyCopy.controls.cyberTheme}
@@ -74,13 +113,21 @@ export default function TopologyControls({
       >
         <Zap size={16} />
       </button>
-      
+
       <button
         onClick={() => onDesignChange('mesh')}
         title={topologyCopy.controls.meshTheme}
         className={getButtonClass(mappingDesign === 'mesh')}
       >
         <Share2 size={16} />
+      </button>
+
+      <button
+        onClick={() => onDesignChange('starlink')}
+        title={topologyCopy.controls.starlinkTheme}
+        className={getButtonClass(mappingDesign === 'starlink')}
+      >
+        <Orbit size={16} />
       </button>
 
       {onAutoPlayToggle && (

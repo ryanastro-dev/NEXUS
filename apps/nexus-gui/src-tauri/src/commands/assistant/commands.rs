@@ -10,20 +10,143 @@ use super::types::{DeviceSecurityAnalysis, DeviceTroubleshootAdvice, NetworkRepo
 use super::utils::{metadata_from_insights, non_empty_or_fallback, risk_level, target_label};
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::shared::{get_db_connection, lock_db_connection};
+use crate::commands::shared::{
+    emit_engine_error, emit_engine_info, emit_engine_scan_phase, emit_engine_warn,
+    get_db_connection, lock_db_connection,
+};
 use crate::commands::state::AppState;
 
+const DEVICE_SECURITY_OP: &str = "device_security";
+const NETWORK_REPORT_OP: &str = "network_report";
+const TROUBLESHOOT_OP: &str = "troubleshoot";
+
+fn assistant_message(operation: &str, stage: &str, message: &str) -> String {
+    format!("[assistant][{}][{}] {}", operation, stage, message)
+}
+
+fn emit_assistant_info(
+    app: &tauri::AppHandle,
+    operation: &str,
+    stage: &str,
+    progress_pct: u8,
+    message: impl Into<String>,
+) {
+    let message = message.into();
+    emit_engine_info(app, assistant_message(operation, stage, &message));
+    emit_engine_scan_phase(
+        app,
+        format!("assistant_{}_{}", operation, stage),
+        progress_pct.min(100),
+    );
+}
+
+fn emit_assistant_warn(
+    app: &tauri::AppHandle,
+    operation: &str,
+    stage: &str,
+    message: impl Into<String>,
+) {
+    let message = message.into();
+    emit_engine_warn(app, assistant_message(operation, stage, &message));
+}
+
+fn emit_assistant_error(
+    app: &tauri::AppHandle,
+    operation: &str,
+    stage: &str,
+    message: impl Into<String>,
+) {
+    let message = message.into();
+    emit_engine_error(app, assistant_message(operation, stage, &message));
+}
+
+fn provider_label(provider: Option<&str>, model: Option<&str>) -> Option<String> {
+    provider.map(|provider_name| {
+        model
+            .map(|model_name| format!("{} ({})", provider_name, model_name))
+            .unwrap_or_else(|| provider_name.to_string())
+    })
+}
+
 pub(super) async fn ai_analyze_device_security_impl(
+    app: &tauri::AppHandle,
     device: HostInfo,
 ) -> CommandResult<DeviceSecurityAnalysis> {
+    emit_assistant_info(
+        app,
+        DEVICE_SECURITY_OP,
+        "start",
+        5,
+        format!(
+            "Starting device security analysis for {}",
+            target_label(&device)
+        ),
+    );
+    emit_assistant_info(
+        app,
+        DEVICE_SECURITY_OP,
+        "validate",
+        12,
+        "Validating device context",
+    );
+
     if device.ip.trim().is_empty() {
+        emit_assistant_warn(
+            app,
+            DEVICE_SECURITY_OP,
+            "invalid_input",
+            "Device IP is required for security analysis",
+        );
         return Err(CommandError::invalid_input(
             "Device IP is required for security analysis",
         ));
     }
 
+    emit_assistant_info(
+        app,
+        DEVICE_SECURITY_OP,
+        "ai_invoke",
+        38,
+        "Requesting hybrid AI insights",
+    );
     let insights = generate_hybrid_insights(std::slice::from_ref(&device)).await;
     let metadata = metadata_from_insights(&insights);
+    if let Some(provider) = provider_label(metadata.provider.as_deref(), metadata.model.as_deref())
+    {
+        emit_assistant_info(
+            app,
+            DEVICE_SECURITY_OP,
+            "provider",
+            72,
+            format!("AI overlay generated via {}", provider),
+        );
+    } else if let Some(ai_error) = metadata.ai_error.as_deref() {
+        emit_assistant_warn(
+            app,
+            DEVICE_SECURITY_OP,
+            "fallback",
+            format!(
+                "AI unavailable; using deterministic fallback ({})",
+                ai_error
+            ),
+        );
+        emit_engine_scan_phase(app, "assistant_device_security_fallback", 72);
+    } else {
+        emit_assistant_warn(
+            app,
+            DEVICE_SECURITY_OP,
+            "fallback",
+            "AI unavailable; using deterministic fallback",
+        );
+        emit_engine_scan_phase(app, "assistant_device_security_fallback", 72);
+    }
+    emit_assistant_info(
+        app,
+        DEVICE_SECURITY_OP,
+        "compose",
+        88,
+        "Composing prioritized findings and actions",
+    );
 
     let key_findings = if let Some(overlay) = insights.ai_overlay.as_ref() {
         non_empty_or_fallback(&overlay.top_risks, fallback_device_findings(&device))
@@ -45,6 +168,14 @@ pub(super) async fn ai_analyze_device_security_impl(
         .map(|overlay| overlay.executive_summary.clone())
         .unwrap_or_else(|| fallback_device_summary(&device));
 
+    emit_assistant_info(
+        app,
+        DEVICE_SECURITY_OP,
+        "complete",
+        100,
+        "Device security analysis ready",
+    );
+
     Ok(DeviceSecurityAnalysis {
         target: target_label(&device),
         ip: device.ip.clone(),
@@ -60,19 +191,90 @@ pub(super) async fn ai_analyze_device_security_impl(
 
 pub(super) async fn ai_generate_network_report_impl(
     state: tauri::State<'_, AppState>,
+    app: &tauri::AppHandle,
     hosts: Option<Vec<HostInfo>>,
     subnet: Option<String>,
 ) -> CommandResult<NetworkReportSummary> {
-    let resolved_hosts = resolve_hosts(&state, hosts)?;
+    emit_assistant_info(
+        app,
+        NETWORK_REPORT_OP,
+        "start",
+        5,
+        "Starting network report generation",
+    );
+    emit_assistant_info(
+        app,
+        NETWORK_REPORT_OP,
+        "resolve_hosts",
+        15,
+        "Resolving hosts for report context",
+    );
+    let resolved_hosts = resolve_hosts(&state, hosts).inspect_err(|error| {
+        emit_assistant_error(
+            app,
+            NETWORK_REPORT_OP,
+            "resolve_hosts_failed",
+            format!("Failed to resolve hosts: {}", error),
+        );
+    })?;
+    emit_assistant_info(
+        app,
+        NETWORK_REPORT_OP,
+        "hosts_ready",
+        24,
+        format!("Resolved {} hosts for report", resolved_hosts.len()),
+    );
 
     if resolved_hosts.is_empty() {
+        emit_assistant_warn(
+            app,
+            NETWORK_REPORT_OP,
+            "empty_hosts",
+            "No scan hosts available. Run a scan first.",
+        );
         return Err(CommandError::invalid_input(
             "No scan hosts available. Run a scan first.",
         ));
     }
 
+    emit_assistant_info(
+        app,
+        NETWORK_REPORT_OP,
+        "ai_invoke",
+        42,
+        "Requesting hybrid AI insights for report summary",
+    );
     let insights = generate_hybrid_insights(&resolved_hosts).await;
     let metadata = metadata_from_insights(&insights);
+    if let Some(provider) = provider_label(metadata.provider.as_deref(), metadata.model.as_deref())
+    {
+        emit_assistant_info(
+            app,
+            NETWORK_REPORT_OP,
+            "provider",
+            70,
+            format!("AI overlay generated via {}", provider),
+        );
+    } else if let Some(ai_error) = metadata.ai_error.as_deref() {
+        emit_assistant_warn(
+            app,
+            NETWORK_REPORT_OP,
+            "fallback",
+            format!(
+                "AI unavailable; using deterministic fallback ({})",
+                ai_error
+            ),
+        );
+        emit_engine_scan_phase(app, "assistant_network_report_fallback", 70);
+    } else {
+        emit_assistant_warn(
+            app,
+            NETWORK_REPORT_OP,
+            "fallback",
+            "AI unavailable; using deterministic fallback",
+        );
+        emit_engine_scan_phase(app, "assistant_network_report_fallback", 70);
+    }
 
     let total_hosts = resolved_hosts.len();
     let online_hosts = resolved_hosts
@@ -134,6 +336,17 @@ pub(super) async fn ai_generate_network_report_impl(
         fallback_network_actions(&insights)
     };
 
+    emit_assistant_info(
+        app,
+        NETWORK_REPORT_OP,
+        "complete",
+        100,
+        format!(
+            "Network report ready (total_hosts={}, online={}, offline={})",
+            total_hosts, online_hosts, offline_hosts
+        ),
+    );
+
     Ok(NetworkReportSummary {
         generated_at: Utc::now().to_rfc3339(),
         subnet,
@@ -149,17 +362,84 @@ pub(super) async fn ai_generate_network_report_impl(
 }
 
 pub(super) async fn ai_troubleshoot_device_impl(
+    app: &tauri::AppHandle,
     device: HostInfo,
     symptoms: Option<Vec<String>>,
 ) -> CommandResult<DeviceTroubleshootAdvice> {
+    emit_assistant_info(
+        app,
+        TROUBLESHOOT_OP,
+        "start",
+        5,
+        format!(
+            "Starting troubleshooting analysis for {}",
+            target_label(&device)
+        ),
+    );
+    emit_assistant_info(
+        app,
+        TROUBLESHOOT_OP,
+        "validate",
+        12,
+        "Validating device troubleshooting context",
+    );
     if device.ip.trim().is_empty() {
+        emit_assistant_warn(
+            app,
+            TROUBLESHOOT_OP,
+            "invalid_input",
+            "Device IP is required for troubleshooting",
+        );
         return Err(CommandError::invalid_input(
             "Device IP is required for troubleshooting",
         ));
     }
 
+    emit_assistant_info(
+        app,
+        TROUBLESHOOT_OP,
+        "ai_invoke",
+        38,
+        "Requesting hybrid AI insights for troubleshooting",
+    );
     let insights = generate_hybrid_insights(std::slice::from_ref(&device)).await;
     let metadata = metadata_from_insights(&insights);
+    if let Some(provider) = provider_label(metadata.provider.as_deref(), metadata.model.as_deref())
+    {
+        emit_assistant_info(
+            app,
+            TROUBLESHOOT_OP,
+            "provider",
+            72,
+            format!("AI overlay generated via {}", provider),
+        );
+    } else if let Some(ai_error) = metadata.ai_error.as_deref() {
+        emit_assistant_warn(
+            app,
+            TROUBLESHOOT_OP,
+            "fallback",
+            format!(
+                "AI unavailable; using deterministic fallback ({})",
+                ai_error
+            ),
+        );
+        emit_engine_scan_phase(app, "assistant_troubleshoot_fallback", 72);
+    } else {
+        emit_assistant_warn(
+            app,
+            TROUBLESHOOT_OP,
+            "fallback",
+            "AI unavailable; using deterministic fallback",
+        );
+        emit_engine_scan_phase(app, "assistant_troubleshoot_fallback", 72);
+    }
+    emit_assistant_info(
+        app,
+        TROUBLESHOOT_OP,
+        "compose",
+        88,
+        "Composing likely causes and diagnostic steps",
+    );
 
     let status = if device.response_time_ms.is_some() {
         "online"
@@ -193,6 +473,14 @@ pub(super) async fn ai_troubleshoot_device_impl(
     };
 
     let suggested_commands = build_troubleshoot_commands(&device, &status);
+
+    emit_assistant_info(
+        app,
+        TROUBLESHOOT_OP,
+        "complete",
+        100,
+        "Troubleshooting advice ready",
+    );
 
     Ok(DeviceTroubleshootAdvice {
         target: target_label(&device),

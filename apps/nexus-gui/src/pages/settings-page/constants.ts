@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: LocalSettings = {
   aiEnabled: false,
   aiMode: "disabled",
   autoAiOnDeviceOpen: true,
-  aiTimeoutMs: 8000,
+  aiTimeoutMs: 20000,
   ollamaEndpoint: "http://127.0.0.1:11434",
   ollamaModel: "qwen3:8b",
   geminiEndpoint: "https://generativelanguage.googleapis.com",

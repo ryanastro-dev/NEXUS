@@ -473,9 +473,12 @@ export interface TopologyCopy {
     fallbackTitle: string;
   };
   controls: {
+    twoDView: string;
+    threeDView: string;
     standardTheme: string;
     cyberTheme: string;
     meshTheme: string;
+    starlinkTheme: string;
     startAutoPlay: string;
     stopAutoPlay: string;
     autoPlayBadge: string;
@@ -490,6 +493,11 @@ export interface TopologyCopy {
     hostsSummary: string;
     troubleshoot: string;
     collectingTroubleshoot: string;
+    aiSource: string;
+    aiSourceAiPowered: string;
+    aiSourceRuleBased: string;
+    provider: string;
+    aiError: string;
   };
   liveMonitor: {
     title: string;
@@ -621,6 +629,11 @@ export interface DevicesCopy {
       aiRemediation: string;
       generatingActions: string;
       clickRunHint: string;
+      aiSource: string;
+      aiSourceAiPowered: string;
+      aiSourceRuleBased: string;
+      provider: string;
+      aiError: string;
       cvss: string;
       portLabel: string;
       recommendationPrefix: string;
@@ -817,6 +830,9 @@ export interface ToolsCopy {
     interfaceLabel: string;
     hosts: string;
     duration: string;
+    aiSource: string;
+    aiSourceAiPowered: string;
+    aiSourceRuleBased: string;
     aiOverlay: string;
     available: string;
     notAvailable: string;
@@ -833,6 +849,18 @@ export interface ToolsCopy {
     loadError: string;
     aiOverlaySummary: string;
     provider: string;
+    aiLatencyTelemetryTitle: string;
+    telemetryStatusLabel: string;
+    telemetryStartMsLabel: string;
+    telemetryEndMsLabel: string;
+    telemetryDurationMsLabel: string;
+    telemetryAverageMsLabel: string;
+    telemetrySamplesLabel: string;
+    telemetryStatusIdle: string;
+    telemetryStatusRunning: string;
+    telemetryStatusSuccess: string;
+    telemetryStatusError: string;
+    telemetryNotCaptured: string;
     warningPrefix: string;
     errorPrefix: string;
     phasePrefix: string;

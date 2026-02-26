@@ -5,13 +5,13 @@ use crate::insights::SecurityReport;
 
 use super::core::{
     FONT_SIZE_BODY, FONT_SIZE_SUBHEADING, FONT_SIZE_TITLE, PAGE_MARGIN_X_MM, PAGE_START_Y_MM,
-    add_line, build_pdf_bytes, draw_section_header, ensure_space,
+    PdfPage, add_line, build_pdf_bytes, draw_section_header, ensure_space,
 };
 use super::text::wrap_text;
 
 /// Generate a network health PDF report
 pub fn generate_network_health_pdf(recommendations: &SecurityReport) -> Result<Vec<u8>> {
-    let mut pages: Vec<Vec<super::core::TextLine>> = vec![Vec::new()];
+    let mut pages: Vec<PdfPage> = vec![Vec::new()];
     let mut y_pos = PAGE_START_Y_MM;
 
     add_line(

@@ -76,6 +76,29 @@ vi.mock('./topology-view', () => ({
       );
     })()
   ),
+  TopologyCanvas3D: ({
+    nodes,
+    enhancedEdges,
+    assistantOverlay,
+    onNodeSelect,
+  }: {
+    nodes: Array<{ id: string }>;
+    enhancedEdges: Array<{ id: string }>;
+    assistantOverlay: ReactNode;
+    onNodeSelect: (nodeId: string) => void;
+  }) => (
+    (() => {
+      topologyMocks.lastOnNodeClick = (_event: unknown, node: { id: string }) => {
+        onNodeSelect(node.id);
+      };
+      return (
+        <section data-testid="topology-canvas-3d">
+          nodes:{nodes.length} edges:{enhancedEdges.length}
+          {assistantOverlay}
+        </section>
+      );
+    })()
+  ),
   TopologyEmptyState: ({ tauriAvailable }: { tauriAvailable: boolean }) => (
     <section data-testid="topology-empty">{tauriAvailable ? 'tauri' : 'browser'}</section>
   ),
@@ -90,13 +113,41 @@ function setupCommonMocks() {
     isGeneratingReport: false,
     networkReport: null,
     networkReportError: null,
+    networkReportProgressMessage: null,
     generateNetworkReport: vi.fn(),
     clearNetworkReport: vi.fn(),
     isTroubleshooting: false,
     troubleshootAdvice: null,
     troubleshootError: null,
+    troubleshootProgressMessage: null,
     troubleshootDevice: vi.fn(),
     clearTroubleshootAdvice: vi.fn(),
+    aiActionTelemetry: {
+      device_security: {
+        start_ms: null,
+        end_ms: null,
+        duration_ms: null,
+        avg_duration_ms: null,
+        samples: 0,
+        status: 'idle',
+      },
+      network_report: {
+        start_ms: null,
+        end_ms: null,
+        duration_ms: null,
+        avg_duration_ms: null,
+        samples: 0,
+        status: 'idle',
+      },
+      troubleshoot: {
+        start_ms: null,
+        end_ms: null,
+        duration_ms: null,
+        avg_duration_ms: null,
+        samples: 0,
+        status: 'idle',
+      },
+    },
   });
   topologyMocks.getMappingTheme.mockReturnValue({
     nodeComponent: 'default',
@@ -117,6 +168,7 @@ function setupCommonMocks() {
 describe('TopologyView snapshots', () => {
   beforeEach(() => {
     topologyMocks.lastOnNodeClick = null;
+    localStorage.removeItem('topology-view-mode');
     useDeviceDetailStore.getState().closeDeviceDetails();
     useNetworkRuntimeStore.setState({
       hostsByMac: {},

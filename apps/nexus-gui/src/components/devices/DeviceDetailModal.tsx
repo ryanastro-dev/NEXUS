@@ -64,6 +64,8 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
     isAnalyzingDevice,
     deviceSecurityAnalysis,
     deviceError,
+    deviceProgressMessage,
+    aiActionTelemetry,
     analyzeDeviceSecurity,
     clearDeviceAnalysis,
   } = useAssistant();
@@ -156,7 +158,9 @@ export default function DeviceDetailModal({ device, onClose }: DeviceDetailModal
             isDark={isDark}
             analysis={deviceSecurityAnalysis}
             isAnalyzing={isAnalyzingDevice}
+            analysisProgressMessage={deviceProgressMessage}
             error={deviceError}
+            aiLatencyTelemetry={aiActionTelemetry.device_security}
           />
 
           <DeviceSummaryCards isDark={isDark} isOnline={isOnline} riskScore={device.risk_score} />

@@ -25,7 +25,7 @@ pub(super) async fn apply_provider_result<P: AiProvider>(
                 "gemini" => "Cloud",
                 _ => "AI",
             };
-            result.ai_error = Some(format!("{} AI failed: {}", capitalized, e));
+            result.ai_error = Some(format!("{} AI failed: {:#}", capitalized, e));
         }
     }
 }

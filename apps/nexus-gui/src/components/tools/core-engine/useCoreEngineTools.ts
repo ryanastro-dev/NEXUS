@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
+import {
+  beginAiActionTelemetry,
+  createAiActionTelemetry,
+  finishAiActionTelemetry,
+  type AiActionTelemetry,
+} from '../../../lib/ai-action-telemetry';
 import { eventClient } from '../../../lib/api/event-client';
 import { tauriClient } from '../../../lib/api/tauri-client';
 import type {
@@ -14,6 +20,11 @@ import type {
 } from '../../../lib/api/types';
 import { isTauri } from '../../../lib/runtime/is-tauri';
 import { useLanguage } from '../../../hooks/useLanguage';
+
+interface CoreEngineAiActionTelemetry {
+  scan_with_ai: AiActionTelemetry;
+  ai_insights: AiActionTelemetry;
+}
 
 function resolveAiReadinessMessage(
   settings: AiSettings,
@@ -110,6 +121,10 @@ export function useCoreEngineTools() {
   const [aiReadinessLoading, setAiReadinessLoading] = useState(true);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [aiReadinessMessage, setAiReadinessMessage] = useState<string | null>(null);
+  const [aiActionTelemetry, setAiActionTelemetry] = useState<CoreEngineAiActionTelemetry>({
+    scan_with_ai: createAiActionTelemetry(),
+    ai_insights: createAiActionTelemetry(),
+  });
 
   useEffect(() => {
     tauriClient.getInterfaces().then(setInterfaces).catch(() => setInterfaces([]));
@@ -154,7 +169,7 @@ export function useCoreEngineTools() {
       disposed = true;
       window.removeEventListener('ai-status-refresh', onAiSettingsRefresh);
     };
-  }, []);
+  }, [coreEngineCopy]);
 
   useEffect(() => {
     if (!isTauri()) {
@@ -209,20 +224,39 @@ export function useCoreEngineTools() {
   const handleScanWithAi = async () => {
     setScanLoading(true);
     setScanError(null);
+    const startedAtMs = Date.now();
+    setAiActionTelemetry((previous) => ({
+      ...previous,
+      scan_with_ai: beginAiActionTelemetry(previous.scan_with_ai, startedAtMs),
+    }));
     try {
-      const readiness = await runAiReadinessCheckWithCopy(coreEngineCopy);
-      setAiReady(readiness.ready);
-      setAiReadinessMessage(readiness.message);
-
-      if (!readiness.ready) {
-        setScanError(readiness.message);
-        return;
-      }
-
       const result = await tauriClient.scanNetworkWithAi(chosenInterface);
       setScanResult(result);
+      setAiActionTelemetry((previous) => ({
+        ...previous,
+        scan_with_ai: finishAiActionTelemetry(
+          previous.scan_with_ai,
+          startedAtMs,
+          Date.now(),
+          'success',
+        ),
+      }));
     } catch (error) {
-      setScanError(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setScanError(message);
+      setAiActionTelemetry((previous) => ({
+        ...previous,
+        scan_with_ai: finishAiActionTelemetry(
+          previous.scan_with_ai,
+          startedAtMs,
+          Date.now(),
+          'error',
+        ),
+      }));
+      if (message.toLowerCase().includes('readiness guard')) {
+        setAiReady(false);
+        setAiReadinessMessage(message);
+      }
     } finally {
       setScanLoading(false);
     }
@@ -231,11 +265,34 @@ export function useCoreEngineTools() {
   const handleAiInsights = async () => {
     setInsightsLoading(true);
     setInsightsError(null);
+    const startedAtMs = Date.now();
+    setAiActionTelemetry((previous) => ({
+      ...previous,
+      ai_insights: beginAiActionTelemetry(previous.ai_insights, startedAtMs),
+    }));
     try {
       const result = await tauriClient.getAiInsights();
       setInsightsResult(result);
+      setAiActionTelemetry((previous) => ({
+        ...previous,
+        ai_insights: finishAiActionTelemetry(
+          previous.ai_insights,
+          startedAtMs,
+          Date.now(),
+          'success',
+        ),
+      }));
     } catch (error) {
       setInsightsError(error instanceof Error ? error.message : String(error));
+      setAiActionTelemetry((previous) => ({
+        ...previous,
+        ai_insights: finishAiActionTelemetry(
+          previous.ai_insights,
+          startedAtMs,
+          Date.now(),
+          'error',
+        ),
+      }));
     } finally {
       setInsightsLoading(false);
     }
@@ -317,6 +374,7 @@ export function useCoreEngineTools() {
     aiReadinessLoading,
     aiReady,
     aiReadinessMessage,
+    aiActionTelemetry,
     aiOverlaySummary,
     aiProviderLabel,
     handleScanWithAi,

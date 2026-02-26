@@ -42,9 +42,10 @@ impl AiProvider for GeminiProvider {
         Box::pin(async move {
             let prompt = build_prompt(input)?;
             let endpoint = self.endpoint.trim_end_matches('/');
+            let model_path = normalize_model_path(&self.model);
             let url = format!(
                 "{}/v1beta/models/{}:generateContent?key={}",
-                endpoint, self.model, self.api_key
+                endpoint, model_path, self.api_key
             );
 
             let response = client
@@ -90,5 +91,23 @@ impl AiProvider for GeminiProvider {
 
             parse_overlay_json(text)
         })
+    }
+}
+
+fn normalize_model_path(model: &str) -> &str {
+    model.strip_prefix("models/").unwrap_or(model)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_model_path;
+
+    #[test]
+    fn normalize_model_path_handles_models_prefix() {
+        assert_eq!(
+            normalize_model_path("models/gemini-3.1-pro"),
+            "gemini-3.1-pro"
+        );
+        assert_eq!(normalize_model_path("gemini-3.1-pro"), "gemini-3.1-pro");
     }
 }

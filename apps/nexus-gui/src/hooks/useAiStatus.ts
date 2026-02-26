@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { create } from 'zustand';
 
 import { tauriClient } from '../lib/api/tauri-client';
 import type { AiCheckReport, AiMode, AiSettings } from '../lib/api/types';
@@ -18,6 +19,109 @@ export interface AiPillState {
 }
 
 const REFRESH_MS = 180_000;
+const AI_STATUS_REFRESH_EVENT = 'ai-status-refresh';
+
+interface AiStatusStoreState {
+  loading: boolean;
+  settings: AiSettings | null;
+  report: AiCheckReport | null;
+  error: string | null;
+  refresh: () => Promise<void>;
+}
+
+let refreshInFlight: Promise<void> | null = null;
+let activeSubscribers = 0;
+let refreshTimer: number | null = null;
+let refreshEventHandler: (() => void) | null = null;
+
+const useAiStatusStore = create<AiStatusStoreState>((set) => ({
+  loading: true,
+  settings: null,
+  report: null,
+  error: null,
+  refresh: async () => {
+    if (refreshInFlight) {
+      return refreshInFlight;
+    }
+
+    const run = async () => {
+      set({ loading: true, error: null });
+
+      try {
+        const [nextSettings, nextReport] = await Promise.all([
+          tauriClient.getAiSettings(),
+          tauriClient.runAiCheck(),
+        ]);
+
+        set({
+          settings: nextSettings,
+          report: nextReport,
+          error: null,
+        });
+      } catch (refreshError) {
+        set({
+          error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+        });
+      } finally {
+        set({ loading: false });
+      }
+    };
+
+    refreshInFlight = run().finally(() => {
+      refreshInFlight = null;
+    });
+
+    return refreshInFlight;
+  },
+}));
+
+function startGlobalPolling(refresh: () => Promise<void>) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (refreshTimer !== null) {
+    return;
+  }
+
+  void refresh();
+  refreshTimer = window.setInterval(() => {
+    void refresh();
+  }, REFRESH_MS);
+
+  refreshEventHandler = () => {
+    void refresh();
+  };
+  window.addEventListener(AI_STATUS_REFRESH_EVENT, refreshEventHandler);
+}
+
+function stopGlobalPolling() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (refreshTimer !== null) {
+    window.clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+
+  if (refreshEventHandler) {
+    window.removeEventListener(AI_STATUS_REFRESH_EVENT, refreshEventHandler);
+    refreshEventHandler = null;
+  }
+}
+
+export function __resetAiStatusForTests() {
+  stopGlobalPolling();
+  activeSubscribers = 0;
+  refreshInFlight = null;
+  useAiStatusStore.setState({
+    loading: true,
+    settings: null,
+    report: null,
+    error: null,
+  });
+}
 
 function normalizeMode(mode: AiMode | undefined): string {
   switch (mode) {
@@ -87,45 +191,21 @@ export function deriveAiPillState(snapshot: {
 }
 
 export function useAiStatus(): AiStatusSnapshot {
-  const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<AiSettings | null>(null);
-  const [report, setReport] = useState<AiCheckReport | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [nextSettings, nextReport] = await Promise.all([
-        tauriClient.getAiSettings(),
-        tauriClient.runAiCheck(),
-      ]);
-
-      setSettings(nextSettings);
-      setReport(nextReport);
-    } catch (refreshError) {
-      setError(refreshError instanceof Error ? refreshError.message : String(refreshError));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loading = useAiStatusStore((state) => state.loading);
+  const settings = useAiStatusStore((state) => state.settings);
+  const report = useAiStatusStore((state) => state.report);
+  const error = useAiStatusStore((state) => state.error);
+  const refresh = useAiStatusStore((state) => state.refresh);
 
   useEffect(() => {
-    void refresh();
-
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, REFRESH_MS);
-    const onRefreshRequested = () => {
-      void refresh();
-    };
-
-    window.addEventListener('ai-status-refresh', onRefreshRequested);
+    activeSubscribers += 1;
+    startGlobalPolling(refresh);
 
     return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('ai-status-refresh', onRefreshRequested);
+      activeSubscribers = Math.max(0, activeSubscribers - 1);
+      if (activeSubscribers === 0) {
+        stopGlobalPolling();
+      }
     };
   }, [refresh]);
 

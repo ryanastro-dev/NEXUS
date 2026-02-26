@@ -65,40 +65,44 @@ fn main() {
 
     tracing::info!("Router control state initialized");
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            focus_main_window(app);
-            close_splash_window(app);
-        }))
-        .setup(|app| {
-            let app_handle = app.handle().clone();
-            app.listen("ui-ready", move |_| {
-                focus_main_window(&app_handle);
-                close_splash_window(&app_handle);
-            });
+        .plugin(tauri_plugin_fs::init());
 
-            if let Some(main_window) = app.get_webview_window("main") {
-                let app_handle_for_close = app.handle().clone();
-                main_window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event
-                        && should_keep_running_in_background(&app_handle_for_close)
-                    {
-                        tracing::info!(
-                            "Close intercepted while monitoring is active; app moved to background"
-                        );
-                        api.prevent_close();
-                        if let Some(window) = app_handle_for_close.get_webview_window("main") {
-                            let _ = window.hide();
-                        }
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        focus_main_window(app);
+        close_splash_window(app);
+    }));
+
+    let builder = builder.setup(|app| {
+        let app_handle = app.handle().clone();
+        app.listen("ui-ready", move |_| {
+            focus_main_window(&app_handle);
+            close_splash_window(&app_handle);
+        });
+
+        if let Some(main_window) = app.get_webview_window("main") {
+            let app_handle_for_close = app.handle().clone();
+            main_window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                    && should_keep_running_in_background(&app_handle_for_close)
+                {
+                    tracing::info!(
+                        "Close intercepted while monitoring is active; app moved to background"
+                    );
+                    api.prevent_close();
+                    if let Some(window) = app_handle_for_close.get_webview_window("main") {
+                        let _ = window.hide();
                     }
-                });
-            }
+                }
+            });
+        }
+        Ok(())
+    });
 
-            Ok(())
-        })
+    builder
         .manage(app_state)
         .manage(monitor_state)
         .manage(router_state)

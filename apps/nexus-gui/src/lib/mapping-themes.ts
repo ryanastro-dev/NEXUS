@@ -2,23 +2,23 @@ import { MappingDesign } from '../components/topology/TopologyControls';
 
 export interface MappingThemeConfig {
   // Node component
-  nodeComponent: 'default' | 'cyber' | 'mesh';
-  
+  nodeComponent: 'default' | 'cyber' | 'mesh' | 'starlink';
+
   // Background
   backgroundColor: string;
   backgroundGradient: string | null;
   patternColor: string;
-  
+
   // Edges
   edgeStyle: 'smoothstep' | 'straight' | 'step';
   edgeWidth: number;
   edgeOpacity: number;
   edgeColor: string;
   edgeGlow: boolean;
-  
+
   // Node styling
   nodeBoxShadow: string;
-  
+
   // Features
   showMetrics: boolean;
   showTrafficMonitor: boolean;
@@ -48,7 +48,7 @@ export function getMappingTheme(design: MappingDesign, isDark: boolean): Mapping
       // Neon, futuristic style with detailed metrics
       nodeComponent: 'cyber',
       backgroundColor: isDark ? '#0A0E27' : '#EFF6FF', // Dark navy vs light blue
-      backgroundGradient: isDark 
+      backgroundGradient: isDark
         ? 'linear-gradient(135deg, #0A0E27 0%, #1a1f3a 50%, #0A0E27 100%)'
         : 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #EFF6FF 100%)',
       patternColor: isDark ? '#0E3A5A' : 'rgba(59, 130, 246, 0.1)',
@@ -57,7 +57,7 @@ export function getMappingTheme(design: MappingDesign, isDark: boolean): Mapping
       edgeOpacity: isDark ? 0.85 : 0.7,
       edgeColor: isDark ? '#00D9FF' : '#2563EB',
       edgeGlow: isDark,
-      nodeBoxShadow: isDark 
+      nodeBoxShadow: isDark
         ? '0 0 20px rgba(0, 217, 255, 0.3)'
         : '0 4px 12px rgba(37, 99, 235, 0.15)',
       showMetrics: true,
@@ -80,6 +80,25 @@ export function getMappingTheme(design: MappingDesign, isDark: boolean): Mapping
         ? '0 4px 12px rgba(0, 0, 0, 0.4)'
         : '0 4px 12px rgba(14, 165, 233, 0.15)',
       showMetrics: false,
+      showTrafficMonitor: true,
+    },
+    starlink: {
+      // Galaxy / SpaceX Starlink constellation style — deep space with orbital aesthetics
+      nodeComponent: 'starlink',
+      backgroundColor: isDark ? '#010409' : '#F0F4FF',
+      backgroundGradient: isDark
+        ? 'linear-gradient(160deg, #010409 0%, #0a0f1e 35%, #0d1528 60%, #010409 100%)'
+        : 'linear-gradient(160deg, #F0F4FF 0%, #E4ECFF 50%, #F0F4FF 100%)',
+      patternColor: isDark ? '#0a1628' : 'rgba(99, 102, 241, 0.06)',
+      edgeStyle: 'straight',
+      edgeWidth: 1,
+      edgeOpacity: isDark ? 0.35 : 0.3,
+      edgeColor: isDark ? '#818cf8' : '#6366f1',
+      edgeGlow: isDark,
+      nodeBoxShadow: isDark
+        ? '0 0 24px rgba(129, 140, 248, 0.25)'
+        : '0 4px 16px rgba(99, 102, 241, 0.12)',
+      showMetrics: true,
       showTrafficMonitor: true,
     },
   };
