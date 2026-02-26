@@ -3,6 +3,7 @@ use reqwest::Client;
 use serde_json::json;
 use std::future::Future;
 use std::pin::Pin;
+use std::time::Duration;
 
 use crate::ai::prompt::build_prompt;
 use crate::ai::provider::{AiProvider, parse_overlay_json};
@@ -38,18 +39,36 @@ impl AiProvider for OllamaProvider {
             let prompt = build_prompt(input)?;
             let endpoint = self.endpoint.trim_end_matches('/');
             let url = format!("{}/api/generate", endpoint);
+            let payload = json!({
+                "model": self.model,
+                "prompt": prompt,
+                "stream": false,
+                "format": "json"
+            });
 
-            let response = client
-                .post(url)
-                .json(&json!({
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": false,
-                    "format": "json"
-                }))
-                .send()
-                .await
-                .context("Failed to call Ollama generate endpoint")?;
+            let response = match client.post(&url).json(&payload).send().await {
+                Ok(response) => response,
+                Err(error) if error.is_timeout() => {
+                    tracing::warn!("Ollama request timed out; retrying once with extended timeout");
+
+                    let retry_client = Client::builder()
+                        .timeout(Duration::from_secs(30))
+                        .build()
+                        .context("Failed to create retry client for Ollama")?;
+
+                    retry_client
+                        .post(&url)
+                        .json(&payload)
+                        .send()
+                        .await
+                        .context(
+                            "Failed to call Ollama generate endpoint (timeout after retry). Increase AI timeout in Settings.",
+                        )?
+                }
+                Err(error) => {
+                    return Err(error).context("Failed to call Ollama generate endpoint");
+                }
+            };
 
             let status = response.status();
             if !status.is_success() {

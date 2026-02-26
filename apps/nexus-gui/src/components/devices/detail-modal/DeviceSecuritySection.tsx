@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import { AlertTriangle, Shield, ShieldCheck } from 'lucide-react';
 
+import type { AiActionTelemetry } from '../../../lib/ai-action-telemetry';
 import type { DeviceSecurityAnalysis } from '../../../lib/api/types';
 import type { HostInfo } from '../../../hooks/useScan';
 import { useLanguage } from '../../../hooks/useLanguage';
@@ -10,7 +11,9 @@ interface DeviceSecuritySectionProps {
   isDark: boolean;
   analysis: DeviceSecurityAnalysis | null;
   isAnalyzing: boolean;
+  analysisProgressMessage?: string | null;
   error: string | null;
+  aiLatencyTelemetry: AiActionTelemetry;
 }
 
 function gradeClasses(grade: string, isDark: boolean): string {
@@ -40,15 +43,27 @@ export function DeviceSecuritySection({
   isDark,
   analysis,
   isAnalyzing,
+  analysisProgressMessage,
   error,
+  aiLatencyTelemetry,
 }: DeviceSecuritySectionProps) {
   const { copy } = useLanguage();
   const modalCopy = copy.devices.modal;
+  const coreEngineCopy = copy.tools.coreEngine;
   const grade = (device.security_grade ?? 'N/A').toUpperCase();
   const vulnerabilities = device.vulnerabilities ?? [];
   const portWarnings = device.port_warnings ?? [];
   const findingCount = vulnerabilities.length + portWarnings.length;
   const hasFindings = findingCount > 0;
+  const aiSourceLabel = analysis?.metadata?.provider
+    ? modalCopy.security.aiSourceAiPowered
+    : modalCopy.security.aiSourceRuleBased;
+  const aiProviderLabel = analysis?.metadata?.provider
+    ? analysis.metadata.model
+      ? `${analysis.metadata.provider} (${analysis.metadata.model})`
+      : analysis.metadata.provider
+    : null;
+  const aiMetadataError = analysis?.metadata?.ai_error?.trim() || null;
 
   return (
     <div className="space-y-3">
@@ -183,7 +198,7 @@ export function DeviceSecuritySection({
 
           {isAnalyzing && (
             <p className={clsx('text-xs', isDark ? 'text-slate-300' : 'text-slate-700')}>
-              {modalCopy.security.generatingActions}
+              {analysisProgressMessage ?? modalCopy.security.generatingActions}
             </p>
           )}
 
@@ -195,6 +210,19 @@ export function DeviceSecuritySection({
 
           {!isAnalyzing && analysis && (
             <div className="space-y-2">
+              <p className={clsx('text-[11px]', isDark ? 'text-cyan-200' : 'text-cyan-700')}>
+                {modalCopy.security.aiSource}: {aiSourceLabel}
+              </p>
+              {aiProviderLabel && (
+                <p className={clsx('text-[11px]', isDark ? 'text-cyan-200' : 'text-cyan-700')}>
+                  {modalCopy.security.provider}: {aiProviderLabel}
+                </p>
+              )}
+              {aiMetadataError && (
+                <p className={clsx('text-[11px]', isDark ? 'text-amber-200' : 'text-amber-700')}>
+                  {modalCopy.security.aiError}: {aiMetadataError}
+                </p>
+              )}
               <p className={clsx('text-xs', isDark ? 'text-slate-200' : 'text-slate-800')}>
                 {analysis.executive_summary}
               </p>
@@ -207,6 +235,38 @@ export function DeviceSecuritySection({
               </div>
             </div>
           )}
+
+          <div
+            className={clsx(
+              'rounded border px-2 py-1.5 text-[11px]',
+              isDark ? 'border-cyan-400/30 bg-cyan-900/20 text-cyan-100' : 'border-cyan-200 bg-cyan-100/60 text-cyan-800',
+            )}
+          >
+            <p>
+              {coreEngineCopy.telemetryStatusLabel}{' '}
+              {aiLatencyTelemetry.status === 'idle'
+                ? coreEngineCopy.telemetryStatusIdle
+                : aiLatencyTelemetry.status === 'running'
+                  ? coreEngineCopy.telemetryStatusRunning
+                  : aiLatencyTelemetry.status === 'success'
+                    ? coreEngineCopy.telemetryStatusSuccess
+                    : coreEngineCopy.telemetryStatusError}
+            </p>
+            <p>
+              {coreEngineCopy.telemetryStartMsLabel}{' '}
+              {aiLatencyTelemetry.start_ms ?? coreEngineCopy.telemetryNotCaptured}
+            </p>
+            <p>
+              {coreEngineCopy.telemetryEndMsLabel}{' '}
+              {aiLatencyTelemetry.end_ms ?? coreEngineCopy.telemetryNotCaptured}
+            </p>
+            <p>
+              {coreEngineCopy.telemetryDurationMsLabel}{' '}
+              {aiLatencyTelemetry.duration_ms === null
+                ? coreEngineCopy.telemetryNotCaptured
+                : `${aiLatencyTelemetry.duration_ms} ms`}
+            </p>
+          </div>
         </div>
       )}
 

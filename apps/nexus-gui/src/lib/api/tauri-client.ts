@@ -35,6 +35,7 @@ import type {
 import { isTauri } from "../runtime/is-tauri";
 
 type InvokeArgs = Record<string, unknown> | undefined;
+const AI_INVOKE_OPTIONS = { retries: 0 } as const;
 
 function normalizeError(error: unknown): string {
   if (error instanceof Error) {
@@ -121,7 +122,7 @@ export const tauriClient = {
   scanNetworkWithAi: (interfaceName?: string) =>
     invokeCommand<ScanWithAi>("scan_network_with_ai", {
       interface: interfaceName ?? null,
-    }),
+    }, AI_INVOKE_OPTIONS),
   runLoadTest: (
     iterations = 5,
     concurrency = 1,
@@ -216,22 +217,22 @@ export const tauriClient = {
   getScanResultSchema: () =>
     invokeCommand<Record<string, unknown>>("get_scan_result_schema"),
   getAiSettings: () => invokeCommand<AiSettings>("get_ai_settings"),
-  runAiCheck: () => invokeCommand<AiCheckReport>("ai_check"),
-  getAiInsights: () => invokeCommand<HybridInsightsResult>("ai_insights"),
+  runAiCheck: () => invokeCommand<AiCheckReport>("ai_check", undefined, AI_INVOKE_OPTIONS),
+  getAiInsights: () => invokeCommand<HybridInsightsResult>("ai_insights", undefined, AI_INVOKE_OPTIONS),
   analyzeDeviceSecurity: (device: HostInfo) =>
     invokeCommand<DeviceSecurityAnalysis>("ai_analyze_device_security", {
       device,
-    }),
+    }, AI_INVOKE_OPTIONS),
   generateNetworkReport: (hosts?: HostInfo[], subnet?: string) =>
     invokeCommand<NetworkReportSummary>("ai_generate_network_report", {
       hosts: hosts && hosts.length > 0 ? hosts : null,
       subnet: subnet ?? null,
-    }),
+    }, AI_INVOKE_OPTIONS),
   troubleshootDevice: (device: HostInfo, symptoms?: string[]) =>
     invokeCommand<DeviceTroubleshootAdvice>("ai_troubleshoot_device", {
       device,
       symptoms: symptoms && symptoms.length > 0 ? symptoms : null,
-    }),
+    }, AI_INVOKE_OPTIONS),
 
   // Exports
   exportDevicesToCsv: () => invokeCommand<string>("export_devices_to_csv"),

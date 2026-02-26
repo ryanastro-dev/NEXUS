@@ -34,7 +34,7 @@ interface TopologyNodeData {
 }
 
 const TOPOLOGY_AUTO_PLAY_INTERVAL_MS = 7000;
-const TOPOLOGY_DESIGN_SEQUENCE: MappingDesign[] = ['default', 'cyber', 'mesh'];
+const TOPOLOGY_DESIGN_SEQUENCE: MappingDesign[] = ['default', 'cyber', 'mesh', 'starlink'];
 
 function nextMappingDesign(current: MappingDesign): MappingDesign {
   const currentIndex = TOPOLOGY_DESIGN_SEQUENCE.indexOf(current);
@@ -69,13 +69,16 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
     isGeneratingReport,
     networkReport,
     networkReportError,
+    networkReportProgressMessage,
     generateNetworkReport,
     clearNetworkReport,
     isTroubleshooting,
     troubleshootAdvice,
     troubleshootError,
+    troubleshootProgressMessage,
     troubleshootDevice,
     clearTroubleshootAdvice,
+    aiActionTelemetry,
   } = useAssistant();
 
   const [isLocked, setIsLocked] = useState(() => {
@@ -85,7 +88,7 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
 
   const [mappingDesign, setMappingDesign] = useState<MappingDesign>(() => {
     const saved = localStorage.getItem('topology-design') as MappingDesign;
-    if (saved === 'cyber' || saved === 'mesh') return saved;
+    if (saved === 'cyber' || saved === 'mesh' || saved === 'starlink') return saved;
     return 'default';
   });
   const [viewMode, setViewMode] = useState<TopologyViewMode>(() => {
@@ -317,11 +320,15 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
               isGeneratingReport={isGeneratingReport}
               networkReport={networkReport}
               networkReportError={networkReportError}
+              networkReportProgressMessage={networkReportProgressMessage}
               onCloseReport={clearNetworkReport}
+              networkReportLatencyTelemetry={aiActionTelemetry.network_report}
               isTroubleshooting={isTroubleshooting}
               troubleshootAdvice={troubleshootAdvice}
               troubleshootError={troubleshootError}
+              troubleshootProgressMessage={troubleshootProgressMessage}
               onCloseTroubleshoot={clearTroubleshootAdvice}
+              troubleshootLatencyTelemetry={aiActionTelemetry.troubleshoot}
             />
           }
         />
@@ -355,11 +362,15 @@ export default function TopologyView({ onDeviceClick }: TopologyViewProps) {
               isGeneratingReport={isGeneratingReport}
               networkReport={networkReport}
               networkReportError={networkReportError}
+              networkReportProgressMessage={networkReportProgressMessage}
               onCloseReport={clearNetworkReport}
+              networkReportLatencyTelemetry={aiActionTelemetry.network_report}
               isTroubleshooting={isTroubleshooting}
               troubleshootAdvice={troubleshootAdvice}
               troubleshootError={troubleshootError}
+              troubleshootProgressMessage={troubleshootProgressMessage}
               onCloseTroubleshoot={clearTroubleshootAdvice}
+              troubleshootLatencyTelemetry={aiActionTelemetry.troubleshoot}
             />
           }
         />

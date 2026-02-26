@@ -56,6 +56,8 @@ fn scan_phase_message(phase: &str) -> &'static str {
         "init" | "interface" => "Preparing interface and subnet context",
         "arp" | "discovery" => "Running host discovery sweep",
         "tcp" | "services" => "Profiling reachable hosts and services",
+        "ai" => "Generating AI summary and recommendations",
+        "ai_fallback" => "AI provider unavailable; using deterministic fallback output",
         "snmp" => "Collecting SNMP metadata and neighbor links",
         "dns" | "render" => "Building topology graph payload",
         "complete" => "Topology discovery complete",
@@ -65,6 +67,51 @@ fn scan_phase_message(phase: &str) -> &'static str {
 
 fn emit_engine_event(app: &tauri::AppHandle, event: &AppEvent) {
     let _ = app.emit("engine-event", event);
+}
+
+pub(crate) fn emit_engine_app_event(app: &tauri::AppHandle, event: AppEvent) {
+    emit_engine_event(app, &event);
+}
+
+pub(crate) fn emit_engine_info(app: &tauri::AppHandle, message: impl Into<String>) {
+    emit_engine_app_event(
+        app,
+        AppEvent::Info {
+            message: message.into(),
+        },
+    );
+}
+
+pub(crate) fn emit_engine_warn(app: &tauri::AppHandle, message: impl Into<String>) {
+    emit_engine_app_event(
+        app,
+        AppEvent::Warn {
+            message: message.into(),
+        },
+    );
+}
+
+pub(crate) fn emit_engine_error(app: &tauri::AppHandle, message: impl Into<String>) {
+    emit_engine_app_event(
+        app,
+        AppEvent::Error {
+            message: message.into(),
+        },
+    );
+}
+
+pub(crate) fn emit_engine_scan_phase(
+    app: &tauri::AppHandle,
+    phase: impl Into<String>,
+    progress_pct: u8,
+) {
+    emit_engine_app_event(
+        app,
+        AppEvent::ScanPhase {
+            phase: phase.into(),
+            progress_pct,
+        },
+    );
 }
 
 fn attach_engine_event_hook(context: AppContext, app: &tauri::AppHandle) -> AppContext {

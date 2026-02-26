@@ -151,7 +151,7 @@ pub(crate) async fn generate_hybrid_insights_with_settings(
     let client = match Client::builder().timeout(settings.timeout()).build() {
         Ok(c) => c,
         Err(e) => {
-            result.ai_error = Some(format!("AI client init failed: {}", e));
+            result.ai_error = Some(format!("AI client init failed: {:#}", e));
             write_cached_insights(cache_key, &result);
             return result;
         }
@@ -188,7 +188,7 @@ pub(crate) async fn generate_hybrid_insights_with_settings(
                 Ok(cloud_provider) => {
                     apply_provider_result(&mut result, &cloud_provider, &client, &cloud_input).await
                 }
-                Err(e) => result.ai_error = Some(format!("Cloud AI failed: {}", e)),
+                Err(e) => result.ai_error = Some(format!("Cloud AI failed: {:#}", e)),
             }
         }
         AiMode::HybridAuto => match local_provider.generate_overlay(&client, &local_input).await {
@@ -221,7 +221,8 @@ pub(crate) async fn generate_hybrid_insights_with_settings(
                             Err(cloud_err) => {
                                 result.ai_error = Some(format!(
                                     "Hybrid AI failed. local={}, cloud={}",
-                                    local_err, cloud_err
+                                    format_args!("{:#}", local_err),
+                                    format_args!("{:#}", cloud_err)
                                 ));
                             }
                         }
@@ -229,7 +230,8 @@ pub(crate) async fn generate_hybrid_insights_with_settings(
                     Err(cloud_cfg_err) => {
                         result.ai_error = Some(format!(
                             "Hybrid AI failed. local={}, cloud-config={}",
-                            local_err, cloud_cfg_err
+                            format_args!("{:#}", local_err),
+                            format_args!("{:#}", cloud_cfg_err)
                         ));
                     }
                 }

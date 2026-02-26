@@ -204,6 +204,58 @@ fn generate_demo_hosts() -> Vec<HostInfo> {
     while hosts.len() < DEMO_TARGET_HOST_COUNT {
         let next_index = hosts.len();
         let seed = &seed_hosts[next_index % seed_hosts.len()];
+
+        // Skip cloning ROUTER / SWITCH / ACCESS_POINT — they are central hub nodes and cloning
+        // them produces disconnected topology nodes with no edges.
+        let is_infra = |dt: &DeviceType| {
+            matches!(
+                dt,
+                DeviceType::Router | DeviceType::Switch | DeviceType::AccessPoint
+            )
+        };
+        if is_infra(&seed.device_type) {
+            // Pick a different seed that isn't infrastructure.
+            let mut alt_offset = 1;
+            loop {
+                let alt_seed = &seed_hosts[(next_index + alt_offset) % seed_hosts.len()];
+                if !is_infra(&alt_seed.device_type) {
+                    let clone_round = ((next_index + alt_offset) / seed_hosts.len()).max(1);
+                    let expansion_offset = next_index - seed_hosts.len();
+
+                    let mut cloned = alt_seed.clone();
+                    cloned.ip = next_available_ip(&prefix, &mut used_ips, &mut next_octet);
+                    cloned.mac =
+                        next_available_mac(&alt_seed.mac, next_index + clone_round, &mut used_macs);
+                    cloned.hostname = alt_seed
+                        .hostname
+                        .as_ref()
+                        .map(|name| format!("{name}-lab-{clone_round:02}"));
+                    cloned.response_time_ms = alt_seed.response_time_ms.map(|base| {
+                        base.saturating_add((expansion_offset % 18) as u64 + clone_round as u64)
+                    });
+
+                    let jitter = ((expansion_offset as i16 * 5 + clone_round as i16 * 3) % 17) - 8;
+                    cloned.risk_score = (alt_seed.risk_score as i16 + jitter).clamp(2, 96) as u8;
+                    cloned.security_grade = grade_from_risk(cloned.risk_score);
+
+                    if !alt_seed.vulnerabilities.is_empty() && expansion_offset.is_multiple_of(4) {
+                        cloned.vulnerabilities = alt_seed.vulnerabilities.clone();
+                    } else {
+                        cloned.vulnerabilities.clear();
+                    }
+
+                    hosts.push(cloned);
+                    break;
+                }
+                alt_offset += 1;
+                if alt_offset >= seed_hosts.len() {
+                    // All seeds are infrastructure — should never happen with our templates.
+                    break;
+                }
+            }
+            continue;
+        }
+
         let clone_round = (next_index / seed_hosts.len()).max(1);
         let expansion_offset = next_index - seed_hosts.len();
 

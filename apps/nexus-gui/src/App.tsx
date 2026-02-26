@@ -155,7 +155,7 @@ function AppShell() {
         const geminiModel =
           typeof parsed?.geminiModel === "string" && parsed.geminiModel.trim().length > 0
             ? parsed.geminiModel.trim()
-            : "gemini-2.5-flash";
+            : "gemini-3.1-pro";
         const geminiApiKey =
           typeof parsed?.geminiApiKey === "string" && parsed.geminiApiKey.trim().length > 0
             ? parsed.geminiApiKey.trim()
@@ -179,7 +179,7 @@ function AppShell() {
           .applyAiRuntimeSettings({
             enabled: aiEnabled,
             mode: aiEnabled ? aiMode : "disabled",
-            timeout_ms: Number.isFinite(aiTimeout) ? aiTimeout : 8000,
+            timeout_ms: Number.isFinite(aiTimeout) ? aiTimeout : 20000,
             ollama_endpoint: ollamaEndpoint,
             ollama_model: ollamaModel,
             gemini_endpoint: geminiEndpoint,

@@ -1,6 +1,7 @@
 import { Loader2, Terminal } from 'lucide-react';
 
 import { useLanguage } from '../../../hooks/useLanguage';
+import type { AiActionTelemetry } from '../../../lib/ai-action-telemetry';
 import type {
   EngineEventType,
   HybridInsightsResult,
@@ -19,6 +20,10 @@ interface CoreEngineResultsColumnProps {
   insightsError: string | null;
   loadError: string | null;
   exportingAiJson: boolean;
+  aiActionTelemetry: {
+    scan_with_ai: AiActionTelemetry;
+    ai_insights: AiActionTelemetry;
+  };
   aiOverlaySummary: {
     executive_summary: string;
   } | null;
@@ -35,12 +40,31 @@ export function CoreEngineResultsColumn({
   insightsError,
   loadError,
   exportingAiJson,
+  aiActionTelemetry,
   aiOverlaySummary,
   aiProviderLabel,
   onExportAiScanJson,
 }: CoreEngineResultsColumnProps) {
   const { copy } = useLanguage();
   const coreEngineCopy = copy.tools.coreEngine;
+  const scanAiSource = scanResult?.ai?.ai_overlay
+    ? coreEngineCopy.aiSourceAiPowered
+    : coreEngineCopy.aiSourceRuleBased;
+  const insightsAiSource = insightsResult?.ai_overlay
+    ? coreEngineCopy.aiSourceAiPowered
+    : coreEngineCopy.aiSourceRuleBased;
+  const formatTimestampMs = (value: number | null) =>
+    value === null ? coreEngineCopy.telemetryNotCaptured : `${value}`;
+  const formatDurationMs = (value: number | null) =>
+    value === null ? coreEngineCopy.telemetryNotCaptured : `${value} ms`;
+  const formatAverageDurationMs = (value: number | null) =>
+    value === null ? coreEngineCopy.telemetryNotCaptured : `${value.toFixed(1)} ms`;
+  const telemetryStatusLabelMap = {
+    idle: coreEngineCopy.telemetryStatusIdle,
+    running: coreEngineCopy.telemetryStatusRunning,
+    success: coreEngineCopy.telemetryStatusSuccess,
+    error: coreEngineCopy.telemetryStatusError,
+  } satisfies Record<AiActionTelemetry['status'], string>;
 
   return (
     <div className="space-y-3">
@@ -53,6 +77,15 @@ export function CoreEngineResultsColumn({
               <p className="mt-1">{coreEngineCopy.interfaceLabel} {scanResult.scan.interface_name}</p>
               <p>{coreEngineCopy.hosts} {scanResult.scan.total_hosts}</p>
               <p>{coreEngineCopy.duration} {scanResult.scan.scan_duration_ms} ms</p>
+              <p>{coreEngineCopy.aiSource} {scanAiSource}</p>
+              {scanResult.ai?.ai_provider && (
+                <p>
+                  {coreEngineCopy.provider}{' '}
+                  {scanResult.ai.ai_model
+                    ? `${scanResult.ai.ai_provider} (${scanResult.ai.ai_model})`
+                    : scanResult.ai.ai_provider}
+                </p>
+              )}
               <p>
                 {coreEngineCopy.aiOverlay}{' '}
                 {scanResult.ai?.ai_overlay ? coreEngineCopy.available : coreEngineCopy.notAvailable}
@@ -85,9 +118,23 @@ export function CoreEngineResultsColumn({
           {insightsResult && (
             <div className="rounded border border-theme bg-bg-tertiary/40 p-3">
               <p className="font-semibold text-text-primary">{coreEngineCopy.resultAiInsights}</p>
+              <p className="mt-1">{coreEngineCopy.aiSource} {insightsAiSource}</p>
+              {insightsResult.ai_provider && (
+                <p>
+                  {coreEngineCopy.provider}{' '}
+                  {insightsResult.ai_model
+                    ? `${insightsResult.ai_provider} (${insightsResult.ai_model})`
+                    : insightsResult.ai_provider}
+                </p>
+              )}
               <p className="mt-1">{coreEngineCopy.healthScore} {insightsResult.health.score}</p>
               <p>{coreEngineCopy.grade} {insightsResult.health.grade}</p>
               <p>{coreEngineCopy.issues} {insightsResult.security.total_issues}</p>
+              {insightsResult.ai_error && (
+                <p className="mt-1 text-accent-amber">
+                  {coreEngineCopy.aiError} {insightsResult.ai_error}
+                </p>
+              )}
             </div>
           )}
 
@@ -100,6 +147,47 @@ export function CoreEngineResultsColumn({
               <p>{coreEngineCopy.avgScan} {loadResult.avg_scan_duration_ms.toFixed(1)} ms</p>
             </div>
           )}
+
+          <div className="rounded border border-theme bg-bg-tertiary/40 p-3">
+            <p className="font-semibold text-text-primary">{coreEngineCopy.aiLatencyTelemetryTitle}</p>
+
+            <div className="mt-2 space-y-2">
+              {([
+                ['scan_with_ai', coreEngineCopy.scanWithAi] as const,
+                ['ai_insights', coreEngineCopy.aiInsights] as const,
+              ]).map(([actionKey, actionLabel]) => {
+                const telemetry = aiActionTelemetry[actionKey];
+                return (
+                  <div key={actionKey} className="rounded border border-theme/70 bg-bg-primary/30 p-2">
+                    <p className="font-semibold text-text-primary">{actionLabel}</p>
+                    <p>
+                      {coreEngineCopy.telemetryStatusLabel}{' '}
+                      {telemetryStatusLabelMap[telemetry.status]}
+                    </p>
+                    <p>
+                      {coreEngineCopy.telemetryStartMsLabel}{' '}
+                      {formatTimestampMs(telemetry.start_ms)}
+                    </p>
+                    <p>
+                      {coreEngineCopy.telemetryEndMsLabel}{' '}
+                      {formatTimestampMs(telemetry.end_ms)}
+                    </p>
+                    <p>
+                      {coreEngineCopy.telemetryDurationMsLabel}{' '}
+                      {formatDurationMs(telemetry.duration_ms)}
+                    </p>
+                    <p>
+                      {coreEngineCopy.telemetryAverageMsLabel}{' '}
+                      {formatAverageDurationMs(telemetry.avg_duration_ms)}
+                    </p>
+                    <p>
+                      {coreEngineCopy.telemetrySamplesLabel} {telemetry.samples}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {engineEvents.length > 0 && (
             <div className="rounded border border-theme bg-bg-tertiary/40 p-3">

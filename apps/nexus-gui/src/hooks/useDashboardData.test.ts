@@ -65,6 +65,14 @@ describe('useDashboardData', () => {
   let telemetryHandler: ((event: TelemetryEvent) => void) | null;
 
   beforeEach(() => {
+    const nowMs = Date.now();
+    const within24hIso = new Date(nowMs - 30 * 60 * 1000).toISOString();
+    const slightlyOlderIso = new Date(nowMs - 80 * 60 * 1000).toISOString();
+    const firstSeenRecentIso = new Date(nowMs - 4 * 60 * 60 * 1000).toISOString();
+    const firstSeenOlderIso = new Date(nowMs - 30 * 60 * 60 * 1000).toISOString();
+    const scanIso = new Date(nowMs - 20 * 60 * 1000).toISOString();
+    const alertIso = new Date(nowMs - 10 * 60 * 1000).toISOString();
+
     telemetryHandler = null;
     dashboardMocks.getAllDevices.mockReset();
     dashboardMocks.getNetworkStats.mockReset();
@@ -85,8 +93,8 @@ describe('useDashboardData', () => {
       {
         id: 1,
         mac: 'AA:BB:CC:DD:EE:01',
-        first_seen: '2026-02-25T00:00:00Z',
-        last_seen: '2026-02-25T00:30:00Z',
+        first_seen: firstSeenRecentIso,
+        last_seen: within24hIso,
         last_ip: '192.168.88.1',
         vendor: 'MikroTik',
         device_type: 'ROUTER',
@@ -94,8 +102,8 @@ describe('useDashboardData', () => {
       {
         id: 2,
         mac: 'AA:BB:CC:DD:EE:02',
-        first_seen: '2026-02-24T10:00:00Z',
-        last_seen: '2026-02-25T00:20:00Z',
+        first_seen: firstSeenOlderIso,
+        last_seen: slightlyOlderIso,
         last_ip: '192.168.88.20',
       },
     ]);
@@ -106,7 +114,7 @@ describe('useDashboardData', () => {
       new_devices_24h: 1,
       high_risk_devices: 0,
       total_scans: 5,
-      last_scan_time: '2026-02-25T00:30:00Z',
+      last_scan_time: scanIso,
     });
     dashboardMocks.getNetworkHealth.mockResolvedValue({
       score: 75,
@@ -122,7 +130,7 @@ describe('useDashboardData', () => {
     dashboardMocks.getScanHistory.mockResolvedValue([
       {
         id: 1,
-        scan_time: '2026-02-25T00:30:00Z',
+        scan_time: scanIso,
         interface_name: 'eth0',
         local_ip: '192.168.88.10',
         local_mac: '00:11:22:33:44:55',
@@ -137,7 +145,7 @@ describe('useDashboardData', () => {
     dashboardMocks.getUnreadAlerts.mockResolvedValue([
       {
         id: 1,
-        created_at: '2026-02-25T00:31:00Z',
+        created_at: alertIso,
         alert_type: 'HIGH_RISK',
         message: 'critical alert',
         severity: 'CRITICAL',

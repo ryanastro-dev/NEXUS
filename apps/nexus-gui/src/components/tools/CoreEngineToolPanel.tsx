@@ -23,6 +23,7 @@ export default function CoreEngineToolPanel() {
     aiReadinessLoading,
     aiReady,
     aiReadinessMessage,
+    aiActionTelemetry,
     aiOverlaySummary,
     aiProviderLabel,
     handleScanWithAi,
@@ -67,6 +68,7 @@ export default function CoreEngineToolPanel() {
         insightsError={insightsError}
         loadError={loadError}
         exportingAiJson={exportingAiJson}
+        aiActionTelemetry={aiActionTelemetry}
         aiOverlaySummary={aiOverlaySummary}
         aiProviderLabel={aiProviderLabel}
         onExportAiScanJson={() => {

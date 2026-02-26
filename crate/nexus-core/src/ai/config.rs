@@ -4,7 +4,7 @@ use std::time::Duration;
 use crate::ai::types::AiMode;
 use crate::config::runtime_env_var;
 
-const DEFAULT_AI_TIMEOUT_MS: u64 = 8000;
+const DEFAULT_AI_TIMEOUT_MS: u64 = 20_000;
 const DEFAULT_OLLAMA_ENDPOINT: &str = "http://127.0.0.1:11434";
 const DEFAULT_OLLAMA_MODEL: &str = "qwen3:8b";
 const DEFAULT_GEMINI_ENDPOINT: &str = "https://generativelanguage.googleapis.com";

@@ -128,7 +128,7 @@ export default function Settings() {
     setAiEnabled(settings.aiEnabled === true);
     setAiMode(settings.aiEnabled ? settings.aiMode : 'disabled');
     setAutoAiOnDeviceOpen(settings.autoAiOnDeviceOpen !== false);
-    setAiTimeoutMs(settings.aiTimeoutMs || 8000);
+    setAiTimeoutMs(settings.aiTimeoutMs || DEFAULT_SETTINGS.aiTimeoutMs);
     setOllamaEndpoint(settings.ollamaEndpoint || DEFAULT_SETTINGS.ollamaEndpoint);
     setOllamaModel(settings.ollamaModel || DEFAULT_SETTINGS.ollamaModel);
     setGeminiEndpoint(settings.geminiEndpoint || DEFAULT_SETTINGS.geminiEndpoint);
